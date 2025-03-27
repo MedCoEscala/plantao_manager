@@ -1,11 +1,6 @@
 import React from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
-} from "react-native";
+import { View, Text, TouchableOpacity } from "react-native";
+import { FlashList } from "@shopify/flash-list";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
@@ -46,190 +41,78 @@ const SAMPLE_PAYMENTS: Payment[] = [
 
 export default function PaymentsScreen() {
   const renderPaymentItem = ({ item }: { item: Payment }) => (
-    <TouchableOpacity style={styles.paymentCard}>
-      <View style={styles.paymentHeader}>
-        <Text style={styles.paymentHospital}>{item.hospital}</Text>
+    <TouchableOpacity className="bg-white rounded-xl p-4 mb-3 shadow-sm">
+      <View className="flex-row justify-between items-center mb-3">
+        <Text className="text-base font-bold text-gray-800 flex-1">
+          {item.hospital}
+        </Text>
         <View
-          style={[
-            styles.statusBadge,
-            {
-              backgroundColor: item.status === "Pago" ? "#D1FAE5" : "#FEF3C7",
-            },
-          ]}
+          className={`px-2 py-1 rounded ${
+            item.status === "Pago" ? "bg-green-100" : "bg-amber-100"
+          }`}
         >
           <Text
-            style={[
-              styles.statusText,
-              {
-                color: item.status === "Pago" ? "#059669" : "#D97706",
-              },
-            ]}
+            className={`text-xs font-medium ${
+              item.status === "Pago" ? "text-green-600" : "text-amber-600"
+            }`}
           >
             {item.status}
           </Text>
         </View>
       </View>
-      <View style={styles.paymentDetails}>
-        <View style={styles.paymentDetail}>
-          <Text style={styles.paymentLabel}>Data</Text>
-          <Text style={styles.paymentValue}>{item.date}</Text>
+      <View className="flex-row">
+        <View className="flex-1">
+          <Text className="text-sm text-gray-500 mb-1">Data</Text>
+          <Text className="text-sm font-medium text-gray-800">{item.date}</Text>
         </View>
-        <View style={styles.paymentDetail}>
-          <Text style={styles.paymentLabel}>Valor</Text>
-          <Text style={styles.paymentValue}>{item.amount}</Text>
+        <View className="flex-1">
+          <Text className="text-sm text-gray-500 mb-1">Valor</Text>
+          <Text className="text-sm font-medium text-gray-800">
+            {item.amount}
+          </Text>
         </View>
       </View>
     </TouchableOpacity>
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView className="flex-1 bg-gray-50">
       <StatusBar style="dark" />
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Pagamentos</Text>
-        <TouchableOpacity style={styles.filterButton}>
+      <View className="flex-row justify-between items-center px-4 py-3 border-b border-gray-200">
+        <Text className="text-xl font-bold text-gray-800">Pagamentos</Text>
+        <TouchableOpacity className="p-2">
           <Ionicons name="filter-outline" size={24} color="#2B2D42" />
         </TouchableOpacity>
       </View>
 
-      <View style={styles.summaryContainer}>
-        <View style={styles.summaryCard}>
-          <Text style={styles.summaryTitle}>Este mês</Text>
-          <Text style={styles.summaryAmount}>R$ 3.950,00</Text>
+      <View className="flex-row px-4 py-4">
+        <View className="flex-1 bg-white rounded-xl p-4 mx-1 shadow-sm">
+          <Text className="text-sm text-gray-500 mb-1">Este mês</Text>
+          <Text className="text-lg font-bold text-gray-800">R$ 3.950,00</Text>
         </View>
-        <View style={styles.summaryCard}>
-          <Text style={styles.summaryTitle}>Total</Text>
-          <Text style={styles.summaryAmount}>R$ 9.750,00</Text>
+        <View className="flex-1 bg-white rounded-xl p-4 mx-1 shadow-sm">
+          <Text className="text-sm text-gray-500 mb-1">Total</Text>
+          <Text className="text-lg font-bold text-gray-800">R$ 9.750,00</Text>
         </View>
       </View>
 
       {SAMPLE_PAYMENTS.length > 0 ? (
-        <FlatList
-          data={SAMPLE_PAYMENTS}
-          renderItem={renderPaymentItem}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContent}
-        />
+        <View className="flex-1 px-4">
+          <FlashList
+            data={SAMPLE_PAYMENTS}
+            renderItem={renderPaymentItem}
+            keyExtractor={(item: Payment) => item.id}
+            estimatedItemSize={100}
+          />
+        </View>
       ) : (
-        <View style={styles.emptyState}>
+        <View className="flex-1 justify-center items-center p-6">
           <Ionicons name="cash-outline" size={64} color="#8D99AE" />
-          <Text style={styles.emptyText}>Nenhum pagamento encontrado</Text>
+          <Text className="mt-4 text-base text-gray-500 text-center">
+            Nenhum pagamento encontrado
+          </Text>
         </View>
       )}
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F8F9FA",
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#E9ECEF",
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#2B2D42",
-  },
-  filterButton: {
-    padding: 8,
-  },
-  summaryContainer: {
-    flexDirection: "row",
-    padding: 16,
-  },
-  summaryCard: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    padding: 16,
-    marginHorizontal: 4,
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  summaryTitle: {
-    fontSize: 14,
-    color: "#8D99AE",
-    marginBottom: 4,
-  },
-  summaryAmount: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#2B2D42",
-  },
-  listContent: {
-    padding: 16,
-    paddingTop: 0,
-  },
-  paymentCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  paymentHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  paymentHospital: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#2B2D42",
-    flex: 1,
-  },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: "500",
-  },
-  paymentDetails: {
-    flexDirection: "row",
-  },
-  paymentDetail: {
-    flex: 1,
-  },
-  paymentLabel: {
-    fontSize: 14,
-    color: "#8D99AE",
-    marginBottom: 4,
-  },
-  paymentValue: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: "#2B2D42",
-  },
-  emptyState: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 24,
-  },
-  emptyText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: "#8D99AE",
-    textAlign: "center",
-  },
-});

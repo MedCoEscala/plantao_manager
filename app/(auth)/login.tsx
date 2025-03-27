@@ -2,42 +2,44 @@ import React, { useState } from "react";
 import {
   View,
   Text,
-  StyleSheet,
   TouchableOpacity,
-  Image,
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
 } from "react-native";
-import { StatusBar } from "expo-status-bar";
-import { useAuth } from "@app/contexts/AuthContext";
 import { useRouter } from "expo-router";
+import { useAuth } from "@app/contexts/AuthContext";
+import { useToast } from "@app/components/ui";
 import Button from "@app/components/ui/Button";
 import Input from "@app/components/ui/Input";
-import { useToast } from "@app/components/ui/Toast";
+import { ScrollView } from "@app/components/ui";
 
-export default function LoginScreen() {
+export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const router = useRouter();
-  const { showToast } = useToast();
+  const toast = useToast();
 
   const handleLogin = async () => {
-    if (!email || !password) {
-      showToast("Preencha todos os campos", "error");
-      return;
-    }
-
     try {
-      setLoading(true);
-      const success = await login({ email, password });
-      if (success) {
-        router.replace("/(app)/(tabs)/");
+      if (!email.trim() || !password.trim()) {
+        return toast.show({
+          title: "Erro",
+          message: "Preencha todos os campos",
+          type: "error",
+        });
       }
+
+      setLoading(true);
+      await login(email, password);
+      // O redirecionamento já é feito no AuthContext após um login bem-sucedido
     } catch (error) {
-      showToast("Credenciais inválidas", "error");
+      toast.show({
+        title: "Erro",
+        message: "Erro ao realizar login",
+        type: "error",
+      });
     } finally {
       setLoading(false);
     }
@@ -53,152 +55,60 @@ export default function LoginScreen() {
 
   return (
     <KeyboardAvoidingView
+      className="flex-1"
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      style={styles.container}
     >
-      <StatusBar style="dark" />
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
+        className="flex-1 bg-background"
+        contentContainerClassName="flex-1 justify-center p-6"
       >
-        <View style={styles.logoContainer}>
-          <Image
-            source={require("@app/assets/images/logo.png")}
-            style={styles.logo}
-            resizeMode="contain"
-          />
-          <Text style={styles.appName}>Plantão Manager</Text>
+        <View className="mb-10">
+          <Text className="text-3xl font-bold text-primary mb-2">
+            Bem-vindo
+          </Text>
+          <Text className="text-foreground/60">Faça login para continuar</Text>
         </View>
 
-        <View style={styles.formContainer}>
-          <Text style={styles.headerText}>Login</Text>
-          <Text style={styles.subHeaderText}>
-            Bem-vindo de volta! Entre para continuar.
-          </Text>
+        <View className="space-y-4">
+          <Input
+            label="Email"
+            placeholder="Seu email"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
 
-          <View style={styles.inputContainer}>
-            <Input
-              label="Email"
-              placeholder="Seu email"
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-          </View>
+          <Input
+            label="Senha"
+            placeholder="Sua senha"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            autoCapitalize="none"
+          />
 
-          <View style={styles.inputContainer}>
-            <Input
-              label="Senha"
-              placeholder="Sua senha"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-            />
-          </View>
-
-          <TouchableOpacity
-            style={styles.forgotPasswordContainer}
-            onPress={navigateToForgotPassword}
-          >
-            <Text style={styles.forgotPasswordText}>Esqueceu a senha?</Text>
+          <TouchableOpacity onPress={navigateToForgotPassword}>
+            <Text className="text-primary text-right">Esqueceu a senha?</Text>
           </TouchableOpacity>
+        </View>
 
-          <TouchableOpacity
-            style={styles.loginButton}
+        <View className="mt-8">
+          <Button
+            title="Entrar"
             onPress={handleLogin}
-            disabled={loading}
-          >
-            <Text style={styles.loginButtonText}>
-              {loading ? "Entrando..." : "Entrar"}
-            </Text>
-          </TouchableOpacity>
+            loading={loading}
+            variant="primary"
+          />
+        </View>
 
-          <View style={styles.signupContainer}>
-            <Text style={styles.signupText}>Não tem uma conta? </Text>
-            <TouchableOpacity onPress={navigateToSignUp}>
-              <Text style={styles.signupLink}>Cadastre-se</Text>
-            </TouchableOpacity>
-          </View>
+        <View className="flex-row justify-center mt-8">
+          <Text className="text-foreground/60 mr-1">Não tem uma conta?</Text>
+          <TouchableOpacity onPress={navigateToSignUp}>
+            <Text className="text-primary font-medium">Cadastre-se</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: 20,
-    paddingBottom: 40,
-  },
-  logoContainer: {
-    alignItems: "center",
-    marginTop: 60,
-    marginBottom: 40,
-  },
-  logo: {
-    width: 80,
-    height: 80,
-    marginBottom: 16,
-  },
-  appName: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#0077B6",
-  },
-  formContainer: {
-    flex: 1,
-  },
-  headerText: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#2B2D42",
-    marginBottom: 8,
-  },
-  subHeaderText: {
-    fontSize: 16,
-    color: "#8D99AE",
-    marginBottom: 32,
-  },
-  inputContainer: {
-    marginBottom: 20,
-  },
-  forgotPasswordContainer: {
-    alignItems: "flex-end",
-    marginBottom: 24,
-  },
-  forgotPasswordText: {
-    color: "#0077B6",
-    fontSize: 14,
-  },
-  loginButton: {
-    backgroundColor: "#0077B6",
-    borderRadius: 8,
-    paddingVertical: 12,
-    alignItems: "center",
-    marginBottom: 24,
-  },
-  loginButtonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  signupContainer: {
-    flexDirection: "row",
-    justifyContent: "center",
-  },
-  signupText: {
-    color: "#8D99AE",
-    fontSize: 14,
-  },
-  signupLink: {
-    color: "#0077B6",
-    fontSize: 14,
-    fontWeight: "bold",
-  },
-});

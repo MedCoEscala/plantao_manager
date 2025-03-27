@@ -5,14 +5,15 @@ import {
   ActivityIndicator,
   TouchableOpacityProps,
 } from "react-native";
-import { twMerge } from "tailwind-merge";
+import { useColorScheme } from "nativewind";
 
 interface ButtonProps extends TouchableOpacityProps {
-  variant?: "primary" | "secondary" | "outline" | "ghost";
+  variant?: "primary" | "secondary" | "outline" | "ghost" | "default";
   loading?: boolean;
   size?: "sm" | "md" | "lg";
   fullWidth?: boolean;
-  children: React.ReactNode;
+  title?: string;
+  children?: React.ReactNode;
 }
 
 export const Button: React.FC<ButtonProps> = ({
@@ -21,67 +22,94 @@ export const Button: React.FC<ButtonProps> = ({
   size = "md",
   fullWidth = false,
   children,
-  className,
+  title,
+  className = "",
   disabled,
   ...props
 }) => {
-  // Estilos base do botão
-  const baseStyle = "rounded-lg items-center justify-center";
+  // Função para gerar as classes CSS com base nas props
+  const getButtonClasses = () => {
+    let classes = "rounded-lg items-center justify-center ";
 
-  // Estilos de variantes
-  const variantStyles = {
-    primary: "bg-primary text-white",
-    secondary: "bg-secondary text-text-dark",
-    outline: "bg-transparent border border-primary text-primary",
-    ghost: "bg-transparent text-primary",
+    // Variantes
+    switch (variant) {
+      case "primary":
+        classes += "bg-primary ";
+        break;
+      case "secondary":
+        classes += "bg-secondary ";
+        break;
+      case "outline":
+        classes += "bg-transparent border border-primary ";
+        break;
+      case "ghost":
+        classes += "bg-transparent ";
+        break;
+    }
+
+    // Tamanhos
+    switch (size) {
+      case "sm":
+        classes += "py-1 px-3 ";
+        break;
+      case "md":
+        classes += "py-2 px-4 ";
+        break;
+      case "lg":
+        classes += "py-3 px-6 ";
+        break;
+    }
+
+    // Largura total
+    if (fullWidth) {
+      classes += "w-full ";
+    }
+
+    // Estado desabilitado
+    if (disabled || loading) {
+      classes += "opacity-60 ";
+    }
+
+    return classes + className;
   };
 
-  // Estilos de tamanhos
-  const sizeStyles = {
-    sm: "py-1 px-3",
-    md: "py-2 px-4",
-    lg: "py-3 px-6",
+  // Função para gerar as classes do texto com base nas props
+  const getTextClasses = () => {
+    let classes = "font-medium ";
+
+    // Tamanho do texto
+    switch (size) {
+      case "sm":
+        classes += "text-sm ";
+        break;
+      case "md":
+        classes += "text-base ";
+        break;
+      case "lg":
+        classes += "text-lg ";
+        break;
+    }
+
+    // Cor do texto
+    switch (variant) {
+      case "primary":
+        classes += "text-white ";
+        break;
+      case "secondary":
+        classes += "text-text-dark ";
+        break;
+      case "outline":
+      case "ghost":
+        classes += "text-primary ";
+        break;
+    }
+
+    return classes;
   };
-
-  // Estilos para largura total
-  const widthStyle = fullWidth ? "w-full" : "";
-
-  // Estilos para estado desabilitado
-  const disabledStyle = disabled || loading ? "opacity-60" : "";
-
-  // Combinando todos os estilos
-  const buttonStyle = twMerge(
-    baseStyle,
-    variantStyles[variant],
-    sizeStyles[size],
-    widthStyle,
-    disabledStyle,
-    className
-  );
-
-  // Estilos do texto
-  const textSizeStyles = {
-    sm: "text-sm",
-    md: "text-base",
-    lg: "text-lg",
-  };
-
-  const textColorStyles = {
-    primary: "text-white",
-    secondary: "text-text-dark",
-    outline: "text-primary",
-    ghost: "text-primary",
-  };
-
-  const textStyle = twMerge(
-    "font-medium",
-    textSizeStyles[size],
-    textColorStyles[variant]
-  );
 
   return (
     <TouchableOpacity
-      className={buttonStyle}
+      className={getButtonClasses()}
       disabled={disabled || loading}
       {...props}
     >
@@ -91,7 +119,7 @@ export const Button: React.FC<ButtonProps> = ({
           color={variant === "primary" ? "#ffffff" : "#0077B6"}
         />
       ) : (
-        <Text className={textStyle}>{children}</Text>
+        <Text className={getTextClasses()}>{title || children}</Text>
       )}
     </TouchableOpacity>
   );

@@ -1,6 +1,6 @@
-// Para Expo 52+
 const { getDefaultConfig } = require("expo/metro-config");
+const { withNativeWind } = require("nativewind/metro");
 
 const config = getDefaultConfig(__dirname);
 
-module.exports = config;
+module.exports = withNativeWind(config, { input: "./app/styles/global.css" });

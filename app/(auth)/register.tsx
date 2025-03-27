@@ -2,15 +2,17 @@ import React, { useState } from "react";
 import {
   View,
   Text,
-  StyleSheet,
+  TextInput,
   TouchableOpacity,
-  KeyboardAvoidingView,
-  Platform,
+  ActivityIndicator,
   ScrollView,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
-import { useAuth } from "@app/contexts/AuthContext";
-import { useRouter } from "expo-router";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useRouter, Link } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import { useAuth } from "../contexts/AuthContext";
+import Button from "@app/components/ui/Button";
 import Input from "@app/components/ui/Input";
 import { useToast } from "@app/components/ui/Toast";
 
@@ -19,88 +21,95 @@ export default function RegisterScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const { register, checkEmailExists } = useAuth();
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const { register, isLoading } = useAuth();
   const router = useRouter();
   const { showToast } = useToast();
 
-  const handleRegister = async () => {
-    // Validação dos campos
-    if (!name || !email || !password || !confirmPassword) {
-      showToast("Preencha todos os campos", "error");
-      return;
+  const validateForm = () => {
+    if (!name.trim()) {
+      showToast("Por favor, informe seu nome", "error");
+      return false;
     }
 
-    if (password !== confirmPassword) {
-      showToast("As senhas não coincidem", "error");
-      return;
+    if (!email.trim()) {
+      showToast("Por favor, informe seu email", "error");
+      return false;
+    }
+
+    // Validação simples de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      showToast("Por favor, informe um email válido", "error");
+      return false;
+    }
+
+    if (!password.trim()) {
+      showToast("Por favor, informe uma senha", "error");
+      return false;
     }
 
     if (password.length < 6) {
       showToast("A senha deve ter pelo menos 6 caracteres", "error");
+      return false;
+    }
+
+    if (password !== confirmPassword) {
+      showToast("As senhas não coincidem", "error");
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleRegister = async () => {
+    if (!validateForm()) {
       return;
     }
 
     try {
-      setLoading(true);
-
-      // Verificar se o email já está cadastrado
-      const emailExists = await checkEmailExists(email);
-      if (emailExists) {
-        showToast("Este email já está cadastrado", "error");
-        return;
-      }
-
-      // Registrar o usuário
-      const success = await register({
-        name,
-        email,
-        password,
-      });
-
-      if (success) {
-        router.replace("/(app)/(tabs)/");
-      }
+      await register(name.trim(), email.trim(), password.trim());
+      showToast("Conta criada com sucesso!", "success");
     } catch (error) {
-      showToast("Erro ao cadastrar", "error");
-    } finally {
-      setLoading(false);
+      showToast("Erro ao criar conta. Tente novamente.", "error");
     }
   };
 
-  const navigateToLogin = () => {
-    router.push("/(auth)/login");
-  };
-
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      style={styles.container}
-    >
+    <SafeAreaView className="flex-1 bg-white">
       <StatusBar style="dark" />
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-      >
-        <View style={styles.headerContainer}>
-          <Text style={styles.headerText}>Criar Conta</Text>
-          <Text style={styles.subHeaderText}>
-            Preencha os dados abaixo para se cadastrar
-          </Text>
-        </View>
 
-        <View style={styles.formContainer}>
-          <View style={styles.inputContainer}>
+      <ScrollView className="flex-1">
+        <View className="px-6 py-8">
+          <TouchableOpacity
+            onPress={() => router.back()}
+            className="mb-4 w-10 h-10 items-center justify-center"
+          >
+            <Ionicons name="arrow-back" size={24} color="#333" />
+          </TouchableOpacity>
+
+          <View className="mb-8">
+            <Text className="text-3xl font-bold text-primary mb-2">
+              Criar Conta
+            </Text>
+            <Text className="text-text-light">
+              Registre-se para começar a organizar seus plantões
+            </Text>
+          </View>
+
+          <View className="mb-4">
             <Input
               label="Nome"
               placeholder="Seu nome completo"
               value={name}
               onChangeText={setName}
-              autoCapitalize="words"
+              fullWidth
             />
           </View>
 
-          <View style={styles.inputContainer}>
+          <View className="mb-4">
             <Input
               label="Email"
               placeholder="Seu email"
@@ -108,104 +117,91 @@ export default function RegisterScreen() {
               onChangeText={setEmail}
               keyboardType="email-address"
               autoCapitalize="none"
+              fullWidth
             />
           </View>
 
-          <View style={styles.inputContainer}>
-            <Input
-              label="Senha"
-              placeholder="Crie uma senha segura"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-            />
-          </View>
-
-          <View style={styles.inputContainer}>
-            <Input
-              label="Confirmar Senha"
-              placeholder="Confirme sua senha"
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              secureTextEntry
-            />
-          </View>
-
-          <TouchableOpacity
-            style={styles.registerButton}
-            onPress={handleRegister}
-            disabled={loading}
-          >
-            <Text style={styles.registerButtonText}>
-              {loading ? "Cadastrando..." : "Cadastrar"}
+          <View className="mb-4">
+            <Text className="text-sm font-medium text-text-light mb-1">
+              Senha
             </Text>
-          </TouchableOpacity>
+            <View className="flex-row items-center border border-gray-300 rounded-lg px-3 py-2">
+              <Ionicons
+                name="lock-closed-outline"
+                size={20}
+                color="#666"
+                style={{ marginRight: 8 }}
+              />
+              <TextInput
+                className="flex-1 text-text-dark"
+                placeholder="Crie uma senha"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+              />
+              <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                <Ionicons
+                  name={showPassword ? "eye-off-outline" : "eye-outline"}
+                  size={20}
+                  color="#666"
+                />
+              </TouchableOpacity>
+            </View>
+            <Text className="text-xs text-text-light mt-1">
+              Mínimo de 6 caracteres
+            </Text>
+          </View>
 
-          <View style={styles.loginContainer}>
-            <Text style={styles.loginText}>Já tem uma conta? </Text>
-            <TouchableOpacity onPress={navigateToLogin}>
-              <Text style={styles.loginLink}>Entrar</Text>
-            </TouchableOpacity>
+          <View className="mb-8">
+            <Text className="text-sm font-medium text-text-light mb-1">
+              Confirmar Senha
+            </Text>
+            <View className="flex-row items-center border border-gray-300 rounded-lg px-3 py-2">
+              <Ionicons
+                name="lock-closed-outline"
+                size={20}
+                color="#666"
+                style={{ marginRight: 8 }}
+              />
+              <TextInput
+                className="flex-1 text-text-dark"
+                placeholder="Confirme sua senha"
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                secureTextEntry={!showConfirmPassword}
+              />
+              <TouchableOpacity
+                onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+              >
+                <Ionicons
+                  name={showConfirmPassword ? "eye-off-outline" : "eye-outline"}
+                  size={20}
+                  color="#666"
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <Button
+            variant="primary"
+            loading={isLoading}
+            onPress={handleRegister}
+            fullWidth
+            className="mb-6"
+          >
+            Criar Conta
+          </Button>
+
+          <View className="flex-row justify-center mt-6">
+            <Text className="text-text-light">Já possui uma conta? </Text>
+            <Link href="/(auth)/login" asChild>
+              <TouchableOpacity>
+                <Text className="text-primary font-medium">Faça login</Text>
+              </TouchableOpacity>
+            </Link>
           </View>
         </View>
       </ScrollView>
-    </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: 20,
-    paddingBottom: 40,
-    paddingTop: 60,
-  },
-  headerContainer: {
-    marginBottom: 32,
-  },
-  headerText: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#2B2D42",
-    marginBottom: 8,
-  },
-  subHeaderText: {
-    fontSize: 16,
-    color: "#8D99AE",
-  },
-  formContainer: {
-    flex: 1,
-  },
-  inputContainer: {
-    marginBottom: 20,
-  },
-  registerButton: {
-    backgroundColor: "#0077B6",
-    borderRadius: 8,
-    paddingVertical: 12,
-    alignItems: "center",
-    marginVertical: 24,
-  },
-  registerButtonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  loginContainer: {
-    flexDirection: "row",
-    justifyContent: "center",
-  },
-  loginText: {
-    color: "#8D99AE",
-    fontSize: 14,
-  },
-  loginLink: {
-    color: "#0077B6",
-    fontSize: 14,
-    fontWeight: "bold",
-  },
-});

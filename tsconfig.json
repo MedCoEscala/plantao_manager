@@ -3,20 +3,50 @@
   "compilerOptions": {
     "strict": true,
     "baseUrl": ".",
-    "types": ["react-native", "node"],
+    "types": [
+      "react-native",
+      "node",
+      "nativewind/types"
+    ],
     "paths": {
-      "@/*": ["./*"],
-      "@app/*": ["./app/*"],
-      "@components/*": ["./app/components/*"],
-      "@screens/*": ["./app/screens/*"],
-      "@constants/*": ["./app/constants/*"],
-      "@services/*": ["./app/services/*"],
-      "@database/*": ["./app/database/*"],
-      "@utils/*": ["./app/utils/*"],
-      "@hooks/*": ["./app/hooks/*"],
-      "@assets/*": ["./assets/*"]
+      "@/*": [
+        "./*"
+      ],
+      "@app/*": [
+        "./app/*"
+      ],
+      "@components/*": [
+        "./app/components/*"
+      ],
+      "@screens/*": [
+        "./app/screens/*"
+      ],
+      "@constants/*": [
+        "./app/constants/*"
+      ],
+      "@services/*": [
+        "./app/services/*"
+      ],
+      "@database/*": [
+        "./app/database/*"
+      ],
+      "@utils/*": [
+        "./app/utils/*"
+      ],
+      "@hooks/*": [
+        "./app/hooks/*"
+      ],
+      "@assets/*": [
+        "./assets/*"
+      ]
     }
   },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "*.d.ts",
+    "nativewind-env.d.ts"
+  ],
   "exclude": [
     "node_modules",
     "babel.config.js",

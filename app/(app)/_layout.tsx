@@ -1,19 +1,19 @@
-import { Stack, useRouter, Tabs } from "expo-router";
+import { Stack, useRouter } from "expo-router";
 import { useAuth } from "@app/contexts/AuthContext";
 import { useEffect } from "react";
 
 export default function AppLayout() {
-  const { user, loading } = useAuth();
+  const { user, isLoading } = useAuth();
   const router = useRouter();
 
   // Verificação de autenticação
   useEffect(() => {
-    if (!loading && !user) {
+    if (!isLoading && !user) {
       router.replace("/(auth)/login");
     }
-  }, [user, loading, router]);
+  }, [user, isLoading, router]);
 
-  if (loading) {
+  if (isLoading) {
     return null;
   }
 

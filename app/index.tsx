@@ -1,20 +1,22 @@
 import { Redirect } from "expo-router";
+import { View, ActivityIndicator } from "react-native";
 import { useAuth } from "./contexts/AuthContext";
 
 // Este arquivo serve como ponto de entrada principal da aplicação
-export default function Home() {
-  const { user, loading } = useAuth();
+export default function Index() {
+  const { user, isLoading } = useAuth();
 
-  // Se estiver carregando, não redireciona ainda
-  if (loading) {
-    return null;
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" color="#0077B6" />
+      </View>
+    );
   }
 
-  // Se já estiver autenticado, redireciona para as abas do app, senão para o login
   if (user) {
-    return <Redirect href="/(app)/(tabs)/" />;
+    return <Redirect href="/(app)" />;
   }
 
-  // Redirecionar para login se não estiver autenticado
   return <Redirect href="/(auth)/login" />;
 }

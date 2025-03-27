@@ -1,26 +1,29 @@
 import React, { useEffect, useRef } from "react";
-import {
-  View,
-  Text,
-  Animated,
-  StyleSheet,
-  TouchableOpacity,
-} from "react-native";
+import { View, Text, Animated, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
-type ToastType = "success" | "error" | "info" | "warning";
+export type ToastType = "success" | "error" | "info" | "warning";
 
 interface ToastProps {
   visible: boolean;
   message: string;
+  title?: string;
   type?: ToastType;
   duration?: number;
   onDismiss?: () => void;
 }
 
+interface ToastOptions {
+  message: string;
+  title?: string;
+  type?: ToastType;
+  duration?: number;
+}
+
 export const Toast: React.FC<ToastProps> = ({
   visible,
   message,
+  title,
   type = "info",
   duration = 3000,
   onDismiss,
@@ -98,31 +101,20 @@ export const Toast: React.FC<ToastProps> = ({
     }
   };
 
-  const getBackgroundColor = (): string => {
-    switch (type) {
-      case "success":
-        return "rgba(42, 157, 143, 0.1)";
-      case "error":
-        return "rgba(231, 111, 81, 0.1)";
-      case "warning":
-        return "rgba(233, 196, 106, 0.1)";
-      case "info":
-      default:
-        return "rgba(0, 119, 182, 0.1)";
-    }
-  };
+  const getContainerClasses = (): string => {
+    let classes =
+      "absolute top-[50px] left-4 right-4 p-4 rounded-lg border flex-row items-center z-50 shadow-md ";
 
-  const getBorderColor = (): string => {
     switch (type) {
       case "success":
-        return "#2A9D8F";
+        return classes + "bg-success/10 border-success";
       case "error":
-        return "#E76F51";
+        return classes + "bg-error/10 border-error";
       case "warning":
-        return "#E9C46A";
+        return classes + "bg-warning/10 border-warning";
       case "info":
       default:
-        return "#0077B6";
+        return classes + "bg-primary/10 border-primary";
     }
   };
 
@@ -130,18 +122,19 @@ export const Toast: React.FC<ToastProps> = ({
 
   return (
     <Animated.View
-      style={[
-        styles.container,
-        {
-          opacity: fadeAnim,
-          transform: [{ translateY }],
-          backgroundColor: getBackgroundColor(),
-          borderColor: getBorderColor(),
-        },
-      ]}
+      style={{
+        opacity: fadeAnim,
+        transform: [{ translateY }],
+      }}
+      className={getContainerClasses()}
     >
       <Ionicons name={getIconName()} size={24} color={getIconColor()} />
-      <Text style={styles.message}>{message}</Text>
+      <View className="flex-1 ml-3 mr-3">
+        {title && (
+          <Text className="font-bold text-text-dark mb-1">{title}</Text>
+        )}
+        <Text className="text-sm text-text-dark">{message}</Text>
+      </View>
       <TouchableOpacity onPress={hideToast}>
         <Ionicons name="close" size={20} color="#8D99AE" />
       </TouchableOpacity>
@@ -154,9 +147,11 @@ export const createToastContext = () => {
   const ToastContext = React.createContext<{
     showToast: (message: string, type?: ToastType, duration?: number) => void;
     hideToast: () => void;
+    show: (options: ToastOptions) => void;
   }>({
     showToast: () => {},
     hideToast: () => {},
+    show: () => {},
   });
 
   const ToastProvider: React.FC<{ children: React.ReactNode }> = ({
@@ -164,6 +159,7 @@ export const createToastContext = () => {
   }) => {
     const [visible, setVisible] = React.useState(false);
     const [message, setMessage] = React.useState("");
+    const [title, setTitle] = React.useState<string | undefined>(undefined);
     const [type, setType] = React.useState<ToastType>("info");
     const [duration, setDuration] = React.useState(3000);
 
@@ -173,8 +169,17 @@ export const createToastContext = () => {
       toastDuration = 3000
     ) => {
       setMessage(msg);
+      setTitle(undefined);
       setType(toastType);
       setDuration(toastDuration);
+      setVisible(true);
+    };
+
+    const show = (options: ToastOptions) => {
+      setMessage(options.message);
+      setTitle(options.title);
+      setType(options.type || "info");
+      setDuration(options.duration || 3000);
       setVisible(true);
     };
 
@@ -183,11 +188,12 @@ export const createToastContext = () => {
     };
 
     return (
-      <ToastContext.Provider value={{ showToast, hideToast }}>
+      <ToastContext.Provider value={{ showToast, hideToast, show }}>
         {children}
         <Toast
           visible={visible}
           message={message}
+          title={title}
           type={type}
           duration={duration}
           onDismiss={hideToast}
@@ -206,30 +212,3 @@ export const { ToastProvider, useToast } = createToastContext();
 
 // Exportando por padrão para atender requisitos do expo-router
 export default ToastProvider;
-
-const styles = StyleSheet.create({
-  container: {
-    position: "absolute",
-    top: 50,
-    left: 16,
-    right: 16,
-    padding: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    elevation: 3,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    zIndex: 9999,
-  },
-  message: {
-    flex: 1,
-    marginLeft: 12,
-    marginRight: 12,
-    fontSize: 14,
-    color: "#2B2D42",
-  },
-});

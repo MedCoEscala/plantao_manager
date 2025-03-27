@@ -1,42 +1,70 @@
 import React, { useState } from "react";
 import { View, TextInput, Text, TextInputProps } from "react-native";
-import { twMerge } from "tailwind-merge";
 
 interface InputProps extends TextInputProps {
   label?: string;
   error?: string;
   fullWidth?: boolean;
+  onFocus?: (e: any) => void;
+  onBlur?: (e: any) => void;
 }
 
 export const Input: React.FC<InputProps> = ({
   label,
   error,
   fullWidth = false,
-  className,
+  className = "",
   onFocus,
   onBlur,
   ...props
 }) => {
   const [isFocused, setIsFocused] = useState(false);
 
-  // Estilo base para o container
-  const containerStyle = twMerge("mb-4", fullWidth ? "w-full" : "", className);
+  // Função para gerar as classes do container
+  const getContainerClasses = () => {
+    let classes = "mb-4 ";
 
-  // Estilo para o input
-  const inputStyle = twMerge(
-    "border rounded-lg p-3 bg-white",
-    isFocused ? "border-primary" : "border-gray-300",
-    error ? "border-error" : ""
-  );
+    if (fullWidth) {
+      classes += "w-full ";
+    }
 
-  // Estilos para o label
-  const labelStyle = twMerge(
-    "text-sm mb-1",
-    error ? "text-error" : "text-text-light"
-  );
+    return classes + className;
+  };
 
-  // Estilos para mensagem de erro
-  const errorStyle = "text-error text-xs mt-1";
+  // Função para gerar as classes do input
+  const getInputClasses = () => {
+    let classes = "border rounded-lg p-3 bg-white ";
+
+    if (isFocused) {
+      classes += "border-primary ";
+    } else {
+      classes += "border-gray-300 ";
+    }
+
+    if (error) {
+      classes += "border-error ";
+    }
+
+    return classes;
+  };
+
+  // Função para gerar as classes do label
+  const getLabelClasses = () => {
+    let classes = "text-sm mb-1 ";
+
+    if (error) {
+      classes += "text-error ";
+    } else {
+      classes += "text-text-light ";
+    }
+
+    return classes;
+  };
+
+  // Função para gerar as classes da mensagem de erro
+  const getErrorClasses = () => {
+    return "text-error text-xs mt-1";
+  };
 
   const handleFocus = (e: any) => {
     setIsFocused(true);
@@ -49,16 +77,16 @@ export const Input: React.FC<InputProps> = ({
   };
 
   return (
-    <View className={containerStyle}>
-      {label && <Text className={labelStyle}>{label}</Text>}
+    <View className={getContainerClasses()}>
+      {label && <Text className={getLabelClasses()}>{label}</Text>}
       <TextInput
-        className={inputStyle}
+        className={getInputClasses()}
         onFocus={handleFocus}
         onBlur={handleBlur}
         placeholderTextColor="#A0AEC0"
         {...props}
       />
-      {error && <Text className={errorStyle}>{error}</Text>}
+      {error && <Text className={getErrorClasses()}>{error}</Text>}
     </View>
   );
 };

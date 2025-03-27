@@ -5,89 +5,154 @@
 import { openDatabaseAsync, SQLiteDatabase } from "expo-sqlite";
 import { TableDefinitions, Tables } from "./schema";
 
-// Abertura do banco de dados como uma Promise
-// Isso permite que o banco de dados seja inicializado de forma assíncrona
-let dbPromise: Promise<SQLiteDatabase>;
+let db: SQLiteDatabase | null = null;
 
-// Inicialização do banco de dados
-const initializeDb = async (): Promise<SQLiteDatabase> => {
+// Função para inicializar o banco de dados
+export const initializeDb = async (): Promise<SQLiteDatabase> => {
+  if (db !== null) {
+    return db;
+  }
+
   try {
-    return await openDatabaseAsync("plantao_manager.db");
+    db = await openDatabaseAsync("plantao_manager_v2.db");
+    return db;
   } catch (error) {
-    console.error("Erro ao abrir banco de dados:", error);
+    console.error("Erro ao abrir o banco de dados:", error);
     throw error;
   }
 };
 
-// Inicializa a Promise do banco de dados
-dbPromise = initializeDb();
-
-// Função para executar consultas SQL
+// Função para executar SQL
 export const executeSql = async (
-  query: string,
+  sql: string,
   params: any[] = []
-): Promise<{ rows: { _array: any[] }; rowsAffected: number }> => {
+): Promise<any> => {
   try {
-    const db = await dbPromise;
+    if (!db) {
+      await initializeDb();
+    }
 
-    // Para consultas SELECT, usamos getAllAsync
-    if (query.trim().toUpperCase().startsWith("SELECT")) {
-      const result = await db.getAllAsync(query, params);
+    if (!db) {
+      throw new Error("Banco de dados não inicializado");
+    }
+
+    if (sql.trim().toUpperCase().startsWith("SELECT")) {
+      const result = await db.getAllAsync(sql, params);
       return {
         rows: { _array: result || [] },
         rowsAffected: 0,
       };
-    }
-    // Para outras consultas (INSERT, UPDATE, DELETE), usamos runAsync
-    else {
-      const result = await db.runAsync(query, ...params);
+    } else {
+      const result = await db.runAsync(sql, params);
       return {
         rows: { _array: [] },
         rowsAffected: result.changes,
       };
     }
   } catch (error) {
-    console.error("Erro ao executar SQL:", query, params, error);
+    console.error("Erro ao executar SQL:", sql, params, error);
     throw error;
   }
 };
 
-// Criação das tabelas
-export const createTables = async (): Promise<void> => {
+// Criar as tabelas no banco de dados
+const createTables = async () => {
   try {
-    const db = await dbPromise;
+    // Habilitar foreign keys
+    await executeSql("PRAGMA foreign_keys = ON;");
 
-    // Configurar o modo journal WAL para melhor performance - FORA da transação
-    await db.execAsync("PRAGMA journal_mode = WAL;");
+    // Criar tabela de usuários
+    await executeSql(`
+      CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        email TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL,
+        phone TEXT,
+        birth_date TEXT,
+        profile_image TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )
+    `);
 
-    // Habilitar chaves estrangeiras - FORA da transação
-    await db.execAsync("PRAGMA foreign_keys = ON;");
+    // Criar tabela de locais
+    await executeSql(`
+      CREATE TABLE IF NOT EXISTS locations (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        address TEXT NOT NULL,
+        phone TEXT,
+        color TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )
+    `);
 
-    // Usar withTransactionAsync para criar todas as tabelas em uma única transação
-    await db.withTransactionAsync(async () => {
-      // Criar tabelas usando as definições do schema
-      await db.execAsync(TableDefinitions.users);
-      await db.execAsync(TableDefinitions.locations);
-      await db.execAsync(TableDefinitions.contractors);
-      await db.execAsync(TableDefinitions.shifts);
-      await db.execAsync(TableDefinitions.payments);
-    });
+    // Criar tabela de contratantes
+    await executeSql(`
+      CREATE TABLE IF NOT EXISTS contractors (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        email TEXT,
+        phone TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )
+    `);
+
+    // Criar tabela de plantões
+    await executeSql(`
+      CREATE TABLE IF NOT EXISTS shifts (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        contractor_id TEXT,
+        location_id TEXT NOT NULL,
+        date TEXT NOT NULL,
+        start_time TEXT NOT NULL,
+        end_time TEXT NOT NULL,
+        value REAL,
+        status TEXT NOT NULL,
+        notes TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+        FOREIGN KEY (contractor_id) REFERENCES contractors (id) ON DELETE SET NULL,
+        FOREIGN KEY (location_id) REFERENCES locations (id) ON DELETE CASCADE
+      )
+    `);
+
+    // Criar tabela de pagamentos
+    await executeSql(`
+      CREATE TABLE IF NOT EXISTS payments (
+        id TEXT PRIMARY KEY,
+        shift_id TEXT NOT NULL,
+        amount REAL NOT NULL,
+        date TEXT NOT NULL,
+        method TEXT,
+        status TEXT NOT NULL,
+        notes TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (shift_id) REFERENCES shifts (id) ON DELETE CASCADE
+      )
+    `);
 
     console.log("Tabelas criadas com sucesso!");
-    return Promise.resolve();
   } catch (error) {
-    console.error("Erro na criação das tabelas:", error);
+    console.error("Erro ao criar tabelas:", error);
     throw error;
   }
 };
 
-// Inicialização do banco de dados
+// Inicializar o banco de dados
 export const initDatabase = async (): Promise<void> => {
   try {
+    await initializeDb();
     await createTables();
     console.log("Banco de dados inicializado com sucesso!");
   } catch (error) {
-    console.error("Erro ao inicializar banco de dados:", error);
+    console.error("Erro ao inicializar o banco de dados:", error);
     throw error;
   }
 };
@@ -141,42 +206,38 @@ export const clearTable = async (tableName: string): Promise<void> => {
   }
 };
 
-// Objeto de compatibilidade para a API antiga (para trechos de código que ainda usam)
-const compatibilityDb = {
+// Objeto para compatibilidade com código existente
+export const compatibility = {
   transaction: async (callback: (tx: any) => void): Promise<void> => {
-    const db = await dbPromise;
-    await db.withTransactionAsync(async () => {
-      const tx = {
-        executeSql: async (
-          query: string,
-          params: any[],
-          success: (tx: any, result: any) => void
-        ) => {
-          try {
-            const result = await executeSql(query, params);
-            if (success) {
-              success(tx, result);
-            }
-          } catch (error) {
-            console.error("Erro na transação:", error);
-          }
+    try {
+      if (!db) {
+        await initializeDb();
+      }
+
+      if (!db) {
+        throw new Error("Banco de dados não inicializado");
+      }
+
+      await callback({
+        executeSql: async (sql: string, params: any[] = []): Promise<any> => {
+          return await executeSql(sql, params);
         },
-      };
-      callback(tx);
-    });
+      });
+    } catch (error) {
+      console.error("Erro na transação:", error);
+      throw error;
+    }
   },
 };
 
 // Exportação default para expo-router
 export default {
-  getDb: async () => await dbPromise,
-  db: compatibilityDb,
   executeSql,
-  createTables,
   initDatabase,
   listTables,
   getTableData,
   getTableCount,
   clearTable,
+  compatibility,
   Tables,
 };

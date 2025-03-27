@@ -1,20 +1,18 @@
 {
   "expo": {
     "name": "Plantão Manager",
-    "slug": "plantao-manager",
+    "slug": "plantao_manager",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true
     },
@@ -28,9 +26,6 @@
       "favicon": "./assets/favicon.png"
     },
     "scheme": "plantao-manager",
-    "plugins": [
-      "expo-router",
-      "expo-sqlite"
-    ]
+    "plugins": ["expo-router", "expo-sqlite"]
   }
 }

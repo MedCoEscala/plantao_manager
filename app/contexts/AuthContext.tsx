@@ -1,177 +1,201 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { User } from "../database/types";
-import {
-  registerUser,
-  loginUser,
-  isEmailRegistered,
-  LoginData,
-  RegisterData,
-} from "../services/authService";
-import { ToastProvider, useToast } from "../components/ui/Toast";
+import React, { createContext, useContext, useEffect, useState } from "react";
+import { router } from "expo-router";
+import * as SecureStore from "expo-secure-store";
+import { authService } from "../services/authService";
+import { useSQLite } from "./SQLiteContext";
+import { useDialog } from "./DialogContext";
 
-// Interface para o contexto de autenticação
-interface AuthContextData {
-  user: User | null;
-  loading: boolean;
-  error: string | null;
-  login: (data: LoginData) => Promise<boolean>;
-  register: (userData: RegisterData) => Promise<boolean>;
-  logout: () => Promise<void>;
-  checkEmailExists: (email: string) => Promise<boolean>;
-  clearError: () => void;
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
-// Criando o contexto com valor padrão
-const AuthContext = createContext<AuthContextData>({} as AuthContextData);
+interface AuthContextData {
+  user: User | null;
+  isLoading: boolean;
+  error: string | null;
+  login: (email: string, password: string) => Promise<void>;
+  register: (name: string, email: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
+}
 
-// Hook personalizado para usar o contexto
-export const useAuth = (): AuthContextData => {
-  return useContext(AuthContext);
-};
+const AuthContext = createContext<AuthContextData | undefined>(undefined);
 
-// Provedor do contexto
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
+export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { showToast } = useToast();
+  const { isDBReady, executeSql } = useSQLite();
+  const { showDialog } = useDialog();
 
-  // Carrega dados do usuário ao iniciar o app
+  // Verifica se o usuário está logado ao iniciar o app
   useEffect(() => {
-    const loadUser = async () => {
+    const checkAuth = async () => {
+      if (!isDBReady) return;
+
       try {
-        const userData = await AsyncStorage.getItem("@PlantaoManager:user");
-        if (userData) {
-          setUser(JSON.parse(userData));
+        setIsLoading(true);
+        const userId = await SecureStore.getItemAsync("userId");
+
+        if (userId) {
+          const userData = await authService.getUserById(executeSql, userId);
+          if (userData) {
+            setUser(userData);
+            router.replace("/(app)");
+          } else {
+            // Token inválido ou usuário não encontrado
+            await SecureStore.deleteItemAsync("userId");
+            router.replace("/");
+          }
+        } else {
+          // Não há token, redireciona para login
+          router.replace("/");
         }
-      } catch (err) {
-        console.error("Erro ao carregar dados do usuário:", err);
+      } catch (error) {
+        console.error("Erro ao verificar autenticação:", error);
+        showDialog({
+          type: "error",
+          title: "Erro de Autenticação",
+          message: "Erro ao verificar seu login. Por favor, tente novamente.",
+        });
       } finally {
-        setLoading(false);
+        setIsLoading(false);
       }
     };
 
-    loadUser();
-  }, []);
+    checkAuth();
+  }, [isDBReady]);
 
-  // Função de login
-  const login = async (data: LoginData): Promise<boolean> => {
+  const login = async (email: string, password: string) => {
     try {
-      setLoading(true);
+      setIsLoading(true);
       setError(null);
 
-      const userData = await loginUser(data);
+      const result = await authService.login(executeSql, email, password);
 
-      if (userData) {
-        setUser(userData);
-        await AsyncStorage.setItem(
-          "@PlantaoManager:user",
-          JSON.stringify(userData)
-        );
-        showToast("Login realizado com sucesso!", "success");
-        return true;
+      if (result.success && result.user) {
+        await SecureStore.setItemAsync("userId", result.user.id);
+        setUser(result.user);
+        router.replace("/(app)");
       } else {
-        const errorMsg = "Email ou senha incorretos.";
-        setError(errorMsg);
-        showToast(errorMsg, "error");
-        return false;
+        setError(result.error || "Erro desconhecido ao fazer login");
+        showDialog({
+          type: "error",
+          title: "Falha no Login",
+          message:
+            result.error ||
+            "Email ou senha inválidos. Por favor, tente novamente.",
+        });
       }
-    } catch (err) {
+    } catch (error) {
       const errorMessage =
-        err instanceof Error ? err.message : "Erro ao fazer login";
+        error instanceof Error
+          ? error.message
+          : "Erro desconhecido ao fazer login";
       setError(errorMessage);
-      showToast(errorMessage, "error");
-      return false;
+      showDialog({
+        type: "error",
+        title: "Erro de Login",
+        message: errorMessage,
+      });
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  // Função de registro
-  const register = async (userData: RegisterData): Promise<boolean> => {
+  const register = async (name: string, email: string, password: string) => {
     try {
-      setLoading(true);
+      setIsLoading(true);
       setError(null);
 
-      const emailExists = await isEmailRegistered(userData.email);
-      if (emailExists) {
-        const errorMsg = "Este email já está registrado.";
-        setError(errorMsg);
-        showToast(errorMsg, "error");
-        return false;
-      }
-
-      const newUser = await registerUser(userData);
-      setUser(newUser);
-      await AsyncStorage.setItem(
-        "@PlantaoManager:user",
-        JSON.stringify(newUser)
+      const result = await authService.register(
+        executeSql,
+        name,
+        email,
+        password
       );
-      showToast("Cadastro realizado com sucesso!", "success");
-      return true;
-    } catch (err) {
+
+      if (result.success && result.user) {
+        await SecureStore.setItemAsync("userId", result.user.id);
+        setUser(result.user);
+        router.replace("/(app)");
+
+        showDialog({
+          type: "success",
+          title: "Cadastro Realizado",
+          message: "Sua conta foi criada com sucesso!",
+        });
+      } else {
+        setError(result.error || "Erro desconhecido ao registrar");
+        showDialog({
+          type: "error",
+          title: "Falha no Cadastro",
+          message:
+            result.error ||
+            "Não foi possível criar sua conta. Por favor, tente novamente.",
+        });
+      }
+    } catch (error) {
       const errorMessage =
-        err instanceof Error ? err.message : "Erro ao registrar usuário";
+        error instanceof Error
+          ? error.message
+          : "Erro desconhecido ao registrar";
       setError(errorMessage);
-      showToast(errorMessage, "error");
-      return false;
+      showDialog({
+        type: "error",
+        title: "Erro de Cadastro",
+        message: errorMessage,
+      });
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  // Função de logout
-  const logout = async (): Promise<void> => {
+  const logout = async () => {
     try {
-      setLoading(true);
-      await AsyncStorage.removeItem("@PlantaoManager:user");
+      setIsLoading(true);
+      await SecureStore.deleteItemAsync("userId");
       setUser(null);
-      showToast("Logout realizado com sucesso", "info");
-    } catch (err) {
-      console.error("Erro ao fazer logout:", err);
+      router.replace("/");
+    } catch (error) {
+      console.error("Erro ao fazer logout:", error);
+      showDialog({
+        type: "error",
+        title: "Erro de Logout",
+        message: "Ocorreu um erro ao sair da sua conta.",
+      });
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
-  };
-
-  // Verificar se email existe
-  const checkEmailExists = async (email: string): Promise<boolean> => {
-    try {
-      return await isEmailRegistered(email);
-    } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : "Erro ao verificar email";
-      setError(errorMessage);
-      showToast(errorMessage, "error");
-      return false;
-    }
-  };
-
-  // Limpar mensagens de erro
-  const clearError = (): void => {
-    setError(null);
   };
 
   return (
     <AuthContext.Provider
       value={{
         user,
-        loading,
+        isLoading,
         error,
         login,
         register,
         logout,
-        checkEmailExists,
-        clearError,
       }}
     >
       {children}
     </AuthContext.Provider>
   );
+}
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+
+  if (context === undefined) {
+    throw new Error("useAuth deve ser usado dentro de um AuthProvider");
+  }
+
+  return context;
 };
 
-// Exportação default para expo-router
 export default AuthProvider;

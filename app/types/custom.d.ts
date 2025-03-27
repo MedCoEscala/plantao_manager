@@ -1,23 +1,5 @@
-// NativeWind - adiciona suporte para a prop className nos componentes
-declare module "react-native" {
-  interface ViewProps {
-    className?: string;
-  }
-  interface TextProps {
-    className?: string;
-  }
-  interface ImageProps {
-    className?: string;
-  }
-  interface TouchableOpacityProps {
-    className?: string;
-  }
-  interface TextInputProps {
-    className?: string;
-  }
-}
-
-// Aqui você pode adicionar outras declarações de tipo personalizadas conforme necessário
+// Tipos personalizados para o projeto
+/// <reference path="./tailwind-env.d.ts" />
 
 // Isso é necessário para que o arquivo seja tratado como um módulo
 export {};

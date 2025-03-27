@@ -1,6 +1,10 @@
 import "expo-router/entry";
 import { useEffect } from "react";
 import { initDatabase } from "@app/database";
+import "@app/styles/global.css";
+import React from "react";
+import { Stack } from "expo-router";
+import DialogProvider from "@app/contexts/DialogContext";
 
 export default function App() {
   useEffect(() => {
@@ -16,5 +20,14 @@ export default function App() {
     init();
   }, []);
 
-  return null;
+  return (
+    <DialogProvider>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          animation: "slide_from_right",
+        }}
+      />
+    </DialogProvider>
+  );
 }

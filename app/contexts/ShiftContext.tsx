@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { Shift } from "../database/types";
+import { Shift, ShiftCreateData, ShiftUpdateData } from "../database/types";
 import * as shiftService from "../services/shiftService";
 import { useAuth } from "./AuthContext";
 import { useToast } from "../components/ui/Toast";
@@ -67,7 +67,7 @@ export const ShiftProvider: React.FC<ShiftProviderProps> = ({ children }) => {
       const newShift = await shiftService.createShift({
         ...data,
         userId: user.id,
-      } as shiftService.ShiftCreateData);
+      } as ShiftCreateData);
 
       setShifts((prevShifts) => [...prevShifts, newShift]);
       showToast("Plantão criado com sucesso!", "success");
@@ -86,7 +86,8 @@ export const ShiftProvider: React.FC<ShiftProviderProps> = ({ children }) => {
   ): Promise<boolean> => {
     try {
       const success = await shiftService.updateShift(
-        data as shiftService.ShiftUpdateData
+        data.id,
+        data as ShiftUpdateData
       );
 
       if (success) {
