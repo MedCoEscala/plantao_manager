@@ -1,0 +1,26 @@
+{
+  "extends": "@tsconfig/react-native/tsconfig.json",
+  "compilerOptions": {
+    "strict": true,
+    "baseUrl": ".",
+    "types": ["react-native", "node"],
+    "paths": {
+      "@/*": ["./*"],
+      "@app/*": ["./app/*"],
+      "@components/*": ["./app/components/*"],
+      "@screens/*": ["./app/screens/*"],
+      "@constants/*": ["./app/constants/*"],
+      "@services/*": ["./app/services/*"],
+      "@database/*": ["./app/database/*"],
+      "@utils/*": ["./app/utils/*"],
+      "@hooks/*": ["./app/hooks/*"],
+      "@assets/*": ["./assets/*"]
+    }
+  },
+  "exclude": [
+    "node_modules",
+    "babel.config.js",
+    "metro.config.js",
+    "jest.config.js"
+  ]
+}
