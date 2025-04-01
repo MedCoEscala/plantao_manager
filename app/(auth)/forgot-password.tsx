@@ -1,196 +1,124 @@
-import React, { useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-} from "react-native";
-import { StatusBar } from "expo-status-bar";
-import { useRouter } from "expo-router";
-import Input from "@app/components/ui/Input";
-import { useToast } from "@app/components/ui/Toast";
-import { Ionicons } from "@expo/vector-icons";
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import Button from '../components/ui/Button';
+import Input from '../components/ui/Input';
+import { useToast } from '../components/ui/Toast';
+import { useAuth } from '../contexts/AuthContext';
+import { authService } from '../services/authService';
 
 export default function ForgotPasswordScreen() {
-  const [email, setEmail] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [sent, setSent] = useState(false);
+  const [email, setEmail] = useState('');
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { showToast } = useToast();
 
-  const handleResetPassword = async () => {
-    if (!email) {
-      showToast("Digite seu email para recuperar a senha", "error");
+  const validateForm = () => {
+    if (!email.trim()) {
+      showToast('Por favor, informe seu email', 'error');
+      return false;
+    }
+
+    // Validação simples de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      showToast('Por favor, informe um email válido', 'error');
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleSubmit = async () => {
+    if (!validateForm()) {
       return;
     }
 
+    setIsLoading(true);
+
     try {
-      setLoading(true);
-      // Simular envio de email
-      setTimeout(() => {
-        setSent(true);
-        showToast("Email de recuperação enviado com sucesso", "success");
-      }, 1500);
+      // Usar o serviço real de recuperação de senha
+      const result = await authService.forgotPassword(email.trim());
+
+      if (result.success) {
+        setIsSubmitted(true);
+        showToast('Instruções enviadas ao seu email', 'success');
+      } else {
+        showToast(result.error || 'Erro ao enviar instruções', 'error');
+      }
     } catch (error) {
-      showToast("Erro ao enviar o email de recuperação", "error");
+      showToast('Erro ao enviar instruções de redefinição', 'error');
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  const navigateToLogin = () => {
-    router.push("/(auth)/login");
-  };
-
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      style={styles.container}
-    >
+    <SafeAreaView className="flex-1 bg-white">
       <StatusBar style="dark" />
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-      >
-        <TouchableOpacity style={styles.backButton} onPress={navigateToLogin}>
-          <Ionicons name="arrow-back" size={24} color="#2B2D42" />
-        </TouchableOpacity>
 
-        <View style={styles.headerContainer}>
-          <Text style={styles.headerText}>Recuperar Senha</Text>
-          <Text style={styles.subHeaderText}>
-            {sent
-              ? "Verifique seu email para instruções de recuperação"
-              : "Digite seu email para receber instruções de recuperação de senha"}
-          </Text>
-        </View>
+      <ScrollView className="flex-1">
+        <View className="px-6 py-8">
+          <TouchableOpacity
+            onPress={() => router.back()}
+            className="mb-4 h-10 w-10 items-center justify-center">
+            <Ionicons name="arrow-back" size={24} color="#333" />
+          </TouchableOpacity>
 
-        {!sent ? (
-          <View style={styles.formContainer}>
-            <View style={styles.inputContainer}>
-              <Input
-                label="Email"
-                placeholder="Seu email cadastrado"
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-            </View>
-
-            <TouchableOpacity
-              style={styles.resetButton}
-              onPress={handleResetPassword}
-              disabled={loading}
-            >
-              <Text style={styles.resetButtonText}>
-                {loading ? "Enviando..." : "Enviar Email"}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <View style={styles.successContainer}>
-            <View style={styles.successIconContainer}>
-              <Ionicons name="mail" size={64} color="#0077B6" />
-            </View>
-            <Text style={styles.successText}>
-              Caso o email esteja cadastrado em nossa base, você receberá as
-              instruções para recuperar sua senha.
+          <View className="mb-8">
+            <Text className="mb-2 text-3xl font-bold text-primary">Esqueceu sua senha?</Text>
+            <Text className="text-text-light">
+              {!isSubmitted
+                ? 'Enviaremos instruções de redefinição para seu email'
+                : 'Instruções enviadas! Verifique seu email'}
             </Text>
-            <TouchableOpacity
-              style={styles.loginButton}
-              onPress={navigateToLogin}
-            >
-              <Text style={styles.loginButtonText}>Voltar para Login</Text>
-            </TouchableOpacity>
           </View>
-        )}
+
+          {!isSubmitted ? (
+            <>
+              <View className="mb-6">
+                <Input
+                  label="Email"
+                  placeholder="Seu email"
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  fullWidth
+                />
+              </View>
+
+              <Button
+                variant="primary"
+                loading={isLoading}
+                onPress={handleSubmit}
+                fullWidth
+                className="mb-6">
+                Enviar instruções
+              </Button>
+            </>
+          ) : (
+            <View className="my-6 items-center">
+              <Ionicons name="mail-outline" size={64} color="#4F46E5" />
+              <Text className="mt-4 text-center text-text-dark">
+                Verifique seu email e siga as instruções para redefinir sua senha.
+              </Text>
+
+              <Button
+                variant="outline"
+                onPress={() => router.push('/(auth)/login')}
+                fullWidth
+                className="mt-8">
+                Voltar para login
+              </Button>
+            </View>
+          )}
+        </View>
       </ScrollView>
-    </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: 20,
-    paddingBottom: 40,
-    paddingTop: 60,
-  },
-  backButton: {
-    marginBottom: 20,
-  },
-  headerContainer: {
-    marginBottom: 32,
-  },
-  headerText: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#2B2D42",
-    marginBottom: 8,
-  },
-  subHeaderText: {
-    fontSize: 16,
-    color: "#8D99AE",
-    lineHeight: 22,
-  },
-  formContainer: {
-    flex: 1,
-  },
-  inputContainer: {
-    marginBottom: 20,
-  },
-  resetButton: {
-    backgroundColor: "#0077B6",
-    borderRadius: 8,
-    paddingVertical: 12,
-    alignItems: "center",
-    marginTop: 16,
-  },
-  resetButtonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  successContainer: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 20,
-  },
-  successIconContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: "rgba(0, 119, 182, 0.1)",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 24,
-  },
-  successText: {
-    fontSize: 16,
-    color: "#2B2D42",
-    textAlign: "center",
-    marginBottom: 32,
-    lineHeight: 24,
-  },
-  loginButton: {
-    backgroundColor: "#0077B6",
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    alignItems: "center",
-  },
-  loginButtonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-});

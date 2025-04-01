@@ -1,12 +1,12 @@
-import React, { useEffect, useState } from "react";
-import { View, Text, TouchableOpacity, ActivityIndicator } from "react-native";
-import { FlashList } from "@shopify/flash-list";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { StatusBar } from "expo-status-bar";
-import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import { useLocations, Location } from "@app/hooks/useLocations";
-import { useDialog } from "@app/contexts/DialogContext";
+import React, { useEffect, useState } from 'react';
+import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { useLocations, Location } from '@app/hooks/useLocations';
+import { useDialog } from '@app/contexts/DialogContext';
 
 export default function LocationsScreen() {
   const [locations, setLocations] = useState<Location[]>([]);
@@ -29,9 +29,9 @@ export default function LocationsScreen() {
       setLocations(data);
     } catch (err) {
       showDialog({
-        title: "Erro",
-        message: "Não foi possível carregar os locais",
-        type: "error",
+        title: 'Erro',
+        message: 'Não foi possível carregar os locais',
+        type: 'error',
       });
     } finally {
       setRefreshing(false);
@@ -41,34 +41,34 @@ export default function LocationsScreen() {
   // Confirmar e excluir local
   const confirmDelete = (location: Location) => {
     showDialog({
-      title: "Confirmar exclusão",
+      title: 'Confirmar exclusão',
       message: `Deseja realmente excluir o local "${location.name}"?`,
-      type: "confirm",
-      confirmText: "Excluir",
-      cancelText: "Cancelar",
+      type: 'confirm',
+      confirmText: 'Excluir',
+      cancelText: 'Cancelar',
       onConfirm: async () => {
         try {
           const success = await deleteLocation(location.id);
           if (success) {
             showDialog({
-              title: "Sucesso",
-              message: "Local excluído com sucesso",
-              type: "success",
+              title: 'Sucesso',
+              message: 'Local excluído com sucesso',
+              type: 'success',
             });
             // Recarregar lista
             loadLocations();
           } else {
             showDialog({
-              title: "Erro",
-              message: error?.message || "Não foi possível excluir o local",
-              type: "error",
+              title: 'Erro',
+              message: error?.message || 'Não foi possível excluir o local',
+              type: 'error',
             });
           }
         } catch (err) {
           showDialog({
-            title: "Erro",
-            message: "Ocorreu um erro ao excluir o local",
-            type: "error",
+            title: 'Erro',
+            message: 'Ocorreu um erro ao excluir o local',
+            type: 'error',
           });
         }
       },
@@ -78,34 +78,29 @@ export default function LocationsScreen() {
   // Navegar para a tela de edição
   const navigateToEdit = (location: Location) => {
     router.push({
-      pathname: "/locations/edit",
+      pathname: '/locations/edit',
       params: { id: location.id },
     });
   };
 
   // Navegar para a tela de adição
   const navigateToAdd = () => {
-    router.push("/locations/add");
+    router.push('/locations/add');
   };
 
   // Renderizar item da lista
   const renderLocationItem = ({ item }: { item: Location }) => (
     <TouchableOpacity
-      className="flex-row bg-white rounded-xl p-4 mb-3 shadow-sm"
-      onPress={() => navigateToEdit(item)}
-    >
+      className="mb-3 flex-row rounded-xl bg-white p-4 shadow-sm"
+      onPress={() => navigateToEdit(item)}>
       <View
-        className="w-2 rounded-full mr-3"
-        style={{ backgroundColor: item.color || "#0077B6" }}
+        className="mr-3 w-2 rounded-full"
+        style={{ backgroundColor: item.color || '#0077B6' }}
       />
       <View className="flex-1">
-        <Text className="text-base font-bold text-gray-800 mb-1">
-          {item.name}
-        </Text>
-        <Text className="text-sm text-gray-600 mb-1">{item.address}</Text>
-        {item.phone && (
-          <Text className="text-sm text-gray-600">{item.phone}</Text>
-        )}
+        <Text className="mb-1 text-base font-bold text-gray-800">{item.name}</Text>
+        <Text className="mb-1 text-sm text-gray-600">{item.address}</Text>
+        {item.phone && <Text className="text-sm text-gray-600">{item.phone}</Text>}
       </View>
       <View className="justify-center">
         <TouchableOpacity className="p-2" onPress={() => confirmDelete(item)}>
@@ -119,7 +114,7 @@ export default function LocationsScreen() {
     <SafeAreaView className="flex-1 bg-gray-50">
       <StatusBar style="dark" />
 
-      <View className="flex-row justify-between items-center px-4 py-3 border-b border-gray-200">
+      <View className="flex-row items-center justify-between border-b border-gray-200 px-4 py-3">
         <Text className="text-xl font-bold text-gray-800">Locais</Text>
         <TouchableOpacity className="p-2" onPress={loadLocations}>
           <Ionicons name="refresh-outline" size={24} color="#2B2D42" />
@@ -127,7 +122,7 @@ export default function LocationsScreen() {
       </View>
 
       {loading && !refreshing ? (
-        <View className="flex-1 justify-center items-center">
+        <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color="#0077B6" />
         </View>
       ) : locations.length > 0 ? (
@@ -142,25 +137,23 @@ export default function LocationsScreen() {
           />
         </View>
       ) : (
-        <View className="flex-1 justify-center items-center p-6">
+        <View className="flex-1 items-center justify-center p-6">
           <Ionicons name="location-outline" size={64} color="#8D99AE" />
-          <Text className="mt-4 mb-4 text-base text-gray-500 text-center">
+          <Text className="mb-4 mt-4 text-center text-base text-gray-500">
             Nenhum local disponível
           </Text>
           <TouchableOpacity
-            className="flex-row items-center bg-blue-600 rounded-md px-4 py-2"
-            onPress={navigateToAdd}
-          >
+            className="flex-row items-center rounded-md bg-blue-600 px-4 py-2"
+            onPress={navigateToAdd}>
             <Ionicons name="add" size={20} color="#FFFFFF" />
-            <Text className="text-white font-medium ml-2">Adicionar Local</Text>
+            <Text className="ml-2 font-medium text-white">Adicionar Local</Text>
           </TouchableOpacity>
         </View>
       )}
 
       <TouchableOpacity
-        className="absolute bottom-6 right-6 w-14 h-14 rounded-full bg-blue-600 justify-center items-center shadow-md"
-        onPress={navigateToAdd}
-      >
+        className="absolute bottom-6 right-6 h-14 w-14 items-center justify-center rounded-full bg-blue-600 shadow-md"
+        onPress={navigateToAdd}>
         <Ionicons name="add" size={24} color="#FFFFFF" />
       </TouchableOpacity>
     </SafeAreaView>

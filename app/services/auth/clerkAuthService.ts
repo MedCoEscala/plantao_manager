@@ -1,16 +1,11 @@
 import * as SecureStore from 'expo-secure-store';
-import { useAuth, useSignIn, useSignUp, useUser } from '@clerk/clerk-expo';
-import { User } from '../types/user';
+import { AuthResponse, AuthService, ResetPasswordResponse } from './authTypes';
+import { User } from '../../types/user';
+import { formatUserFromClerk } from './utils';
 
 const CLERK_USER_KEY = 'clerk_user';
 
-interface AuthResponse {
-  success: boolean;
-  user?: User;
-  error?: string;
-}
-
-class AuthService {
+class ClerkAuthService implements AuthService {
   async login(email: string, password: string): Promise<AuthResponse> {
     try {
       if (!email || !password) {
@@ -54,15 +49,7 @@ class AuthService {
           };
         }
 
-        const userInfo: User = {
-          id: user.id,
-          email: email,
-          name: `${user.firstName || ''} ${user.lastName || ''}`.trim(),
-          createdAt: user.createdAt || new Date().toISOString(),
-          updatedAt: user.updatedAt || new Date().toISOString(),
-          phoneNumber: user.phoneNumbers[0]?.phoneNumber || '',
-          birthDate: '',
-        };
+        const userInfo = formatUserFromClerk(user, email);
 
         await SecureStore.setItemAsync(CLERK_USER_KEY, JSON.stringify(userInfo));
 
@@ -123,6 +110,7 @@ class AuthService {
           emailAddress: email,
           password,
         });
+
         if (signUpAttempt.status !== 'complete') {
           return {
             success: false,
@@ -143,23 +131,7 @@ class AuthService {
           };
         }
 
-        if (phoneNumber) {
-          try {
-            await user.createPhoneNumber({ phoneNumber });
-          } catch (phoneError) {
-            console.error('Erro ao adicionar telefone:', phoneError);
-          }
-        }
-
-        if (birthDate) {
-          try {
-            await user.update({
-              publicMetadata: { birthDate },
-            });
-          } catch (metadataError) {
-            console.error('Erro ao adicionar data de nascimento:', metadataError);
-          }
-        }
+        await this.updateUserMetadata(user, { phoneNumber, birthDate });
 
         const userInfo: User = {
           id: user.id,
@@ -196,78 +168,7 @@ class AuthService {
     }
   }
 
-  // Verificar se o usuário está autenticado e retornar os dados
-  async getCurrentUser(): Promise<User | null> {
-    try {
-      // O Clerk usa hooks para autenticação, então precisamos fornecer uma camada de compatibilidade
-      const clerk = globalThis.Clerk;
-      if (!clerk || !clerk.session) {
-        return null;
-      }
-
-      // Tentar obter os dados do usuário salvos localmente primeiro
-      const userJson = await SecureStore.getItemAsync(CLERK_USER_KEY);
-      if (userJson) {
-        return JSON.parse(userJson) as User;
-      }
-
-      // Se não houver dados salvos localmente, buscar do Clerk
-      const user = await clerk.user;
-
-      if (!user) return null;
-
-      // Mapear os dados e salvar localmente
-      const userInfo: User = {
-        id: user.id,
-        email: user.primaryEmailAddress?.emailAddress || '',
-        name: `${user.firstName || ''} ${user.lastName || ''}`.trim(),
-        createdAt: user.createdAt || new Date().toISOString(),
-        updatedAt: user.updatedAt || new Date().toISOString(),
-        phoneNumber: user.phoneNumbers[0]?.phoneNumber || '',
-        birthDate: (user.publicMetadata?.birthDate as string) || '',
-      };
-
-      await SecureStore.setItemAsync(CLERK_USER_KEY, JSON.stringify(userInfo));
-      return userInfo;
-    } catch (error) {
-      console.error('Erro ao obter usuário atual:', error);
-      return null;
-    }
-  }
-
-  // Fazer logout
-  async logout(): Promise<boolean> {
-    try {
-      // O Clerk usa hooks para autenticação, então precisamos fornecer uma camada de compatibilidade
-      const clerk = globalThis.Clerk;
-      if (!clerk) {
-        return false;
-      }
-
-      // Fazer logout no Clerk
-      await clerk.signOut();
-
-      // Remover dados do armazenamento seguro
-      await SecureStore.deleteItemAsync(CLERK_USER_KEY);
-
-      return true;
-    } catch (error) {
-      console.error('Erro ao fazer logout:', error);
-      return false;
-    }
-  }
-
-  async isAuthenticated(): Promise<boolean> {
-    try {
-      const clerk = globalThis.Clerk;
-      return !!clerk && !!clerk.session;
-    } catch (error) {
-      console.error('Erro ao verificar autenticação:', error);
-      return false;
-    }
-  }
-
-  async forgotPassword(email: string): Promise<{ success: boolean; error?: string }> {
+  async forgotPassword(email: string): Promise<ResetPasswordResponse> {
     try {
       if (!email) {
         return {
@@ -300,7 +201,108 @@ class AuthService {
       };
     }
   }
+
+  async logout(): Promise<boolean> {
+    try {
+      const clerk = globalThis.Clerk;
+      if (!clerk) {
+        return false;
+      }
+
+      await clerk.signOut();
+
+      await SecureStore.deleteItemAsync(CLERK_USER_KEY);
+
+      return true;
+    } catch (error) {
+      console.error('Erro ao fazer logout:', error);
+      return false;
+    }
+  }
+
+  async isAuthenticated(): Promise<boolean> {
+    try {
+      const clerk = globalThis.Clerk;
+      return !!clerk && !!clerk.session;
+    } catch (error) {
+      console.error('Erro ao verificar autenticação:', error);
+      return false;
+    }
+  }
+
+  async requestPasswordReset(email: string): Promise<ResetPasswordResponse> {
+    return this.forgotPassword(email);
+  }
+
+  async resetPassword(token: string, newPassword: string): Promise<ResetPasswordResponse> {
+    try {
+      if (!token || !newPassword) {
+        return {
+          success: false,
+          error: 'Token e nova senha são obrigatórios',
+        };
+      }
+
+      const clerk = globalThis.Clerk;
+      if (!clerk) {
+        return {
+          success: false,
+          error: 'Sistema de autenticação não inicializado',
+        };
+      }
+
+      try {
+        await clerk.client.signIn.attemptFirstFactor({
+          strategy: 'reset_password_email_code',
+          code: token,
+          password: newPassword,
+        });
+
+        return {
+          success: true,
+        };
+      } catch (error) {
+        console.error('Erro ao redefinir senha:', error);
+        return {
+          success: false,
+          error: 'Código inválido ou expirado',
+        };
+      }
+    } catch (error) {
+      console.error('Erro ao redefinir senha:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Erro ao redefinir senha',
+      };
+    }
+  }
+
+  private async updateUserMetadata(
+    user: any,
+    data: { phoneNumber?: string; birthDate?: string }
+  ): Promise<void> {
+    try {
+      if (data.phoneNumber) {
+        try {
+          await user.createPhoneNumber({ phoneNumber: data.phoneNumber });
+        } catch (phoneError) {
+          console.error('Erro ao adicionar telefone:', phoneError);
+        }
+      }
+
+      if (data.birthDate) {
+        try {
+          await user.update({
+            publicMetadata: { birthDate: data.birthDate },
+          });
+        } catch (metadataError) {
+          console.error('Erro ao adicionar data de nascimento:', metadataError);
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao atualizar metadados do usuário:', error);
+    }
+  }
 }
 
-export const authService = new AuthService();
-export default authService;
+export default new ClerkAuthService();

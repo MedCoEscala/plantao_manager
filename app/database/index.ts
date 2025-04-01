@@ -1,42 +1,33 @@
-// Implementação temporária enquanto resolvemos o problema do SQLite
-// Em vez de usar SQLite diretamente, vamos armazenar os dados na memória
-// para você poder testar o aplicativo
-
-import { openDatabaseAsync, SQLiteDatabase } from "expo-sqlite";
-import { TableDefinitions, Tables } from "./schema";
+import { openDatabaseAsync, SQLiteDatabase } from 'expo-sqlite';
+import { TableDefinitions, Tables } from './schema';
 
 let db: SQLiteDatabase | null = null;
 
-// Função para inicializar o banco de dados
 export const initializeDb = async (): Promise<SQLiteDatabase> => {
   if (db !== null) {
     return db;
   }
 
   try {
-    db = await openDatabaseAsync("plantao_manager_v2.db");
+    db = await openDatabaseAsync('plantao_manager_v2.db');
     return db;
   } catch (error) {
-    console.error("Erro ao abrir o banco de dados:", error);
+    console.error('Erro ao abrir o banco de dados:', error);
     throw error;
   }
 };
 
-// Função para executar SQL
-export const executeSql = async (
-  sql: string,
-  params: any[] = []
-): Promise<any> => {
+export const executeSql = async (sql: string, params: any[] = []): Promise<any> => {
   try {
     if (!db) {
       await initializeDb();
     }
 
     if (!db) {
-      throw new Error("Banco de dados não inicializado");
+      throw new Error('Banco de dados não inicializado');
     }
 
-    if (sql.trim().toUpperCase().startsWith("SELECT")) {
+    if (sql.trim().toUpperCase().startsWith('SELECT')) {
       const result = await db.getAllAsync(sql, params);
       return {
         rows: { _array: result || [] },
@@ -50,18 +41,15 @@ export const executeSql = async (
       };
     }
   } catch (error) {
-    console.error("Erro ao executar SQL:", sql, params, error);
+    console.error('Erro ao executar SQL:', sql, params, error);
     throw error;
   }
 };
 
-// Criar as tabelas no banco de dados
 const createTables = async () => {
   try {
-    // Habilitar foreign keys
-    await executeSql("PRAGMA foreign_keys = ON;");
+    await executeSql('PRAGMA foreign_keys = ON;');
 
-    // Criar tabela de usuários
     await executeSql(`
       CREATE TABLE IF NOT EXISTS users (
         id TEXT PRIMARY KEY,
@@ -76,7 +64,6 @@ const createTables = async () => {
       )
     `);
 
-    // Criar tabela de locais
     await executeSql(`
       CREATE TABLE IF NOT EXISTS locations (
         id TEXT PRIMARY KEY,
@@ -89,7 +76,6 @@ const createTables = async () => {
       )
     `);
 
-    // Criar tabela de contratantes
     await executeSql(`
       CREATE TABLE IF NOT EXISTS contractors (
         id TEXT PRIMARY KEY,
@@ -101,7 +87,6 @@ const createTables = async () => {
       )
     `);
 
-    // Criar tabela de plantões
     await executeSql(`
       CREATE TABLE IF NOT EXISTS shifts (
         id TEXT PRIMARY KEY,
@@ -122,7 +107,6 @@ const createTables = async () => {
       )
     `);
 
-    // Criar tabela de pagamentos
     await executeSql(`
       CREATE TABLE IF NOT EXISTS payments (
         id TEXT PRIMARY KEY,
@@ -138,26 +122,24 @@ const createTables = async () => {
       )
     `);
 
-    console.log("Tabelas criadas com sucesso!");
+    console.log('Tabelas criadas com sucesso!');
   } catch (error) {
-    console.error("Erro ao criar tabelas:", error);
+    console.error('Erro ao criar tabelas:', error);
     throw error;
   }
 };
 
-// Inicializar o banco de dados
 export const initDatabase = async (): Promise<void> => {
   try {
     await initializeDb();
     await createTables();
-    console.log("Banco de dados inicializado com sucesso!");
+    console.log('Banco de dados inicializado com sucesso!');
   } catch (error) {
-    console.error("Erro ao inicializar o banco de dados:", error);
+    console.error('Erro ao inicializar o banco de dados:', error);
     throw error;
   }
 };
 
-// Função para listar todas as tabelas do banco de dados
 export const listTables = async (): Promise<string[]> => {
   try {
     const result = await executeSql(
@@ -166,12 +148,11 @@ export const listTables = async (): Promise<string[]> => {
     );
     return result.rows._array.map((table: any) => table.name);
   } catch (error) {
-    console.error("Erro ao listar tabelas:", error);
+    console.error('Erro ao listar tabelas:', error);
     throw error;
   }
 };
 
-// Funções para debug e visualização do banco de dados
 export const getTableData = async (tableName: string): Promise<any[]> => {
   try {
     const result = await executeSql(`SELECT * FROM ${tableName}`, []);
@@ -184,10 +165,7 @@ export const getTableData = async (tableName: string): Promise<any[]> => {
 
 export const getTableCount = async (tableName: string): Promise<number> => {
   try {
-    const result = await executeSql(
-      `SELECT COUNT(*) as count FROM ${tableName}`,
-      []
-    );
+    const result = await executeSql(`SELECT COUNT(*) as count FROM ${tableName}`, []);
     return result.rows._array[0]?.count || 0;
   } catch (error) {
     console.error(`Erro ao contar registros da tabela ${tableName}:`, error);
@@ -195,7 +173,6 @@ export const getTableCount = async (tableName: string): Promise<number> => {
   }
 };
 
-// Função para limpar uma tabela (útil para testes)
 export const clearTable = async (tableName: string): Promise<void> => {
   try {
     await executeSql(`DELETE FROM ${tableName}`, []);
@@ -206,7 +183,6 @@ export const clearTable = async (tableName: string): Promise<void> => {
   }
 };
 
-// Objeto para compatibilidade com código existente
 export const compatibility = {
   transaction: async (callback: (tx: any) => void): Promise<void> => {
     try {
@@ -215,7 +191,7 @@ export const compatibility = {
       }
 
       if (!db) {
-        throw new Error("Banco de dados não inicializado");
+        throw new Error('Banco de dados não inicializado');
       }
 
       await callback({
@@ -224,13 +200,16 @@ export const compatibility = {
         },
       });
     } catch (error) {
-      console.error("Erro na transação:", error);
+      console.error('Erro na transação:', error);
       throw error;
     }
   },
 };
 
-// Exportação default para expo-router
+export const getDatabase = (): SQLiteDatabase | null => {
+  return db;
+};
+
 export default {
   executeSql,
   initDatabase,
@@ -239,5 +218,6 @@ export default {
   getTableCount,
   clearTable,
   compatibility,
+  getDatabase,
   Tables,
 };

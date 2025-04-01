@@ -1,6 +1,6 @@
-import { useState } from "react";
-import { useSQLite } from "../contexts/SQLiteContext";
-import { v4 as uuidv4 } from "uuid";
+import { useState } from 'react';
+import { useSQLite } from '../contexts/SQLiteContext';
+import { v4 as uuidv4 } from 'uuid';
 
 export interface Location {
   id: string;
@@ -45,10 +45,9 @@ export function useLocations() {
 
       return result.rows._array || [];
     } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : "Erro ao buscar locais";
+      const errorMessage = err instanceof Error ? err.message : 'Erro ao buscar locais';
       setError(new Error(errorMessage));
-      console.error("Erro ao buscar locais:", err);
+      console.error('Erro ao buscar locais:', err);
       return [];
     } finally {
       setLoading(false);
@@ -75,8 +74,7 @@ export function useLocations() {
       }
       return null;
     } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : "Erro ao buscar local";
+      const errorMessage = err instanceof Error ? err.message : 'Erro ao buscar local';
       setError(new Error(errorMessage));
       console.error(`Erro ao buscar local com ID ${id}:`, err);
       return null;
@@ -86,9 +84,7 @@ export function useLocations() {
   };
 
   // Criar novo local
-  const createLocation = async (
-    data: LocationCreateInput
-  ): Promise<Location | null> => {
+  const createLocation = async (data: LocationCreateInput): Promise<Location | null> => {
     setLoading(true);
     setError(null);
 
@@ -104,7 +100,7 @@ export function useLocations() {
           data.name,
           data.address,
           data.phone || null,
-          data.color || "#0077B6", // Cor padrão
+          data.color || '#0077B6', // Cor padrão
           now,
           now,
         ]
@@ -115,15 +111,14 @@ export function useLocations() {
         name: data.name,
         address: data.address,
         phone: data.phone,
-        color: data.color || "#0077B6",
+        color: data.color || '#0077B6',
         createdAt: now,
         updatedAt: now,
       };
     } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : "Erro ao criar local";
+      const errorMessage = err instanceof Error ? err.message : 'Erro ao criar local';
       setError(new Error(errorMessage));
-      console.error("Erro ao criar local:", err);
+      console.error('Erro ao criar local:', err);
       return null;
     } finally {
       setLoading(false);
@@ -131,9 +126,7 @@ export function useLocations() {
   };
 
   // Atualizar local existente
-  const updateLocation = async (
-    data: LocationUpdateInput
-  ): Promise<boolean> => {
+  const updateLocation = async (data: LocationUpdateInput): Promise<boolean> => {
     setLoading(true);
     setError(null);
 
@@ -145,26 +138,26 @@ export function useLocations() {
       let params = [];
 
       if (data.name !== undefined) {
-        fields.push("name = ?");
+        fields.push('name = ?');
         params.push(data.name);
       }
 
       if (data.address !== undefined) {
-        fields.push("address = ?");
+        fields.push('address = ?');
         params.push(data.address);
       }
 
       if (data.phone !== undefined) {
-        fields.push("phone = ?");
+        fields.push('phone = ?');
         params.push(data.phone);
       }
 
       if (data.color !== undefined) {
-        fields.push("color = ?");
+        fields.push('color = ?');
         params.push(data.color);
       }
 
-      fields.push("updated_at = ?");
+      fields.push('updated_at = ?');
       params.push(now);
 
       // Adicionar ID ao final dos parâmetros
@@ -172,15 +165,14 @@ export function useLocations() {
 
       const result = await executeSql(
         `UPDATE locations
-        SET ${fields.join(", ")}
+        SET ${fields.join(', ')}
         WHERE id = ?`,
         params
       );
 
       return result.rowsAffected > 0;
     } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : "Erro ao atualizar local";
+      const errorMessage = err instanceof Error ? err.message : 'Erro ao atualizar local';
       setError(new Error(errorMessage));
       console.error(`Erro ao atualizar local com ID ${data.id}:`, err);
       return false;
@@ -197,28 +189,21 @@ export function useLocations() {
     try {
       // Verificar se há plantões associados a este local
       const shiftsCheck = await executeSql(
-        "SELECT COUNT(*) as count FROM shifts WHERE location_id = ?",
+        'SELECT COUNT(*) as count FROM shifts WHERE location_id = ?',
         [id]
       );
 
       if (shiftsCheck.rows._array && shiftsCheck.rows._array[0].count > 0) {
-        setError(
-          new Error(
-            "Não é possível excluir este local pois há plantões associados a ele"
-          )
-        );
+        setError(new Error('Não é possível excluir este local pois há plantões associados a ele'));
         return false;
       }
 
       // Excluir o local
-      const result = await executeSql("DELETE FROM locations WHERE id = ?", [
-        id,
-      ]);
+      const result = await executeSql('DELETE FROM locations WHERE id = ?', [id]);
 
       return result.rowsAffected > 0;
     } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : "Erro ao excluir local";
+      const errorMessage = err instanceof Error ? err.message : 'Erro ao excluir local';
       setError(new Error(errorMessage));
       console.error(`Erro ao excluir local com ID ${id}:`, err);
       return false;

@@ -1,22 +1,12 @@
-import { Redirect } from "expo-router";
-import { View, ActivityIndicator } from "react-native";
-import { useAuth } from "./contexts/AuthContext";
+import { useAuth } from '@clerk/clerk-expo';
+import { Redirect } from 'expo-router';
 
-// Este arquivo serve como ponto de entrada principal da aplicação
-export default function Index() {
-  const { user, isLoading } = useAuth();
+const Home = () => {
+  const { isSignedIn } = useAuth();
 
-  if (isLoading) {
-    return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator size="large" color="#0077B6" />
-      </View>
-    );
-  }
+  if (isSignedIn) return <Redirect href="/(root)/(tabs)/home" />;
 
-  if (user) {
-    return <Redirect href="/(app)" />;
-  }
+  return <Redirect href="/(auth)/sign-in" />;
+};
 
-  return <Redirect href="/(auth)/login" />;
-}
+export default Home;

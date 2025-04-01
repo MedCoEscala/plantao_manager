@@ -1,31 +1,53 @@
-import React from "react";
-import { Stack } from "expo-router";
-import { AuthProvider } from "@app/contexts/AuthContext";
-import { ShiftProvider } from "@app/contexts/ShiftContext";
-import { SafeAreaProvider } from "react-native-safe-area-context";
-import { StatusBar } from "expo-status-bar";
-import { SQLiteProvider } from "@app/contexts/SQLiteContext";
-import DialogProvider from "./contexts/DialogContext";
-import "@app/styles/global.css";
+import 'react-native-get-random-values';
+import { useFonts } from 'expo-font';
+import { SplashScreen, Stack } from 'expo-router';
 
-// Ponto de entrada para o layout principal da aplicação
+import { useEffect } from 'react';
+import { ClerkLoaded, ClerkProvider } from '@clerk/clerk-expo';
+import { tokenCache } from '@/cache';
+import { DialogProvider } from '@app/contexts/DialogContext';
+import { SQLiteProvider } from '@app/contexts/SQLiteContext';
+import './styles/global.css';
+
+const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!;
+
+if (!publishableKey) {
+  throw new Error('Add EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY in your .env');
+}
+
 export default function RootLayout() {
+  const [fontsLoaded] = useFonts({
+    'Jakarta-Bold': require('../assets/fonts/PlusJakartaSans-Bold.ttf'),
+    'Jakarta-ExtraBold': require('../assets/fonts/PlusJakartaSans-ExtraBold.ttf'),
+    'Jakarta-ExtraLight': require('../assets/fonts/PlusJakartaSans-ExtraLight.ttf'),
+    'Jakarta-Light': require('../assets/fonts/PlusJakartaSans-Light.ttf'),
+    'Jakarta-Medium': require('../assets/fonts/PlusJakartaSans-Medium.ttf'),
+    'Jackarta-Regular': require('../assets/fonts/PlusJakartaSans-Regular.ttf'),
+    'Jakarta-SemiBold': require('../assets/fonts/PlusJakartaSans-SemiBold.ttf'),
+  });
+
+  useEffect(() => {
+    if (fontsLoaded) {
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded]);
+
+  if (!fontsLoaded) {
+    return null;
+  }
   return (
-    <SafeAreaProvider>
-      <StatusBar style="auto" />
-      <SQLiteProvider>
-        <DialogProvider>
-          <AuthProvider>
-            <ShiftProvider>
-              <Stack screenOptions={{ headerShown: false }}>
-                <Stack.Screen name="index" />
-                <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-                <Stack.Screen name="(app)" options={{ headerShown: false }} />
-              </Stack>
-            </ShiftProvider>
-          </AuthProvider>
-        </DialogProvider>
-      </SQLiteProvider>
-    </SafeAreaProvider>
+    <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
+      <ClerkLoaded>
+        <SQLiteProvider>
+          <DialogProvider>
+            <Stack>
+              <Stack.Screen name="index" options={{ headerShown: false }} />
+              <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+              <Stack.Screen name="(root)" options={{ headerShown: false }} />
+            </Stack>
+          </DialogProvider>
+        </SQLiteProvider>
+      </ClerkLoaded>
+    </ClerkProvider>
   );
 }
