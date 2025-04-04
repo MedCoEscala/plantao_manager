@@ -1,11 +1,10 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { router } from 'expo-router';
+import { useAuth as useClerkAuth, useUser } from '@clerk/clerk-expo';
 import type { User } from '../types/user';
-import { authService } from '../services/auth';
-import { profileService } from '../services/profile';
-import { userSyncService } from '../services/sync';
 import { useDialog } from './DialogContext';
 import { useSQLite } from './SQLiteContext';
+import { userSyncService } from '../services/sync';
 
 /**
  * Interface para os dados do contexto de autenticação
@@ -34,6 +33,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { isLoaded, isSignedIn, signOut } = useClerkAuth();
+  const { user: clerkUser } = useUser();
   const { showDialog } = useDialog();
   const { database } = useSQLite();
 
@@ -52,39 +53,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        setIsLoading(true);
+        if (!isLoaded) return;
 
-        // Verifica autenticação com Clerk
-        const isAuthenticated = await authService.isAuthenticated();
+        if (isSignedIn && clerkUser) {
+          // Mapear dados do usuário do Clerk
+          const userData: User = {
+            id: clerkUser.id,
+            email: clerkUser.primaryEmailAddress?.emailAddress || '',
+            name: `${clerkUser.firstName || ''} ${clerkUser.lastName || ''}`.trim(),
+            createdAt: clerkUser.createdAt
+              ? clerkUser.createdAt.toString()
+              : new Date().toISOString(),
+            updatedAt: clerkUser.updatedAt
+              ? clerkUser.updatedAt.toString()
+              : new Date().toISOString(),
+            phoneNumber: clerkUser.phoneNumbers[0]?.phoneNumber || '',
+            birthDate: (clerkUser.publicMetadata?.birthDate as string) || '',
+          };
 
-        if (isAuthenticated) {
-          // Tenta obter dados do Clerk
-          const userData = await profileService.getUserProfile();
+          setUser(userData);
 
-          if (userData) {
-            setUser(userData);
-
-            // Verifica se é necessário sincronizar dados com SQLite
-            if (database && (await userSyncService.hasPendingSync())) {
-              await userSyncService.syncUserData();
-            }
-
-            router.replace('/(root)');
-          } else {
-            // Tenta obter usuário do banco de dados local
-            if (database) {
-              const localUser = await userSyncService.getUserFromLocal();
-              if (localUser) {
-                setUser(localUser);
-                router.replace('/(root)');
-                return;
-              }
-            }
-
-            // Se não encontrou dados localmente, redireciona para login
-            router.replace('/(auth)/sign-in');
+          // Sincroniza com o banco de dados local
+          if (database) {
+            await userSyncService.updateUserInLocal(userData);
           }
+
+          router.replace('/(root)');
         } else {
+          // Tenta obter usuário do banco de dados local
+          if (database) {
+            const localUser = await userSyncService.getUserFromLocal();
+            if (localUser) {
+              setUser(localUser);
+              router.replace('/(root)');
+              return;
+            }
+          }
+
           // Não está autenticado, redireciona para login
           router.replace('/(auth)/sign-in');
         }
@@ -104,51 +109,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     checkAuth();
-  }, []);
+  }, [isLoaded, isSignedIn, clerkUser]);
 
   /**
-   * Função para fazer login
+   * Função para fazer login - apenas um stub que será implementado via hook
    */
   const login = async (email: string, password: string) => {
-    try {
-      setIsLoading(true);
-      setError(null);
-
-      const result = await authService.login(email, password);
-
-      if (result.success && result.user) {
-        setUser(result.user);
-
-        // Sincroniza com o banco de dados local
-        if (database) {
-          await userSyncService.updateUserInLocal(result.user);
-        }
-
-        router.replace('/(root)');
-      } else {
-        setError(result.error || 'Erro desconhecido ao fazer login');
-        showDialog({
-          type: 'error',
-          title: 'Falha no Login',
-          message: result.error || 'Email ou senha inválidos. Por favor, tente novamente.',
-        });
-      }
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Erro desconhecido ao fazer login';
-      setError(errorMessage);
-      showDialog({
-        type: 'error',
-        title: 'Erro de Login',
-        message: errorMessage,
-      });
-    } finally {
-      setIsLoading(false);
-    }
+    // Esta função será implementada pelo hook useLogin
+    console.log('A função de login no AuthContext não deve ser chamada diretamente.');
   };
 
   /**
-   * Função para registrar um novo usuário
+   * Função para registrar - apenas um stub que será implementado via hook
    */
   const register = async (
     name: string,
@@ -157,42 +129,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     phoneNumber?: string,
     birthDate?: string
   ) => {
+    // Esta função será implementada pelo hook useRegister
+    console.log('A função de registro no AuthContext não deve ser chamada diretamente.');
+  };
+
+  /**
+   * Função para fazer logout
+   */
+  const logout = async () => {
     try {
       setIsLoading(true);
-      setError(null);
 
-      const result = await authService.register(name, email, password, phoneNumber, birthDate);
+      await signOut();
+      setUser(null);
 
-      if (result.success && result.user) {
-        setUser(result.user);
-
-        // Sincroniza com o banco de dados local
-        if (database) {
-          await userSyncService.updateUserInLocal(result.user);
-        }
-
-        router.replace('/(root)');
-
-        showDialog({
-          type: 'success',
-          title: 'Cadastro Realizado',
-          message: 'Sua conta foi criada com sucesso!',
-        });
-      } else {
-        setError(result.error || 'Erro desconhecido ao registrar');
-        showDialog({
-          type: 'error',
-          title: 'Falha no Cadastro',
-          message: result.error || 'Não foi possível criar sua conta. Por favor, tente novamente.',
-        });
-      }
+      router.replace('/(auth)/sign-in');
     } catch (error) {
       const errorMessage =
-        error instanceof Error ? error.message : 'Erro desconhecido ao registrar';
-      setError(errorMessage);
+        error instanceof Error ? error.message : 'Erro desconhecido ao fazer logout';
       showDialog({
         type: 'error',
-        title: 'Erro de Cadastro',
+        title: 'Erro ao Sair',
         message: errorMessage,
       });
     } finally {
@@ -200,45 +157,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const logout = async () => {
-    try {
-      setIsLoading(true);
-      await authService.logout();
-      setUser(null);
-      router.replace('/(auth)/sign-in');
-    } catch (error) {
-      console.error('Erro ao fazer logout:', error);
-      showDialog({
-        type: 'error',
-        title: 'Erro de Logout',
-        message: 'Ocorreu um erro ao sair da sua conta.',
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const contextValue = {
-    user,
-    isLoading,
-    error,
-    login,
-    register,
-    logout,
-  };
-
-  return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        isLoading,
+        error,
+        login,
+        register,
+        logout,
+      }}>
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
-export const useAuth = () => {
+/**
+ * Hook para usar o contexto de autenticação
+ */
+export function useAuth(): AuthContextData {
   const context = useContext(AuthContext);
 
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useAuth deve ser usado dentro de um AuthProvider');
   }
 
   return context;
-};
+}
 
 export type { User };
 export default AuthProvider;

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useSQLite } from '../contexts/SQLiteContext';
+import { useSQLite } from '../app/contexts/SQLiteContext';
 import { v4 as uuidv4 } from 'uuid';
 
 export interface Location {

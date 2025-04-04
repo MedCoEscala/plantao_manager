@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { router } from 'expo-router';
-import { authService } from '../../services/auth';
-import { useDialog } from '../../contexts/DialogContext';
+import { useAuth } from '@clerk/clerk-expo';
+import { useDialog } from '../../app/contexts/DialogContext';
 
 export interface UseLogoutResult {
   logout: () => Promise<void>;
@@ -11,14 +11,15 @@ export interface UseLogoutResult {
 /**
  * Hook para gerenciar o processo de logout
  */
-export function useLogout(): UseLogoutResult {
+const useLogout = (): UseLogoutResult => {
   const [isLoading, setIsLoading] = useState(false);
+  const { signOut } = useAuth();
   const { showDialog } = useDialog();
 
   const logout = async () => {
     try {
       setIsLoading(true);
-      await authService.logout();
+      await signOut();
       router.replace('/(auth)/sign-in');
     } catch (error) {
       const errorMessage =
@@ -37,4 +38,7 @@ export function useLogout(): UseLogoutResult {
     logout,
     isLoading,
   };
-}
+};
+
+export { useLogout };
+export default useLogout;

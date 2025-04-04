@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useLocations, Location } from '@app/hooks/useLocations';
+import { useLocations, Location } from '../../../hooks/useLocations';
 import { useDialog } from '@app/contexts/DialogContext';
 
 export default function LocationsScreen() {

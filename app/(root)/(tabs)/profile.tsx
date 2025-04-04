@@ -3,12 +3,12 @@ import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '@app/contexts/AuthContext';
+import { useAuth, useUser } from '@clerk/clerk-expo';
 import * as Clipboard from 'expo-clipboard';
 import { showDatabaseInfo, showTableData } from '@app/utils/debug';
 import { Tables } from '@app/database/schema';
 import { Toast } from '@app/components/ui/Toast';
-import { showToast } from '@app/utils/toast';
+import { router } from 'expo-router';
 
 // Estenda a interface User para incluir os campos necessários
 declare module '@app/contexts/AuthContext' {
@@ -19,7 +19,8 @@ declare module '@app/contexts/AuthContext' {
 }
 
 export default function ProfileScreen() {
-  const { user, logout } = useAuth();
+  const { signOut } = useAuth();
+  const { user } = useUser();
   const [toast, setToast] = useState({
     visible: false,
     message: '',
@@ -66,11 +67,31 @@ export default function ProfileScreen() {
     }
   };
 
-  const handleLogout = () => {
-    // Aqui podemos usar o diálogo nativo do componente de debug, pois ele já tem confirmação
-    showDatabaseInfo();
-    logout();
+  const handleLogout = async () => {
+    try {
+      // Mostrar informações do banco de dados antes de sair
+      showDatabaseInfo();
+      // Realizar logout
+      await signOut();
+      // Redirecionar para a tela de login
+      router.replace('/(auth)/sign-in');
+    } catch (error) {
+      console.error('Erro ao fazer logout:', error);
+      showLocalToast('Erro ao fazer logout', 'error');
+    }
   };
+
+  // Obter nome formatado
+  const userName = user?.firstName ? `${user.firstName} ${user.lastName || ''}` : 'Usuário';
+
+  // Obter telefone do usuário
+  const userPhone =
+    user?.phoneNumbers && user.phoneNumbers.length > 0
+      ? user.phoneNumbers[0].phoneNumber
+      : 'Não informado';
+
+  // Obter data de nascimento
+  const userBirthDate = (user?.publicMetadata?.birthDate as string) || undefined;
 
   // Componente de debug para banco de dados
   const renderDebugSection = () => {
@@ -129,11 +150,13 @@ export default function ProfileScreen() {
         <View className="my-6 items-center">
           <View className="mb-4 h-20 w-20 items-center justify-center rounded-full bg-blue-600">
             <Text className="text-2xl font-bold text-white">
-              {user ? getInitials(user.name) : '?'}
+              {user ? getInitials(userName) : '?'}
             </Text>
           </View>
-          <Text className="mb-1 text-xl font-bold text-gray-800">{user?.name || 'Usuário'}</Text>
-          <Text className="text-base text-gray-500">{user?.email || 'email@exemplo.com'}</Text>
+          <Text className="mb-1 text-xl font-bold text-gray-800">{userName}</Text>
+          <Text className="text-base text-gray-500">
+            {user?.primaryEmailAddress?.emailAddress || 'email@exemplo.com'}
+          </Text>
         </View>
 
         <View className="mb-6">
@@ -141,12 +164,12 @@ export default function ProfileScreen() {
           <View className="rounded-xl bg-white p-4 shadow-sm">
             <View className="flex-row items-center justify-between py-3">
               <Text className="text-base text-gray-800">Telefone</Text>
-              <Text className="text-base text-gray-500">{user?.phone || 'Não informado'}</Text>
+              <Text className="text-base text-gray-500">{userPhone}</Text>
             </View>
             <View className="h-px bg-gray-200" />
             <View className="flex-row items-center justify-between py-3">
               <Text className="text-base text-gray-800">Data de Nascimento</Text>
-              <Text className="text-base text-gray-500">{formatDate(user?.birthDate)}</Text>
+              <Text className="text-base text-gray-500">{formatDate(userBirthDate)}</Text>
             </View>
           </View>
         </View>

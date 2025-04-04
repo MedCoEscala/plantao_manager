@@ -3,17 +3,21 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '../../../app/contexts/AuthContext';
+import { useAuth } from '@clerk/clerk-expo';
+import { useUser } from '@clerk/clerk-expo';
 
 export default function ShiftsScreen() {
-  const { user } = useAuth();
+  const { isSignedIn } = useAuth();
+  const { user } = useUser();
+
+  const userName = user?.firstName ? `${user.firstName} ${user.lastName || ''}` : 'Usuário';
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
       <ScrollView style={styles.scrollView}>
         <View style={styles.header}>
-          <Text style={styles.greeting}>Olá, {user?.name || 'Usuário'}</Text>
+          <Text style={styles.greeting}>Olá, {userName.trim()}</Text>
           <Text style={styles.subtitle}>Seus plantões</Text>
         </View>
 

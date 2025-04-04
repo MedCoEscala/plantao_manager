@@ -7,13 +7,12 @@ import { Ionicons } from '@expo/vector-icons';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import { useToast } from '../components/ui/Toast';
-import { useAuth } from '../contexts/AuthContext';
-import { authService } from '../services/authService';
+import { usePasswordReset } from '../../hooks/auth';
 
 export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const { requestPasswordReset, isLoading } = usePasswordReset();
   const router = useRouter();
   const { showToast } = useToast();
 
@@ -38,22 +37,12 @@ export default function ForgotPasswordScreen() {
       return;
     }
 
-    setIsLoading(true);
-
     try {
-      // Usar o serviço real de recuperação de senha
-      const result = await authService.forgotPassword(email.trim());
-
-      if (result.success) {
-        setIsSubmitted(true);
-        showToast('Instruções enviadas ao seu email', 'success');
-      } else {
-        showToast(result.error || 'Erro ao enviar instruções', 'error');
-      }
+      await requestPasswordReset(email.trim());
+      setIsSubmitted(true);
+      showToast('Instruções enviadas ao seu email', 'success');
     } catch (error) {
       showToast('Erro ao enviar instruções de redefinição', 'error');
-    } finally {
-      setIsLoading(false);
     }
   };
 
