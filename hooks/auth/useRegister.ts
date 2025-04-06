@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { router } from 'expo-router';
 import { useSignUp } from '@clerk/clerk-expo';
 import { useDialog } from '../../app/contexts/DialogContext';
+import userRepository from '@/app/repositories/userRepository';
 
 export interface UseRegisterResult {
   register: (
@@ -45,7 +46,6 @@ const useRegister = (): UseRegisterResult => {
       const firstName = nameParts[0];
       const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
 
-      // Criar a conta
       await signUp.create({
         firstName,
         lastName,
@@ -53,10 +53,20 @@ const useRegister = (): UseRegisterResult => {
         password,
       });
 
-      // Preparar verificação de email
       await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
 
-      // Redirecionar para a tela de verificação com todos os dados necessários
+      if (signUp.createdUserId) {
+        await userRepository.createUser(
+          {
+            name,
+            email,
+            phoneNumber,
+            birthDate,
+          },
+          signUp.createdUserId
+        );
+      }
+
       router.push({
         pathname: '/(auth)/verify-code',
         params: {

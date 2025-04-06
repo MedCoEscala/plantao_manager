@@ -6,9 +6,6 @@ import { useDialog } from './DialogContext';
 import { useSQLite } from './SQLiteContext';
 import { userSyncService } from '../services/sync';
 
-/**
- * Interface para os dados do contexto de autenticação
- */
 interface AuthContextData {
   user: User | null;
   isLoading: boolean;
@@ -26,9 +23,6 @@ interface AuthContextData {
 
 const AuthContext = createContext<AuthContextData | undefined>(undefined);
 
-/**
- * Provedor de autenticação para a aplicação
- */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -38,25 +32,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { showDialog } = useDialog();
   const { database } = useSQLite();
 
-  /**
-   * Inicializa o serviço de sincronização com o banco de dados
-   */
   useEffect(() => {
     if (database) {
       userSyncService.initialize(database);
     }
   }, [database]);
 
-  /**
-   * Verifica se o usuário está logado ao iniciar o app
-   */
   useEffect(() => {
     const checkAuth = async () => {
       try {
         if (!isLoaded) return;
 
         if (isSignedIn && clerkUser) {
-          // Mapear dados do usuário do Clerk
           const userData: User = {
             id: clerkUser.id,
             email: clerkUser.primaryEmailAddress?.emailAddress || '',
@@ -73,14 +60,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           setUser(userData);
 
-          // Sincroniza com o banco de dados local
           if (database) {
             await userSyncService.updateUserInLocal(userData);
           }
 
           router.replace('/(root)');
         } else {
-          // Tenta obter usuário do banco de dados local
           if (database) {
             const localUser = await userSyncService.getUserFromLocal();
             if (localUser) {
@@ -90,7 +75,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
           }
 
-          // Não está autenticado, redireciona para login
           router.replace('/(auth)/sign-in');
         }
       } catch (error) {
@@ -101,7 +85,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           message: 'Erro ao verificar seu login. Por favor, tente novamente.',
         });
 
-        // Em caso de erro, redireciona para login
         router.replace('/(auth)/sign-in');
       } finally {
         setIsLoading(false);
@@ -111,17 +94,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     checkAuth();
   }, [isLoaded, isSignedIn, clerkUser]);
 
-  /**
-   * Função para fazer login - apenas um stub que será implementado via hook
-   */
   const login = async (email: string, password: string) => {
-    // Esta função será implementada pelo hook useLogin
     console.log('A função de login no AuthContext não deve ser chamada diretamente.');
   };
 
-  /**
-   * Função para registrar - apenas um stub que será implementado via hook
-   */
   const register = async (
     name: string,
     email: string,
@@ -129,13 +105,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     phoneNumber?: string,
     birthDate?: string
   ) => {
-    // Esta função será implementada pelo hook useRegister
     console.log('A função de registro no AuthContext não deve ser chamada diretamente.');
   };
 
-  /**
-   * Função para fazer logout
-   */
   const logout = async () => {
     try {
       setIsLoading(true);
@@ -172,9 +144,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-/**
- * Hook para usar o contexto de autenticação
- */
 export function useAuth(): AuthContextData {
   const context = useContext(AuthContext);
 

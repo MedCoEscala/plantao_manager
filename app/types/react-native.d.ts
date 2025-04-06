@@ -1,5 +1,5 @@
-declare module "react-native" {
-  import * as React from "react";
+declare module 'react-native' {
+  import * as React from 'react';
 
   export interface ViewProps {
     style?: any;
@@ -82,13 +82,7 @@ declare module "react-native" {
 
   export class FlatList<T> extends React.Component<{
     data: T[];
-    renderItem: ({
-      item,
-      index,
-    }: {
-      item: T;
-      index: number;
-    }) => React.ReactElement;
+    renderItem: ({ item, index }: { item: T; index: number }) => React.ReactElement;
     keyExtractor: (item: T, index: number) => string;
     refreshing?: boolean;
     onRefresh?: () => void;
@@ -97,7 +91,7 @@ declare module "react-native" {
 
   export class KeyboardAvoidingView extends React.Component<{
     style?: any;
-    behavior?: "height" | "position" | "padding";
+    behavior?: 'height' | 'position' | 'padding';
     children?: React.ReactNode;
   }> {}
 
@@ -113,7 +107,7 @@ declare module "react-native" {
       buttons?: Array<{
         text: string;
         onPress?: () => void;
-        style?: "default" | "cancel" | "destructive";
+        style?: 'default' | 'cancel' | 'destructive';
       }>,
       options?: {
         cancelable: boolean;

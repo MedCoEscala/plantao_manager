@@ -1,13 +1,19 @@
 /// <reference types="nativewind/types" />
 
+import 'react-native';
+
 declare namespace JSX {
   interface IntrinsicAttributes {
     className?: string;
   }
 }
 
-// Estendendo as definições para React Native
-declare module "react-native" {
+declare module 'react-native' {
+  export interface AppStateStatic {
+    currentState: string;
+    addEventListener(type: string, handler: (state: string) => void): { remove: () => void };
+  }
+
   interface TextProps {
     className?: string;
   }
@@ -16,7 +22,7 @@ declare module "react-native" {
   }
   interface ImageProps {
     className?: string;
-    resizeMode?: "cover" | "contain" | "stretch" | "repeat" | "center";
+    resizeMode?: 'cover' | 'contain' | 'stretch' | 'repeat' | 'center';
   }
   interface TouchableOpacityProps {
     className?: string;
@@ -27,6 +33,10 @@ declare module "react-native" {
   interface ScrollViewProps {
     className?: string;
     contentContainerClassName?: string;
-    keyboardShouldPersistTaps?: "always" | "never" | "handled";
+    keyboardShouldPersistTaps?: 'always' | 'never' | 'handled';
   }
+
+  export const AppState: AppStateStatic;
+
+  export type AppStateStatus = 'active' | 'background' | 'inactive' | 'unknown' | 'extension';
 }

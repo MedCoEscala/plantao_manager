@@ -1,13 +1,16 @@
+// app/(auth)/verify-code.tsx (versão corrigida)
+
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, TextInput } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useSignUp } from '@clerk/clerk-expo';
+import { useSignUp, useUser } from '@clerk/clerk-expo';
 import Button from '../components/ui/Button';
 import { useToast } from '../components/ui/Toast';
 import { useDialog } from '../contexts/DialogContext';
+import userRepository from '../repositories/userRepository';
 
 export default function VerifyCodeScreen() {
   const [code, setCode] = useState('');
@@ -21,6 +24,7 @@ export default function VerifyCodeScreen() {
   const { email, phoneNumber, birthDate } = params;
 
   const { isLoaded, signUp, setActive } = useSignUp();
+  const { user } = useUser();
 
   useEffect(() => {
     if (!email) {
@@ -47,51 +51,60 @@ export default function VerifyCodeScreen() {
     try {
       setIsLoading(true);
 
-      // Verificar o código e finalizar o cadastro
       const completeSignUp = await signUp.attemptEmailAddressVerification({
         code: code.trim(),
       });
 
       if (completeSignUp.status === 'complete') {
-        // Ativar a sessão do usuário
         await setActive({ session: completeSignUp.createdSessionId });
 
-        // Acessar a API global do Clerk para configurar dados adicionais
-        if (completeSignUp.createdUserId) {
-          // Configurar dados adicionais se necessário
-          const clerk = globalThis.Clerk;
-          if (clerk) {
-            try {
-              // Esperar pelo carregamento do usuário
-              await clerk.load();
-              const user = clerk.user;
-
-              if (user) {
-                // Adicionar telefone se fornecido
-                if (phoneNumber) {
-                  try {
-                    await user.createPhoneNumber({ phoneNumber: phoneNumber as string });
-                    console.log('Telefone adicionado com sucesso');
-                  } catch (phoneError) {
-                    console.error('Erro ao adicionar telefone:', phoneError);
-                  }
-                }
-
-                // Adicionar data de nascimento se fornecida
-                if (birthDate) {
-                  try {
-                    await user.update({
-                      publicMetadata: { birthDate },
-                    });
-                    console.log('Data de nascimento adicionada com sucesso');
-                  } catch (metadataError) {
-                    console.error('Erro ao adicionar data de nascimento:', metadataError);
-                  }
-                }
+        if (user) {
+          try {
+            if (phoneNumber) {
+              try {
+                await user.createPhoneNumber({
+                  phoneNumber: phoneNumber as string,
+                });
+                console.log('Telefone adicionado com sucesso');
+              } catch (phoneError) {
+                console.error('Erro ao adicionar telefone:', phoneError);
               }
-            } catch (error) {
-              console.error('Erro ao configurar dados adicionais:', error);
             }
+
+            if (birthDate) {
+              try {
+                await user.update({
+                  unsafeMetadata: {
+                    birthDate: birthDate as string,
+                  },
+                });
+                console.log('Data de nascimento adicionada com sucesso');
+              } catch (metadataError) {
+                console.error('Erro ao adicionar data de nascimento:', metadataError);
+              }
+            }
+
+            await userRepository.syncUserFromRemote({
+              id: user.id,
+              name: `${user.firstName || ''} ${user.lastName || ''}`.trim(),
+              email: user.primaryEmailAddress?.emailAddress || (email as string),
+              phoneNumber: (phoneNumber as string) || undefined,
+              birthDate: (birthDate as string) || undefined,
+              createdAt:
+                typeof user.createdAt === 'string'
+                  ? user.createdAt
+                  : user.createdAt instanceof Date
+                    ? user.createdAt.toISOString()
+                    : new Date().toISOString(),
+              updatedAt:
+                typeof user.updatedAt === 'string'
+                  ? user.updatedAt
+                  : user.updatedAt instanceof Date
+                    ? user.updatedAt.toISOString()
+                    : new Date().toISOString(),
+            });
+          } catch (error) {
+            console.error('Erro ao atualizar dados do usuário:', error);
           }
         }
 

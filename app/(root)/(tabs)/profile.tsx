@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+// app/(root)/(tabs)/profile.tsx (com integração de sincronização)
+
+import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -9,23 +11,36 @@ import { showDatabaseInfo, showTableData } from '@app/utils/debug';
 import { Tables } from '@app/database/schema';
 import { Toast } from '@app/components/ui/Toast';
 import { router } from 'expo-router';
-
-// Estenda a interface User para incluir os campos necessários
-declare module '@app/contexts/AuthContext' {
-  interface User {
-    phone?: string;
-    birthDate?: string;
-  }
-}
+import SyncStatus from '@app/components/SyncStatus';
+import SyncConflictModal from '@app/components/SyncConflictModal';
+import { useSync } from '@app/contexts/SyncContext';
+import syncManager, { ConflictData } from '@app/services/sync/syncManager';
 
 export default function ProfileScreen() {
   const { signOut } = useAuth();
   const { user } = useUser();
+  const { syncNow, pendingOperations } = useSync();
   const [toast, setToast] = useState({
     visible: false,
     message: '',
     type: 'info' as 'success' | 'error' | 'info' | 'warning',
   });
+  const [showConflictModal, setShowConflictModal] = useState(false);
+  const [currentConflict, setCurrentConflict] = useState<ConflictData | null>(null);
+  const [conflicts, setConflicts] = useState<ConflictData[]>([]);
+
+  useEffect(() => {
+    const checkConflicts = async () => {
+      const unresolvedConflicts = syncManager.getUnresolvedConflicts();
+      setConflicts(unresolvedConflicts);
+    };
+
+    checkConflicts();
+
+    const intervalId = setInterval(checkConflicts, 30000);
+
+    return () => clearInterval(intervalId);
+  }, []);
 
   const getInitials = (name: string) => {
     if (!name) return '?';
@@ -81,19 +96,49 @@ export default function ProfileScreen() {
     }
   };
 
-  // Obter nome formatado
   const userName = user?.firstName ? `${user.firstName} ${user.lastName || ''}` : 'Usuário';
 
-  // Obter telefone do usuário
   const userPhone =
     user?.phoneNumbers && user.phoneNumbers.length > 0
       ? user.phoneNumbers[0].phoneNumber
       : 'Não informado';
 
-  // Obter data de nascimento
   const userBirthDate = (user?.publicMetadata?.birthDate as string) || undefined;
 
-  // Componente de debug para banco de dados
+  const showConflict = (conflict: ConflictData) => {
+    setCurrentConflict(conflict);
+    setShowConflictModal(true);
+  };
+
+  const handleResolveConflict = async (
+    conflictId: string,
+    resolution: 'local' | 'remote' | 'merged',
+    mergedData?: any
+  ) => {
+    try {
+      const success = await syncManager.resolveConflict(conflictId, resolution, mergedData);
+
+      if (success) {
+        const remaining = syncManager.getUnresolvedConflicts();
+        setConflicts(remaining);
+
+        setShowConflictModal(false);
+        setCurrentConflict(null);
+
+        showLocalToast('Conflito resolvido com sucesso', 'success');
+
+        if (resolution !== 'remote') {
+          syncNow();
+        }
+      } else {
+        showLocalToast('Erro ao resolver conflito', 'error');
+      }
+    } catch (error) {
+      console.error('Erro ao resolver conflito:', error);
+      showLocalToast('Erro ao resolver conflito', 'error');
+    }
+  };
+
   const renderDebugSection = () => {
     return (
       <View className="mb-6">
@@ -143,6 +188,45 @@ export default function ProfileScreen() {
     );
   };
 
+  const renderSyncSection = () => {
+    return (
+      <View className="mb-6">
+        <Text className="mb-3 text-lg font-bold text-gray-800">Sincronização</Text>
+
+        <SyncStatus showDetail={true} onPress={pendingOperations > 0 ? syncNow : undefined} />
+
+        {conflicts.length > 0 && (
+          <>
+            <Text className="mb-2 mt-4 text-base font-medium text-gray-800">
+              Conflitos pendentes
+            </Text>
+            {conflicts.map((conflict) => (
+              <TouchableOpacity
+                key={conflict.id}
+                className="mb-2 flex-row items-center justify-between rounded-lg border border-yellow-200 bg-yellow-50 p-3"
+                onPress={() => showConflict(conflict)}>
+                <View className="flex-row items-center">
+                  <Ionicons name="alert-circle" size={20} color="#F59E0B" />
+                  <Text className="ml-2 text-sm text-yellow-800">
+                    Conflito em{' '}
+                    {conflict.entity === 'user'
+                      ? 'usuário'
+                      : conflict.entity === 'location'
+                        ? 'local'
+                        : conflict.entity === 'shift'
+                          ? 'plantão'
+                          : 'pagamento'}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color="#F59E0B" />
+              </TouchableOpacity>
+            ))}
+          </>
+        )}
+      </View>
+    );
+  };
+
   return (
     <SafeAreaView className="flex-1 bg-gray-50">
       <StatusBar style="dark" />
@@ -173,6 +257,8 @@ export default function ProfileScreen() {
             </View>
           </View>
         </View>
+
+        {renderSyncSection()}
 
         <View className="mb-6">
           <Text className="mb-3 text-lg font-bold text-gray-800">Opções</Text>
@@ -217,7 +303,6 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* Adicionando a seção de debug */}
         {renderDebugSection()}
 
         <TouchableOpacity
@@ -237,6 +322,13 @@ export default function ProfileScreen() {
         message={toast.message}
         type={toast.type}
         onDismiss={hideToast}
+      />
+
+      <SyncConflictModal
+        visible={showConflictModal}
+        conflict={currentConflict}
+        onResolve={handleResolveConflict}
+        onClose={() => setShowConflictModal(false)}
       />
     </SafeAreaView>
   );

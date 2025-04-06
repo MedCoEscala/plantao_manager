@@ -8,6 +8,7 @@ import { tokenCache } from '@/cache';
 import { DialogProvider } from '@app/contexts/DialogContext';
 import { SQLiteProvider } from '@app/contexts/SQLiteContext';
 import './styles/global.css';
+import SyncProvider from './contexts/SyncContext';
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!;
 
@@ -40,11 +41,13 @@ export default function RootLayout() {
       <ClerkLoaded>
         <SQLiteProvider>
           <DialogProvider>
-            <Stack>
-              <Stack.Screen name="index" options={{ headerShown: false }} />
-              <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-              <Stack.Screen name="(root)" options={{ headerShown: false }} />
-            </Stack>
+            <SyncProvider>
+              <Stack>
+                <Stack.Screen name="index" options={{ headerShown: false }} />
+                <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+                <Stack.Screen name="(root)" options={{ headerShown: false }} />
+              </Stack>
+            </SyncProvider>
           </DialogProvider>
         </SQLiteProvider>
       </ClerkLoaded>
