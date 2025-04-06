@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { router } from 'expo-router';
 import { useDialog } from '../../app/contexts/DialogContext';
+import { useSignIn } from '@clerk/clerk-expo';
 
 export interface UsePasswordResetResult {
   requestPasswordReset: (email: string) => Promise<void>;
@@ -9,43 +10,38 @@ export interface UsePasswordResetResult {
   error: string | null;
 }
 
-/**
- * Hook para gerenciar o processo de recuperação de senha
- */
 const usePasswordReset = (): UsePasswordResetResult => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { showDialog } = useDialog();
+  const { isLoaded, signIn, setActive } = useSignIn();
 
   const requestPasswordReset = async (email: string) => {
+    if (!isLoaded || !signIn) {
+      showDialog({
+        type: 'error',
+        title: 'Serviço não disponível',
+        message: 'Sistema de autenticação não está pronto',
+      });
+      return;
+    }
     try {
       setIsLoading(true);
       setError(null);
 
-      // No Clerk, isso normalmente é feito pelo endpoint de Reset Password
-      // que envia automaticamente um email
-      try {
-        // Na API do Clerk, isso é feito através de fetch para o endpoint
-        const clerk = globalThis.Clerk;
-        if (!clerk) {
-          throw new Error('Clerk não inicializado');
-        }
+      await signIn.create({
+        identifier: email,
+        strategy: 'reset_password_email_code',
+      });
 
-        await clerk.client.signIn.create({
-          strategy: 'reset_password_email_code',
-          identifier: email,
-        });
+      showDialog({
+        type: 'success',
+        title: 'Email Enviado',
+        message:
+          'Um email com instruções para redefinir sua senha foi enviado para o seu endereço de email.',
+      });
 
-        showDialog({
-          type: 'success',
-          title: 'Email Enviado',
-          message:
-            'Um email com instruções para redefinir sua senha foi enviado para o seu endereço de email.',
-        });
-        router.replace('/(auth)/sign-in');
-      } catch (apiError) {
-        throw new Error('Falha ao solicitar redefinição de senha');
-      }
+      console.log('Email de redefinição enviado com sucesso');
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : 'Erro desconhecido na redefinição de senha';
@@ -60,46 +56,46 @@ const usePasswordReset = (): UsePasswordResetResult => {
     }
   };
 
-  const resetPassword = async (token: string, newPassword: string) => {
+  const resetPassword = async (code: string, newPassword: string) => {
+    if (!isLoaded || !signIn) {
+      showDialog({
+        type: 'error',
+        title: 'Serviço não disponível',
+        message: 'Sistema de autenticação não está pronto',
+      });
+      return;
+    }
+
     try {
       setIsLoading(true);
       setError(null);
 
-      // Com Clerk, normalmente isso é tratado em um fluxo completo de redefinição
-      // usando a verificação e atualização via código
-      try {
-        const clerk = globalThis.Clerk;
-        if (!clerk) {
-          throw new Error('Clerk não inicializado');
+      const result = await signIn.attemptFirstFactor({
+        strategy: 'reset_password_email_code',
+        code,
+        password: newPassword,
+      });
+
+      if (result.status === 'complete') {
+        console.log('Senha redefinida com sucesso');
+
+        if (result.createdSessionId) {
+          await setActive({ session: result.createdSessionId });
+
+          router.replace('/(root)');
         }
-
-        // Este é um exemplo simplificado - o fluxo real com Clerk é diferente
-        // e envolve verificação por código, não token
-        await clerk.client.signIn.attemptFirstFactor({
-          strategy: 'reset_password_email_code',
-          code: token,
-          password: newPassword,
-        });
-
-        showDialog({
-          type: 'success',
-          title: 'Senha Alterada',
-          message:
-            'Sua senha foi alterada com sucesso! Agora você pode fazer login com sua nova senha.',
-        });
-        router.replace('/(auth)/sign-in');
-      } catch (apiError) {
-        throw new Error('Falha ao redefinir senha');
+      } else {
+        throw new Error('Não foi possível redefinir a senha');
       }
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Erro desconhecido na redefinição de senha';
+      const errorMessage = error instanceof Error ? error.message : 'Erro ao redefinir senha';
       setError(errorMessage);
       showDialog({
         type: 'error',
         title: 'Erro',
         message: errorMessage,
       });
+      throw error;
     } finally {
       setIsLoading(false);
     }

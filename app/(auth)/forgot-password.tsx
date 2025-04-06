@@ -22,7 +22,6 @@ export default function ForgotPasswordScreen() {
       return false;
     }
 
-    // Validação simples de email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email.trim())) {
       showToast('Por favor, informe um email válido', 'error');
@@ -44,6 +43,13 @@ export default function ForgotPasswordScreen() {
     } catch (error) {
       showToast('Erro ao enviar instruções de redefinição', 'error');
     }
+  };
+
+  const handleContinueToReset = () => {
+    router.push({
+      pathname: '/(auth)/reset-password',
+      params: { email: email.trim() },
+    });
   };
 
   return (
@@ -91,21 +97,37 @@ export default function ForgotPasswordScreen() {
               </Button>
             </>
           ) : (
-            <View className="my-6 items-center">
-              <Ionicons name="mail-outline" size={64} color="#4F46E5" />
-              <Text className="mt-4 text-center text-text-dark">
-                Verifique seu email e siga as instruções para redefinir sua senha.
-              </Text>
+            <View className="my-6">
+              <View className="mb-6 items-center">
+                <Ionicons name="mail-outline" size={64} color="#4F46E5" />
+                <Text className="mt-4 text-center text-text-dark">
+                  Verifique seu email e siga as instruções para redefinir sua senha.
+                </Text>
+                <Text className="mt-2 text-center text-text-dark">
+                  Não recebeu o email? Verifique sua pasta de spam ou tente novamente.
+                </Text>
+              </View>
+
+              <Button variant="primary" onPress={handleContinueToReset} fullWidth className="mb-4">
+                Continuar para Redefinição
+              </Button>
 
               <Button
                 variant="outline"
-                onPress={() => router.push('/(auth)/login')}
+                onPress={() => setIsSubmitted(false)}
                 fullWidth
-                className="mt-8">
-                Voltar para login
+                className="mb-4">
+                Tentar com outro email
               </Button>
             </View>
           )}
+
+          <View className="mt-6 flex-row justify-center">
+            <Text className="text-text-light">Lembrou sua senha? </Text>
+            <TouchableOpacity onPress={() => router.push('/(auth)/sign-in')}>
+              <Text className="font-medium text-primary">Entrar</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </ScrollView>
     </SafeAreaView>

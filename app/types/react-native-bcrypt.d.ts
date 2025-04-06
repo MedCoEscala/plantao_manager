@@ -1,4 +1,4 @@
-declare module "react-native-bcrypt" {
+declare module 'react-native-bcrypt' {
   export function genSalt(
     rounds: number,
     callback: (err: Error | null, salt: string) => void
@@ -16,3 +16,4 @@ declare module "react-native-bcrypt" {
   export function getRounds(hash: string): number;
   export const setRandomFallback: (random: () => number) => void;
 }
+export default {};

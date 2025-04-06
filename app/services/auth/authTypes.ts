@@ -26,3 +26,7 @@ export interface AuthService {
   logout: () => Promise<boolean>;
   isAuthenticated: () => Promise<boolean>;
 }
+
+export default {
+  AuthService: null as any,
+};

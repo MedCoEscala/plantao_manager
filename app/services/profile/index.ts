@@ -3,3 +3,7 @@ import type { ProfileResponse, ProfileService, ProfileUpdateData } from './profi
 
 export { clerkProfileService as profileService };
 export type { ProfileResponse, ProfileService, ProfileUpdateData };
+
+export default {
+  ProfileService: null as any,
+};

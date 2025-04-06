@@ -120,3 +120,4 @@ declare module 'react-native' {
     create: (styles: Record<string, any>) => Record<string, any>;
   };
 }
+export default {};

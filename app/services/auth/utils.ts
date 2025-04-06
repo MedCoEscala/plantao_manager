@@ -11,3 +11,7 @@ export function formatUserFromClerk(clerkUser: any, email: string): User {
     birthDate: (clerkUser.publicMetadata?.birthDate as string) || '',
   };
 }
+
+export default {
+  formatUserFromClerk,
+};

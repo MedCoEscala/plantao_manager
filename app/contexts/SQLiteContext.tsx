@@ -1,7 +1,8 @@
-import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
+import React, { createContext, useState, useContext, useEffect, useRef, ReactNode } from 'react';
 import { Alert } from 'react-native';
 import * as SQLite from 'expo-sqlite';
 import { initDatabase, executeSql as dbExecuteSql, getDatabase } from '../database';
+import { initializeModules } from '../services/init/initModules';
 
 interface SQLiteContextType {
   isDBReady: boolean;
@@ -19,13 +20,27 @@ interface SQLiteProviderProps {
 export const SQLiteProvider = ({ children }: SQLiteProviderProps) => {
   const [isDBReady, setIsDBReady] = useState(false);
   const [database, setDatabase] = useState<SQLite.SQLiteDatabase | null>(null);
+  const initializationAttempted = useRef(false);
 
   const initializeDatabase = async () => {
+    if (initializationAttempted.current) return;
+    initializationAttempted.current = true;
+
     try {
+      console.log('Iniciando inicialização do banco de dados...');
       await initDatabase();
       const db = getDatabase();
+
+      if (!db) {
+        throw new Error('Falha ao obter instância do banco de dados');
+      }
+
       setDatabase(db);
+
+      await initializeModules(db);
+
       setIsDBReady(true);
+      console.log('Banco de dados e módulos inicializados com sucesso');
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : 'Erro ao inicializar o banco de dados';
@@ -35,8 +50,10 @@ export const SQLiteProvider = ({ children }: SQLiteProviderProps) => {
   };
 
   useEffect(() => {
-    initializeDatabase();
-  }, []);
+    if (!isDBReady && !initializationAttempted.current) {
+      initializeDatabase();
+    }
+  }, [isDBReady]);
 
   const executeSql = async (sql: string, params: any[] = []): Promise<SQLite.SQLResultSet> => {
     try {
@@ -51,6 +68,7 @@ export const SQLiteProvider = ({ children }: SQLiteProviderProps) => {
   };
 
   const refetchDB = async (): Promise<void> => {
+    initializationAttempted.current = false;
     setIsDBReady(false);
     setDatabase(null);
     await initializeDatabase();

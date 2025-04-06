@@ -1,6 +1,6 @@
 import { SQLiteDatabase } from 'expo-sqlite';
 import { v4 as uuidv4 } from 'uuid';
-import syncManager from '../services/sync/syncManager';
+import type { SyncEntityType, SyncOperationType } from '../services/sync/syncManager';
 
 export interface Payment {
   id: string;
@@ -36,10 +36,17 @@ export interface PaymentUpdateInput {
 
 export class PaymentRepository {
   private db: SQLiteDatabase | null = null;
+  private syncManager: {
+    queueOperation: (type: SyncOperationType, entity: SyncEntityType, data: any) => Promise<string>;
+  } | null = null;
 
   initialize(database: SQLiteDatabase) {
     this.db = database;
     this.setupDatabase();
+  }
+
+  setSyncManager(syncManager: any) {
+    this.syncManager = syncManager;
   }
 
   private async setupDatabase() {
@@ -97,12 +104,14 @@ export class PaymentRepository {
         ]
       );
 
-      syncManager.queueOperation('create', 'payment', {
-        id: paymentId,
-        ...data,
-        createdAt: now,
-        updatedAt: now,
-      });
+      if (this.syncManager) {
+        this.syncManager.queueOperation('create', 'payment', {
+          id: paymentId,
+          ...data,
+          createdAt: now,
+          updatedAt: now,
+        });
+      }
 
       return {
         id: paymentId,
@@ -181,12 +190,14 @@ export class PaymentRepository {
         values
       );
 
-      syncManager.queueOperation('update', 'payment', {
-        id,
-        ...data,
-        shiftId: payment.shiftId,
-        updatedAt: now,
-      });
+      if (this.syncManager) {
+        this.syncManager.queueOperation('update', 'payment', {
+          id,
+          ...data,
+          shiftId: payment.shiftId,
+          updatedAt: now,
+        });
+      }
 
       return true;
     } catch (error) {
@@ -204,10 +215,12 @@ export class PaymentRepository {
 
       await this.db.runAsync('DELETE FROM payments WHERE id = ?', [id]);
 
-      syncManager.queueOperation('delete', 'payment', {
-        id,
-        shiftId: payment.shiftId,
-      });
+      if (this.syncManager) {
+        this.syncManager.queueOperation('delete', 'payment', {
+          id,
+          shiftId: payment.shiftId,
+        });
+      }
 
       return true;
     } catch (error) {
@@ -287,76 +300,7 @@ export class PaymentRepository {
     }
   }
 
-  async getPaymentsByPeriod(startDate: string, endDate: string): Promise<Payment[]> {
-    if (!this.db) return [];
-
-    try {
-      const results = await this.db.getAllAsync(
-        `
-        SELECT 
-          id, 
-          shift_id as shiftId,
-          payment_date as paymentDate,
-          gross_value as grossValue,
-          net_value as netValue,
-          paid,
-          notes,
-          method,
-          created_at as createdAt,
-          updated_at as updatedAt
-        FROM payments
-        WHERE payment_date >= ? AND payment_date <= ?
-        ORDER BY payment_date DESC
-      `,
-        [startDate, endDate]
-      );
-
-      return results.map((payment) => ({
-        ...payment,
-        paid: !!payment.paid,
-      })) as Payment[];
-    } catch (error) {
-      console.error('Erro ao buscar pagamentos por período:', error);
-      return [];
-    }
-  }
-
-  async getPaymentsByUserId(userId: string): Promise<Payment[]> {
-    if (!this.db) return [];
-
-    try {
-      const results = await this.db.getAllAsync(
-        `
-        SELECT 
-          p.id, 
-          p.shift_id as shiftId,
-          p.payment_date as paymentDate,
-          p.gross_value as grossValue,
-          p.net_value as netValue,
-          p.paid,
-          p.notes,
-          p.method,
-          p.created_at as createdAt,
-          p.updated_at as updatedAt
-        FROM payments p
-        JOIN shifts s ON p.shift_id = s.id
-        WHERE s.user_id = ?
-        ORDER BY p.payment_date DESC, p.created_at DESC
-      `,
-        [userId]
-      );
-
-      return results.map((payment) => ({
-        ...payment,
-        paid: !!payment.paid,
-      })) as Payment[];
-    } catch (error) {
-      console.error('Erro ao buscar pagamentos por usuário:', error);
-      return [];
-    }
-  }
-
-  async syncPaymentFromRemote(payment: Payment): Promise<boolean> {
+  async syncFromRemote(payment: Payment): Promise<boolean> {
     if (!this.db) return false;
 
     try {
@@ -364,14 +308,6 @@ export class PaymentRepository {
       const existingPayment = await this.getPaymentById(payment.id);
 
       if (existingPayment) {
-        const localUpdatedAt = new Date(existingPayment.updatedAt).getTime();
-        const remoteUpdatedAt = new Date(payment.updatedAt).getTime();
-
-        if (localUpdatedAt > remoteUpdatedAt) {
-          syncManager.queueOperation('update', 'payment', existingPayment);
-          return true;
-        }
-
         await this.db.runAsync(
           `
           UPDATE payments 
@@ -468,10 +404,12 @@ export class PaymentRepository {
     const remoteUpdatedAt = new Date(remotePayment.updatedAt).getTime();
 
     if (remoteUpdatedAt >= localUpdatedAt) {
-      await this.syncPaymentFromRemote(remotePayment);
+      await this.syncFromRemote(remotePayment);
       return remotePayment;
     } else {
-      syncManager.queueOperation('update', 'payment', localPayment);
+      if (this.syncManager) {
+        this.syncManager.queueOperation('update', 'payment', localPayment);
+      }
       return localPayment;
     }
   }

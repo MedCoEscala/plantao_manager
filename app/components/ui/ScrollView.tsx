@@ -1,6 +1,5 @@
-import React from "react";
-import { ScrollView as RNScrollView, ScrollViewProps } from "react-native";
-import { twMerge } from "tailwind-merge";
+import React from 'react';
+import { ScrollView as RNScrollView, ScrollViewProps } from 'react-native';
 
 interface CustomScrollViewProps extends ScrollViewProps {
   className?: string;
@@ -8,8 +7,8 @@ interface CustomScrollViewProps extends ScrollViewProps {
 }
 
 const ScrollView: React.FC<CustomScrollViewProps> = ({
-  className = "",
-  contentContainerClassName = "",
+  className = '',
+  contentContainerClassName = '',
   style,
   contentContainerStyle,
   children,
@@ -21,8 +20,7 @@ const ScrollView: React.FC<CustomScrollViewProps> = ({
       style={style}
       contentContainerClassName={contentContainerClassName}
       contentContainerStyle={contentContainerStyle}
-      {...props}
-    >
+      {...props}>
       {children}
     </RNScrollView>
   );
