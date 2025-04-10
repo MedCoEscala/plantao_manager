@@ -1,5 +1,3 @@
-// app/(root)/(tabs)/profile.tsx (com integração de sincronização)
-
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -15,6 +13,7 @@ import SyncStatus from '@app/components/SyncStatus';
 import SyncConflictModal from '@app/components/SyncConflictModal';
 import { useSync } from '@app/contexts/SyncContext';
 import syncManager, { ConflictData } from '@app/services/sync/syncManager';
+import UserMetadataService from '@app/services/profile/userMetadataService';
 
 export default function ProfileScreen() {
   const { signOut } = useAuth();
@@ -96,14 +95,14 @@ export default function ProfileScreen() {
     }
   };
 
-  const userName = user?.firstName ? `${user.firstName} ${user.lastName || ''}` : 'Usuário';
+  // Obter dados do usuário usando o serviço de metadados
+  const userData = user ? UserMetadataService.getUserMetadata(user) : null;
 
-  const userPhone =
-    user?.phoneNumbers && user.phoneNumbers.length > 0
-      ? user.phoneNumbers[0].phoneNumber
-      : 'Não informado';
-
-  const userBirthDate = (user?.publicMetadata?.birthDate as string) || undefined;
+  // Usar os dados extraídos pelo serviço ou fallback para valores diretos
+  const userName = userData?.name || 'Usuário';
+  const userEmail = userData?.email || 'email@exemplo.com';
+  const userPhone = userData?.phoneNumber || 'Não informado';
+  const userBirthDate = userData?.birthDate || undefined;
 
   const showConflict = (conflict: ConflictData) => {
     setCurrentConflict(conflict);
@@ -238,9 +237,7 @@ export default function ProfileScreen() {
             </Text>
           </View>
           <Text className="mb-1 text-xl font-bold text-gray-800">{userName}</Text>
-          <Text className="text-base text-gray-500">
-            {user?.primaryEmailAddress?.emailAddress || 'email@exemplo.com'}
-          </Text>
+          <Text className="text-base text-gray-500">{userEmail}</Text>
         </View>
 
         <View className="mb-6">
@@ -263,7 +260,9 @@ export default function ProfileScreen() {
         <View className="mb-6">
           <Text className="mb-3 text-lg font-bold text-gray-800">Opções</Text>
           <View className="rounded-xl bg-white shadow-sm">
-            <TouchableOpacity className="flex-row items-center p-4">
+            <TouchableOpacity
+              className="flex-row items-center p-4"
+              onPress={() => router.push('/profile/edit')}>
               <View className="mr-4 h-8 w-8 items-center justify-center rounded-full bg-blue-100">
                 <Ionicons name="person-outline" size={20} color="#0077B6" />
               </View>
@@ -327,8 +326,8 @@ export default function ProfileScreen() {
       <SyncConflictModal
         visible={showConflictModal}
         conflict={currentConflict}
-        onResolve={handleResolveConflict}
         onClose={() => setShowConflictModal(false)}
+        onResolve={handleResolveConflict}
       />
     </SafeAreaView>
   );

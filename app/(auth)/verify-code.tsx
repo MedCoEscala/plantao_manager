@@ -1,5 +1,3 @@
-// app/(auth)/verify-code.tsx (versão corrigida)
-
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, TextInput } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -37,6 +35,24 @@ export default function VerifyCodeScreen() {
     }
   }, [email]);
 
+  const saveUserMetadata = async () => {
+    if (!user) return;
+
+    try {
+      const userMetadata = {
+        birthDate: birthDate || undefined,
+      };
+
+      await user.update({
+        unsafeMetadata: userMetadata,
+      });
+
+      console.log('Metadados do usuário atualizados com sucesso');
+    } catch (error) {
+      console.error('Erro ao atualizar metadados do usuário:', error);
+    }
+  };
+
   const handleVerify = async () => {
     if (!code.trim()) {
       showToast('Por favor, informe o código de verificação', 'error');
@@ -71,18 +87,7 @@ export default function VerifyCodeScreen() {
               }
             }
 
-            if (birthDate) {
-              try {
-                await user.update({
-                  unsafeMetadata: {
-                    birthDate: birthDate as string,
-                  },
-                });
-                console.log('Data de nascimento adicionada com sucesso');
-              } catch (metadataError) {
-                console.error('Erro ao adicionar data de nascimento:', metadataError);
-              }
-            }
+            await saveUserMetadata();
 
             await userRepository.syncUserFromRemote({
               id: user.id,
