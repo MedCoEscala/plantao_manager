@@ -1,16 +1,6 @@
-import { useState } from 'react';
-import { useSQLite } from '../app/contexts/SQLiteContext';
+import { useState, useCallback } from 'react';
+import { useApi, Location, ApiError } from '../app/services/api';
 import { v4 as uuidv4 } from 'uuid';
-
-export interface Location {
-  id: string;
-  name: string;
-  address: string;
-  phone?: string;
-  color?: string;
-  createdAt: string;
-  updatedAt: string;
-}
 
 export interface LocationCreateInput {
   name: string;
@@ -24,26 +14,18 @@ export interface LocationUpdateInput extends Partial<LocationCreateInput> {
 }
 
 export function useLocations() {
-  const { executeSql, isDBReady } = useSQLite();
+  const api = useApi();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
   // Buscar todos os locais
-  const getLocations = async (): Promise<Location[]> => {
+  const getLocations = useCallback(async (): Promise<Location[]> => {
     setLoading(true);
     setError(null);
 
     try {
-      const result = await executeSql(
-        `SELECT 
-          id, name, address, phone, color,
-          created_at as createdAt, updated_at as updatedAt
-        FROM locations
-        ORDER BY name ASC`,
-        []
-      );
-
-      return result.rows._array || [];
+      const locations = await api.getLocations();
+      return locations;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erro ao buscar locais';
       setError(new Error(errorMessage));
@@ -52,165 +34,110 @@ export function useLocations() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [api]);
 
-  // Buscar local por ID
-  const getLocationById = async (id: string): Promise<Location | null> => {
-    setLoading(true);
-    setError(null);
+  // Buscar local   por ID
+  const getLocationById = useCallback(
+    async (id: string): Promise<Location | null> => {
+      setLoading(true);
+      setError(null);
 
-    try {
-      const result = await executeSql(
-        `SELECT 
-          id, name, address, phone, color,
-          created_at as createdAt, updated_at as updatedAt
-        FROM locations
-        WHERE id = ?`,
-        [id]
-      );
+      try {
+        const location = await api.getLocation(id);
+        return location;
+      } catch (err) {
+        // Se for erro 404, retornamos null
+        if (err instanceof ApiError && err.status === 404) {
+          return null;
+        }
 
-      if (result.rows._array && result.rows._array.length > 0) {
-        return result.rows._array[0] as Location;
+        const errorMessage = err instanceof Error ? err.message : 'Erro ao buscar local';
+        setError(new Error(errorMessage));
+        console.error(`Erro ao buscar local com ID ${id}:`, err);
+        return null;
+      } finally {
+        setLoading(false);
       }
-      return null;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Erro ao buscar local';
-      setError(new Error(errorMessage));
-      console.error(`Erro ao buscar local com ID ${id}:`, err);
-      return null;
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    [api]
+  );
 
   // Criar novo local
-  const createLocation = async (data: LocationCreateInput): Promise<Location | null> => {
-    setLoading(true);
-    setError(null);
+  const createLocation = useCallback(
+    async (data: LocationCreateInput): Promise<Location | null> => {
+      setLoading(true);
+      setError(null);
 
-    const id = uuidv4();
-    const now = new Date().toISOString();
-
-    try {
-      await executeSql(
-        `INSERT INTO locations (id, name, address, phone, color, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [
+      try {
+        // Gerar um ID no cliente para manter compatibilidade com o código existente
+        const id = uuidv4();
+        const location = await api.createLocation({
+          ...data,
           id,
-          data.name,
-          data.address,
-          data.phone || null,
-          data.color || '#0077B6', // Cor padrão
-          now,
-          now,
-        ]
-      );
+        });
 
-      return {
-        id,
-        name: data.name,
-        address: data.address,
-        phone: data.phone,
-        color: data.color || '#0077B6',
-        createdAt: now,
-        updatedAt: now,
-      };
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Erro ao criar local';
-      setError(new Error(errorMessage));
-      console.error('Erro ao criar local:', err);
-      return null;
-    } finally {
-      setLoading(false);
-    }
-  };
+        return location;
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Erro ao criar local';
+        setError(new Error(errorMessage));
+        console.error('Erro ao criar local:', err);
+        return null;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [api]
+  );
 
   // Atualizar local existente
-  const updateLocation = async (data: LocationUpdateInput): Promise<boolean> => {
-    setLoading(true);
-    setError(null);
+  const updateLocation = useCallback(
+    async (data: LocationUpdateInput): Promise<boolean> => {
+      setLoading(true);
+      setError(null);
 
-    const now = new Date().toISOString();
-
-    try {
-      // Construir a query dinamicamente com base nos campos fornecidos
-      let fields = [];
-      let params = [];
-
-      if (data.name !== undefined) {
-        fields.push('name = ?');
-        params.push(data.name);
+      try {
+        // Removemos o ID dos dados antes de enviar para a API
+        const { id, ...updateData } = data;
+        await api.updateLocation(id, updateData);
+        return true;
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Erro ao atualizar local';
+        setError(new Error(errorMessage));
+        console.error(`Erro ao atualizar local com ID ${data.id}:`, err);
+        return false;
+      } finally {
+        setLoading(false);
       }
-
-      if (data.address !== undefined) {
-        fields.push('address = ?');
-        params.push(data.address);
-      }
-
-      if (data.phone !== undefined) {
-        fields.push('phone = ?');
-        params.push(data.phone);
-      }
-
-      if (data.color !== undefined) {
-        fields.push('color = ?');
-        params.push(data.color);
-      }
-
-      fields.push('updated_at = ?');
-      params.push(now);
-
-      // Adicionar ID ao final dos parâmetros
-      params.push(data.id);
-
-      const result = await executeSql(
-        `UPDATE locations
-        SET ${fields.join(', ')}
-        WHERE id = ?`,
-        params
-      );
-
-      return result.rowsAffected > 0;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Erro ao atualizar local';
-      setError(new Error(errorMessage));
-      console.error(`Erro ao atualizar local com ID ${data.id}:`, err);
-      return false;
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    [api]
+  );
 
   // Excluir local
-  const deleteLocation = async (id: string): Promise<boolean> => {
-    setLoading(true);
-    setError(null);
+  const deleteLocation = useCallback(
+    async (id: string): Promise<boolean> => {
+      setLoading(true);
+      setError(null);
 
-    try {
-      // Verificar se há plantões associados a este local
-      const shiftsCheck = await executeSql(
-        'SELECT COUNT(*) as count FROM shifts WHERE location_id = ?',
-        [id]
-      );
+      try {
+        await api.deleteLocation(id);
+        return true;
+      } catch (err) {
+        const errorMessage =
+          err instanceof ApiError && err.status === 400
+            ? err.data?.error || 'Não é possível excluir este local'
+            : err instanceof Error
+              ? err.message
+              : 'Erro ao excluir local';
 
-      if (shiftsCheck.rows._array && shiftsCheck.rows._array[0].count > 0) {
-        setError(new Error('Não é possível excluir este local pois há plantões associados a ele'));
+        setError(new Error(errorMessage));
+        console.error(`Erro ao excluir local com ID ${id}:`, err);
         return false;
+      } finally {
+        setLoading(false);
       }
-
-      // Excluir o local
-      const result = await executeSql('DELETE FROM locations WHERE id = ?', [id]);
-
-      return result.rowsAffected > 0;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Erro ao excluir local';
-      setError(new Error(errorMessage));
-      console.error(`Erro ao excluir local com ID ${id}:`, err);
-      return false;
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    [api]
+  );
 
   return {
     getLocations,
@@ -220,7 +147,6 @@ export function useLocations() {
     deleteLocation,
     loading,
     error,
-    isDBReady,
   };
 }
 

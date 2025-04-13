@@ -1,0 +1,87 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String     @id
+  name        String
+  email       String     @unique
+  phoneNumber String?    @map("phone_number")
+  birthDate   String?    @map("birth_date")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+  locations   Location[]
+  shifts      Shift[]
+
+  @@map("users")
+}
+
+model Location {
+  id        String   @id
+  name      String
+  address   String
+  phone     String?
+  color     String   @default("#0077B6")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id])
+  shifts    Shift[]
+
+  @@map("locations")
+}
+
+model Contractor {
+  id        String   @id
+  name      String
+  email     String?
+  phone     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  userId    String   @map("user_id")
+  shifts    Shift[]
+
+  @@map("contractors")
+}
+
+model Shift {
+  id           String      @id
+  date         String
+  startTime    String      @map("start_time")
+  endTime      String      @map("end_time")
+  value        Float
+  status       String
+  notes        String?
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+  userId       String      @map("user_id")
+  locationId   String?     @map("location_id")
+  contractorId String?     @map("contractor_id")
+  user         User        @relation(fields: [userId], references: [id])
+  location     Location?   @relation(fields: [locationId], references: [id])
+  contractor   Contractor? @relation(fields: [contractorId], references: [id])
+  payments     Payment[]
+
+  @@map("shifts")
+}
+
+model Payment {
+  id          String   @id
+  shiftId     String   @map("shift_id")
+  paymentDate String?  @map("payment_date")
+  grossValue  Float    @map("gross_value")
+  netValue    Float    @map("net_value")
+  paid        Boolean  @default(false)
+  notes       String?
+  method      String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  shift       Shift    @relation(fields: [shiftId], references: [id])
+
+  @@map("payments")
+}

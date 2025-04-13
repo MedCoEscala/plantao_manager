@@ -1,6 +1,93 @@
 # Plantão Manager
 
-Aplicativo para gerenciamento de plantões médicos desenvolvido com React Native, Expo e NativeWind.
+Um aplicativo para gerenciar plantões médicos, construído com React Native (Expo), Prisma, NeonDB e Clerk para autenticação.
+
+## Configuração do Ambiente
+
+### Pré-requisitos
+
+- Node.js (v16+)
+- Expo CLI (`npm install -g expo-cli`)
+- Uma conta no [NeonDB](https://neon.tech) para o banco de dados PostgreSQL
+- Uma conta no [Clerk](https://clerk.dev) para autenticação
+
+### Instalação
+
+1. Clone o repositório:
+
+```bash
+git clone https://github.com/seu-usuario/plantao_manager.git
+cd plantao_manager
+```
+
+2. Instale as dependências:
+
+```bash
+npm install
+```
+
+3. Configure as variáveis de ambiente:
+   Copie o arquivo `.env.example` para `.env` e preencha com suas informações:
+
+```
+# Configurações do banco de dados
+DATABASE_URL="postgresql://usuario:senha@host:5432/banco?schema=public"
+
+# Configurações do Clerk
+EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=sua-chave-clerk-publicavel
+CLERK_SECRET_KEY=sua-chave-clerk-secreta
+
+# URL da API
+EXPO_PUBLIC_API_URL=http://localhost:8081
+```
+
+4. Execute as migrações do Prisma:
+
+```bash
+npx prisma migrate dev
+```
+
+5. Inicie o servidor de desenvolvimento:
+
+```bash
+npm start
+```
+
+## Estrutura do Projeto
+
+- `/app` - Componentes principais do aplicativo usando Expo Router
+  - `/(auth)` - Rotas de autenticação
+  - `/(root)` - Rotas protegidas (requerem autenticação)
+  - `/api` - API routes para comunicação com o backend
+  - `/contexts` - Context Providers React
+  - `/services` - Serviços para comunicação com APIs e banco de dados
+- `/prisma` - Schema e migrações do Prisma
+- `/hooks` - React Hooks customizados
+
+## Autenticação
+
+O projeto utiliza Clerk para autenticação. O fluxo é o seguinte:
+
+1. O usuário faz login/registro usando Clerk
+2. Os dados do usuário são salvos no NeonDB via Prisma
+3. As rotas protegidas verificam a autenticação via Clerk
+
+## Banco de Dados
+
+O esquema do banco de dados inclui as seguintes entidades:
+
+- `User` - Informações do usuário
+- `Location` - Locais de plantão
+- `Shift` - Plantões agendados
+- `Payment` - Pagamentos dos plantões
+
+## Contribuição
+
+1. Faça um fork do projeto
+2. Crie uma branch para sua feature (`git checkout -b feature/nova-feature`)
+3. Commit suas mudanças (`git commit -m 'Adiciona nova feature'`)
+4. Push para a branch (`git push origin feature/nova-feature`)
+5. Abra um Pull Request
 
 ## Tecnologias
 
@@ -64,7 +151,7 @@ O projeto utiliza NativeWind (TailwindCSS para React Native) para estilização.
 ### Button
 
 ```jsx
-import { Button } from "@app/components/ui";
+import { Button } from '@app/components/ui';
 
 <Button variant="primary" size="md" fullWidth onPress={handlePress}>
   Entrar
@@ -74,7 +161,7 @@ import { Button } from "@app/components/ui";
 ### Input
 
 ```jsx
-import { Input } from "@app/components/ui";
+import { Input } from '@app/components/ui';
 
 <Input
   label="Email"
@@ -88,7 +175,7 @@ import { Input } from "@app/components/ui";
 ### Card
 
 ```jsx
-import { Card } from "@app/components/ui";
+import { Card } from '@app/components/ui';
 
 <Card title="Detalhes do Plantão" variant="elevated">
   <Text className="text-text-dark">Conteúdo do card</Text>

@@ -1,10 +1,17 @@
-import * as SecureStore from 'expo-secure-store';
+import { PrismaClient } from '@prisma/client';
 import { ProfileResponse, ProfileService, ProfileUpdateData } from './profileTypes';
 import { User } from '../../types/user';
 import { formatUserFromClerk } from '../auth/utils';
 
-// Constante para armazenamento seguro
-const CLERK_USER_KEY = 'clerk_user';
+// Inicialização do cliente Prisma (singleton)
+let prismaInstance: PrismaClient | null = null;
+
+const getPrismaClient = () => {
+  if (!prismaInstance) {
+    prismaInstance = new PrismaClient();
+  }
+  return prismaInstance;
+};
 
 class ClerkProfileService implements ProfileService {
   /**
@@ -18,23 +25,46 @@ class ClerkProfileService implements ProfileService {
         return null;
       }
 
-      // Tentar obter os dados do usuário do armazenamento local primeiro (para acesso offline)
-      const userJson = await SecureStore.getItemAsync(CLERK_USER_KEY);
-      if (userJson) {
-        return JSON.parse(userJson) as User;
-      }
-
-      // Se não houver dados locais, buscar do Clerk
       const user = await clerk.user;
       if (!user) {
         return null;
       }
 
-      // Formatar e salvar os dados localmente
-      const userInfo = formatUserFromClerk(user, user.primaryEmailAddress?.emailAddress || '');
-      await SecureStore.setItemAsync(CLERK_USER_KEY, JSON.stringify(userInfo));
+      const userId = user.id;
 
-      return userInfo;
+      // Buscar os dados do usuário do banco de dados
+      const prisma = getPrismaClient();
+      const dbUser = await prisma.user.findUnique({
+        where: { id: userId },
+      });
+
+      // Se o usuário não existir no banco, vamos criá-lo com os dados do Clerk
+      if (!dbUser) {
+        const userData = formatUserFromClerk(user, user.primaryEmailAddress?.emailAddress || '');
+
+        await prisma.user.create({
+          data: {
+            id: userData.id,
+            name: userData.name,
+            email: userData.email,
+            phoneNumber: userData.phoneNumber,
+            birthDate: userData.birthDate,
+          },
+        });
+
+        return userData;
+      }
+
+      // Converter o formato do banco para o formato User
+      return {
+        id: dbUser.id,
+        name: dbUser.name,
+        email: dbUser.email,
+        createdAt: dbUser.createdAt.toISOString(),
+        updatedAt: dbUser.updatedAt.toISOString(),
+        phoneNumber: dbUser.phoneNumber || '',
+        birthDate: dbUser.birthDate || '',
+      };
     } catch (error) {
       console.error('Erro ao obter perfil do usuário:', error);
       return null;
@@ -56,10 +86,11 @@ class ClerkProfileService implements ProfileService {
       }
 
       const user = clerk.user;
+      const userId = user.id;
       const updateData: any = {};
       const publicMetadata: any = {};
 
-      // Preparar dados a serem atualizados
+      // Preparar dados a serem atualizados no Clerk
       if (data.name) {
         const nameParts = data.name.split(' ');
         updateData.firstName = nameParts[0];
@@ -99,6 +130,18 @@ class ClerkProfileService implements ProfileService {
       if (Object.keys(updateData).length > 0) {
         await user.update(updateData);
       }
+
+      // Atualizar dados no banco de dados
+      const prisma = getPrismaClient();
+      await prisma.user.update({
+        where: { id: userId },
+        data: {
+          name: data.name,
+          email: data.email,
+          phoneNumber: data.phoneNumber,
+          birthDate: data.birthDate,
+        },
+      });
 
       // Obter dados atualizados
       const updatedUser = await this.getUserProfile();

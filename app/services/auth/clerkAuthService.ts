@@ -1,9 +1,17 @@
-import * as SecureStore from 'expo-secure-store';
+import { PrismaClient } from '@prisma/client';
 import { AuthResponse, AuthService, ResetPasswordResponse } from './authTypes';
 import { User } from '../../types/user';
 import { formatUserFromClerk } from './utils';
 
-const CLERK_USER_KEY = 'clerk_user';
+// Inicialização do cliente Prisma (singleton)
+let prismaInstance: PrismaClient | null = null;
+
+const getPrismaClient = () => {
+  if (!prismaInstance) {
+    prismaInstance = new PrismaClient();
+  }
+  return prismaInstance;
+};
 
 class ClerkAuthService implements AuthService {
   async login(email: string, password: string): Promise<AuthResponse> {
@@ -51,7 +59,24 @@ class ClerkAuthService implements AuthService {
 
         const userInfo = formatUserFromClerk(user, email);
 
-        await SecureStore.setItemAsync(CLERK_USER_KEY, JSON.stringify(userInfo));
+        // Verificar se o usuário já existe no banco
+        const prisma = getPrismaClient();
+        const dbUser = await prisma.user.findUnique({
+          where: { id: userInfo.id },
+        });
+
+        // Se não existir, criar no banco
+        if (!dbUser) {
+          await prisma.user.create({
+            data: {
+              id: userInfo.id,
+              name: userInfo.name,
+              email: userInfo.email,
+              phoneNumber: userInfo.phoneNumber,
+              birthDate: userInfo.birthDate,
+            },
+          });
+        }
 
         return {
           success: true,
@@ -143,7 +168,17 @@ class ClerkAuthService implements AuthService {
           birthDate: birthDate || '',
         };
 
-        await SecureStore.setItemAsync(CLERK_USER_KEY, JSON.stringify(userInfo));
+        // Criar usuário no banco de dados
+        const prisma = getPrismaClient();
+        await prisma.user.create({
+          data: {
+            id: userInfo.id,
+            name: userInfo.name,
+            email: userInfo.email,
+            phoneNumber: userInfo.phoneNumber,
+            birthDate: userInfo.birthDate,
+          },
+        });
 
         return {
           success: true,
@@ -210,9 +245,6 @@ class ClerkAuthService implements AuthService {
       }
 
       await clerk.signOut();
-
-      await SecureStore.deleteItemAsync(CLERK_USER_KEY);
-
       return true;
     } catch (error) {
       console.error('Erro ao fazer logout:', error);

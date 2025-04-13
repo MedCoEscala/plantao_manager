@@ -3,8 +3,18 @@ import { router } from 'expo-router';
 import { useAuth as useClerkAuth, useUser } from '@clerk/clerk-expo';
 import type { User } from '../types/user';
 import { useDialog } from './DialogContext';
-import { useSQLite } from './SQLiteContext';
-import { userSyncService } from '../services/sync';
+import { authService } from '../services/auth';
+import { PrismaClient } from '@prisma/client';
+
+// Inicialização do cliente Prisma (singleton)
+let prismaInstance: PrismaClient | null = null;
+
+const getPrismaClient = () => {
+  if (!prismaInstance) {
+    prismaInstance = new PrismaClient();
+  }
+  return prismaInstance;
+};
 
 interface AuthContextData {
   user: User | null;
@@ -30,13 +40,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { isLoaded, isSignedIn, signOut } = useClerkAuth();
   const { user: clerkUser } = useUser();
   const { showDialog } = useDialog();
-  const { database } = useSQLite();
-
-  useEffect(() => {
-    if (database) {
-      userSyncService.initialize(database);
-    }
-  }, [database]);
+  const prisma = getPrismaClient();
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -44,6 +48,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!isLoaded) return;
 
         if (isSignedIn && clerkUser) {
+          // Formatar dados do usuário
           const userData: User = {
             id: clerkUser.id,
             email: clerkUser.primaryEmailAddress?.emailAddress || '',
@@ -58,23 +63,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             birthDate: (clerkUser.publicMetadata?.birthDate as string) || '',
           };
 
-          setUser(userData);
+          // Verificar se o usuário já existe no banco
+          const existingUser = await prisma.user.findUnique({
+            where: { id: userData.id },
+          });
 
-          if (database) {
-            await userSyncService.updateUserInLocal(userData);
-          }
-
-          router.replace('/(root)');
-        } else {
-          if (database) {
-            const localUser = await userSyncService.getUserFromLocal();
-            if (localUser) {
-              setUser(localUser);
-              router.replace('/(root)');
-              return;
+          if (!existingUser) {
+            // Criar usuário no banco se não existir
+            await prisma.user.create({
+              data: {
+                id: userData.id,
+                name: userData.name,
+                email: userData.email,
+                phoneNumber: userData.phoneNumber,
+                birthDate: userData.birthDate,
+              },
+            });
+          } else {
+            // Atualizar dados se necessário
+            if (
+              existingUser.name !== userData.name ||
+              existingUser.email !== userData.email ||
+              existingUser.phoneNumber !== userData.phoneNumber ||
+              existingUser.birthDate !== userData.birthDate
+            ) {
+              await prisma.user.update({
+                where: { id: userData.id },
+                data: {
+                  name: userData.name,
+                  email: userData.email,
+                  phoneNumber: userData.phoneNumber,
+                  birthDate: userData.birthDate,
+                },
+              });
             }
           }
 
+          setUser(userData);
+          router.replace('/(root)');
+        } else {
+          // Se não está autenticado, redirecionar para login
           router.replace('/(auth)/sign-in');
         }
       } catch (error) {

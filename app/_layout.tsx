@@ -9,6 +9,8 @@ import { DialogProvider } from '@app/contexts/DialogContext';
 import { SQLiteProvider } from '@app/contexts/SQLiteContext';
 import './styles/global.css';
 import SyncProvider from './contexts/SyncContext';
+import NetworkProvider from './contexts/NetworkContext';
+import NetworkStatus from './components/NetworkStatus';
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!;
 
@@ -42,11 +44,14 @@ export default function RootLayout() {
         <SQLiteProvider>
           <DialogProvider>
             <SyncProvider>
-              <Stack>
-                <Stack.Screen name="index" options={{ headerShown: false }} />
-                <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-                <Stack.Screen name="(root)" options={{ headerShown: false }} />
-              </Stack>
+              <NetworkProvider>
+                <NetworkStatus />
+                <Stack>
+                  <Stack.Screen name="index" options={{ headerShown: false }} />
+                  <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+                  <Stack.Screen name="(root)" options={{ headerShown: false }} />
+                </Stack>
+              </NetworkProvider>
             </SyncProvider>
           </DialogProvider>
         </SQLiteProvider>

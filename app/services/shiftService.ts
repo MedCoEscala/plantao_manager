@@ -1,12 +1,12 @@
-import { executeSql } from "../database";
-import { Shift, ShiftCreateData, ShiftUpdateData } from "../database/types";
+import { executeSql } from '../database';
+import { Shift, ShiftCreateData, ShiftUpdateData } from '../database/types';
 
 // Função para gerar ID único sem depender de randomvalues
 function generateUID() {
   // Math.random deve ser suficiente para este caso de uso
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
     const r = (Math.random() * 16) | 0,
-      v = c === "x" ? r : (r & 0x3) | 0x8;
+      v = c === 'x' ? r : (r & 0x3) | 0x8;
     return v.toString(16);
   });
 }
@@ -16,9 +16,7 @@ function generateUID() {
  * @param shiftData Dados do plantão a ser criado
  * @returns O plantão criado com ID gerado
  */
-export const createShift = async (
-  shiftData: ShiftCreateData
-): Promise<Shift> => {
+export const createShift = async (shiftData: ShiftCreateData): Promise<Shift> => {
   try {
     const id = generateUID();
     const now = new Date().toISOString();
@@ -47,7 +45,7 @@ export const createShift = async (
         shiftData.startTime,
         shiftData.endTime,
         shiftData.value,
-        shiftData.status || "scheduled",
+        shiftData.status || 'scheduled',
         shiftData.notes || null,
         now,
         now,
@@ -63,16 +61,14 @@ export const createShift = async (
       startTime: shiftData.startTime,
       endTime: shiftData.endTime,
       value: shiftData.value,
-      status: shiftData.status || "scheduled",
+      status: shiftData.status || 'scheduled',
       notes: shiftData.notes,
       createdAt: now,
       updatedAt: now,
     };
   } catch (error) {
-    console.error("Erro ao criar plantão:", error);
-    throw new Error(
-      "Falha ao criar o plantão. Verifique os dados e tente novamente."
-    );
+    console.error('Erro ao criar plantão:', error);
+    throw new Error('Falha ao criar o plantão. Verifique os dados e tente novamente.');
   }
 };
 
@@ -82,10 +78,7 @@ export const createShift = async (
  * @param shiftData Dados atualizados do plantão
  * @returns Booleano indicando sucesso da operação
  */
-export const updateShift = async (
-  id: string,
-  shiftData: ShiftUpdateData
-): Promise<boolean> => {
+export const updateShift = async (id: string, shiftData: ShiftUpdateData): Promise<boolean> => {
   try {
     // Constrói a consulta SQL dinamicamente com base nos campos fornecidos
     const updateFields: string[] = [];
@@ -95,32 +88,27 @@ export const updateShift = async (
     Object.entries(shiftData).forEach(([key, value]) => {
       if (value !== undefined) {
         // Converte camelCase para snake_case para o SQL
-        const snakeKey = key.replace(
-          /[A-Z]/g,
-          (letter) => `_${letter.toLowerCase()}`
-        );
+        const snakeKey = key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
         updateFields.push(`${snakeKey} = ?`);
         values.push(value);
       }
     });
 
     // Adiciona o timestamp de atualização
-    updateFields.push("updated_at = ?");
+    updateFields.push('updated_at = ?');
     values.push(new Date().toISOString());
 
     // Adiciona o ID para a cláusula WHERE
     values.push(id);
 
     // Constrói e executa a consulta
-    const query = `UPDATE shifts SET ${updateFields.join(", ")} WHERE id = ?`;
+    const query = `UPDATE shifts SET ${updateFields.join(', ')} WHERE id = ?`;
     await executeSql(query, values);
 
     return true;
   } catch (error) {
-    console.error("Erro ao atualizar plantão:", error);
-    throw new Error(
-      "Falha ao atualizar o plantão. Verifique os dados e tente novamente."
-    );
+    console.error('Erro ao atualizar plantão:', error);
+    throw new Error('Falha ao atualizar o plantão. Verifique os dados e tente novamente.');
   }
 };
 
@@ -131,11 +119,11 @@ export const updateShift = async (
  */
 export const deleteShift = async (id: string): Promise<boolean> => {
   try {
-    await executeSql("DELETE FROM shifts WHERE id = ?", [id]);
+    await executeSql('DELETE FROM shifts WHERE id = ?', [id]);
     return true;
   } catch (error) {
-    console.error("Erro ao deletar plantão:", error);
-    throw new Error("Falha ao deletar o plantão.");
+    console.error('Erro ao deletar plantão:', error);
+    throw new Error('Falha ao deletar o plantão.');
   }
 };
 
@@ -170,8 +158,8 @@ export const getShiftById = async (id: string): Promise<Shift | null> => {
     }
     return null;
   } catch (error) {
-    console.error("Erro ao buscar plantão:", error);
-    throw new Error("Falha ao buscar os dados do plantão.");
+    console.error('Erro ao buscar plantão:', error);
+    throw new Error('Falha ao buscar os dados do plantão.');
   }
 };
 
@@ -207,8 +195,8 @@ export const getShiftsByUserId = async (userId: string): Promise<Shift[]> => {
     }
     return [];
   } catch (error) {
-    console.error("Erro ao buscar plantões do usuário:", error);
-    throw new Error("Falha ao buscar os plantões do usuário.");
+    console.error('Erro ao buscar plantões do usuário:', error);
+    throw new Error('Falha ao buscar os plantões do usuário.');
   }
 };
 
@@ -218,10 +206,7 @@ export const getShiftsByUserId = async (userId: string): Promise<Shift[]> => {
  * @param date Data no formato ISO (YYYY-MM-DD)
  * @returns Lista de plantões do usuário na data especificada
  */
-export const getShiftsByDate = async (
-  userId: string,
-  date: string
-): Promise<Shift[]> => {
+export const getShiftsByDate = async (userId: string, date: string): Promise<Shift[]> => {
   try {
     const result = await executeSql(
       `SELECT 
@@ -248,8 +233,8 @@ export const getShiftsByDate = async (
     }
     return [];
   } catch (error) {
-    console.error("Erro ao buscar plantões por data:", error);
-    throw new Error("Falha ao buscar os plantões para a data especificada.");
+    console.error('Erro ao buscar plantões por data:', error);
+    throw new Error('Falha ao buscar os plantões para a data especificada.');
   }
 };
 
@@ -267,7 +252,7 @@ export const getShiftsByMonth = async (
 ): Promise<Shift[]> => {
   try {
     // Formata o mês para garantir que tenha dois dígitos
-    const monthStr = month.toString().padStart(2, "0");
+    const monthStr = month.toString().padStart(2, '0');
     const datePattern = `${year}-${monthStr}-%`;
 
     const result = await executeSql(
@@ -295,8 +280,8 @@ export const getShiftsByMonth = async (
     }
     return [];
   } catch (error) {
-    console.error("Erro ao buscar plantões por mês:", error);
-    throw new Error("Falha ao buscar os plantões para o mês especificado.");
+    console.error('Erro ao buscar plantões por mês:', error);
+    throw new Error('Falha ao buscar os plantões para o mês especificado.');
   }
 };
 
