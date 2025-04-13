@@ -37,14 +37,15 @@ DATABASE_URL="postgresql://usuario:senha@host:5432/banco?schema=public"
 EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=sua-chave-clerk-publicavel
 CLERK_SECRET_KEY=sua-chave-clerk-secreta
 
-# URL da API
-EXPO_PUBLIC_API_URL=http://localhost:8081
+# URL da API - Deixe em branco para detecção automática em dev ou defina em produção
+EXPO_PUBLIC_API_URL=
 ```
 
 4. Execute as migrações do Prisma:
 
 ```bash
-npx prisma migrate dev
+npx prisma generate
+npx prisma migrate deploy
 ```
 
 5. Inicie o servidor de desenvolvimento:
@@ -52,6 +53,21 @@ npx prisma migrate dev
 ```bash
 npm start
 ```
+
+6. Importante: Ao usar expo-router com API routes no mesmo projeto, certifique-se de:
+   - Não usar o caractere '+' no início dos nomes de arquivos de rota
+   - Usar 'middleware.ts' em vez de '+middleware.ts'
+   - Se estiver usando Expo Go, permita que o aplicativo detecte automaticamente seu endereço IP
+
+### Resolução de Problemas Comuns
+
+1. **Erro de Rota inválida com '+'**: O expo-router não aceita nomes de arquivos de rota começando com '+'. Renomeie para remover o caractere '+'
+
+2. **Problemas de conexão com o banco**: Verifique se a URL do banco no .env está correta e se você gerou os clientes Prisma com `npx prisma generate`
+
+3. **Erro de autenticação**: Certifique-se de que as chaves do Clerk estão corretas no arquivo .env
+
+4. **API não encontrada no Expo Go**: O aplicativo tenta detectar automaticamente seu IP, mas você pode precisar defini-lo manualmente no .env
 
 ## Estrutura do Projeto
 

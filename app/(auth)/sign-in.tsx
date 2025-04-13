@@ -46,7 +46,12 @@ export default function LoginScreen() {
     try {
       await login(email.trim(), password.trim());
     } catch (error) {
-      showToast('Erro ao fazer login. Tente novamente.', 'error');
+      console.error('Erro ao fazer login:', error);
+      const errorMessage =
+        error instanceof Error && error.message
+          ? error.message
+          : 'Erro ao fazer login. Verifique seus dados e tente novamente.';
+      showToast(errorMessage, 'error');
     }
   };
 

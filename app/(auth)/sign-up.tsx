@@ -85,7 +85,12 @@ export default function SignUpScreen() {
       await register(name.trim(), email.trim(), password.trim(), phone.trim(), birthDateString);
       showToast('Conta criada com sucesso!', 'success');
     } catch (error) {
-      showToast('Erro ao criar conta. Tente novamente.', 'error');
+      console.error('Erro ao criar conta:', error);
+      const errorMessage =
+        error instanceof Error && error.message
+          ? error.message
+          : 'Erro ao criar conta. Verifique os dados e tente novamente.';
+      showToast(errorMessage, 'error');
     }
   };
 

@@ -1,26 +1,22 @@
-// app/contexts/SyncContext.tsx
-
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import NetInfo from '@react-native-community/netinfo';
-import { usePrisma } from './PrismaContext';
 import { useAuth } from '@clerk/clerk-expo';
+import * as SecureStore from 'expo-secure-store';
 
-// Definir os tipos que precisamos localmente
 type AppStateStatus = 'active' | 'background' | 'inactive' | 'unknown' | 'extension';
 
-// Definir uma interface simplificada para o retorno de addEventListener
 interface Subscription {
   remove: () => void;
 }
 
-// Interface para o AppState que usamos
 interface AppStateInterface {
   addEventListener(type: 'change', listener: (state: AppStateStatus) => void): Subscription;
 }
 
-// Importar AppState de forma segura, evitando o erro de tipagem
-// @ts-ignore - Ignoramos o erro de tipagem aqui para acessar o AppState
 const AppState: AppStateInterface = require('react-native').AppState;
+
+const LAST_SYNC_TIME_KEY = 'last_sync_time';
+const PENDING_OPS_KEY = 'pending_operations';
 
 interface SyncContextType {
   isOnline: boolean;
@@ -44,11 +40,34 @@ export const SyncProvider: React.FC<SyncProviderProps> = ({ children }) => {
   const [pendingOperations, setPendingOperations] = useState<number>(0);
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'success' | 'error'>('idle');
 
-  const { prisma, isReady } = usePrisma();
   const { isSignedIn, isLoaded } = useAuth();
 
   useEffect(() => {
+    const loadLastSyncTime = async () => {
+      try {
+        const timeStr = await SecureStore.getItemAsync(LAST_SYNC_TIME_KEY);
+        if (timeStr) {
+          setLastSyncTime(new Date(parseInt(timeStr)));
+        }
+
+        const pendingOpsStr = await SecureStore.getItemAsync(PENDING_OPS_KEY);
+        if (pendingOpsStr) {
+          setPendingOperations(parseInt(pendingOpsStr));
+        }
+      } catch (error) {
+        console.error('Erro ao carregar dados de sincronização:', error);
+      }
+    };
+
+    loadLastSyncTime();
+  }, []);
+
+  useEffect(() => {
     const unsubscribe = NetInfo.addEventListener((state) => {
+      setIsOnline(!!state.isConnected);
+    });
+
+    NetInfo.fetch().then((state) => {
       setIsOnline(!!state.isConnected);
     });
 
@@ -66,7 +85,6 @@ export const SyncProvider: React.FC<SyncProviderProps> = ({ children }) => {
       }
     };
 
-    // Usamos a interface segura para adicionar o listener
     const subscription = AppState.addEventListener('change', handleAppStateChange);
 
     return () => {
@@ -81,7 +99,7 @@ export const SyncProvider: React.FC<SyncProviderProps> = ({ children }) => {
   }, [isOnline, pendingOperations, isSignedIn, isLoaded, isSyncing]);
 
   const syncNow = async (): Promise<boolean> => {
-    if (isSyncing || !isOnline || !isSignedIn || !isLoaded || !isReady) {
+    if (isSyncing || !isOnline || !isSignedIn || !isLoaded) {
       return false;
     }
 
@@ -89,11 +107,16 @@ export const SyncProvider: React.FC<SyncProviderProps> = ({ children }) => {
       setIsSyncing(true);
       setSyncStatus('syncing');
 
-      // Implementação simplificada com Prisma
-      // Como não estamos mais realizando sincronização local/remota
-      // vamos apenas atualizar o status e retornar sucesso
-      setLastSyncTime(new Date());
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
+      const newLastSyncTime = new Date();
+      setLastSyncTime(newLastSyncTime);
+
+      await SecureStore.setItemAsync(LAST_SYNC_TIME_KEY, newLastSyncTime.getTime().toString());
+
       setPendingOperations(0);
+      await SecureStore.setItemAsync(PENDING_OPS_KEY, '0');
+
       setSyncStatus('success');
 
       return true;

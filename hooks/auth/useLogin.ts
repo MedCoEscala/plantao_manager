@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { router } from 'expo-router';
 import { useSignIn } from '@clerk/clerk-expo';
 import { useDialog } from '../../app/contexts/DialogContext';
+import NetInfo from '@react-native-community/netinfo';
 
 export interface UseLoginResult {
   login: (email: string, password: string) => Promise<void>;
@@ -29,6 +30,14 @@ const useLogin = (): UseLoginResult => {
       setIsLoading(true);
       setError(null);
 
+      // Verificar conexão com a internet
+      const netInfo = await NetInfo.fetch();
+      if (!netInfo.isConnected) {
+        throw new Error(
+          'Sem conexão com a internet. Por favor, verifique sua conexão e tente novamente.'
+        );
+      }
+
       const signInAttempt = await signIn.create({
         identifier: email,
         password,
@@ -37,8 +46,15 @@ const useLogin = (): UseLoginResult => {
       if (signInAttempt.status === 'complete') {
         await setActive({ session: signInAttempt.createdSessionId });
         router.replace('/(root)');
+      } else if (signInAttempt.status === 'needs_first_factor') {
+        // Necessário segundo fator (2FA), nesse caso você pode redirecionar para a tela de 2FA
+        router.replace('/(auth)/verify-code');
+      } else if (signInAttempt.status === 'needs_new_password') {
+        // Necessário resetar a senha
+        router.replace('/(auth)/reset-password');
       } else {
-        setError('Falha na autenticação. Verifique suas credenciais');
+        const errorMessage = 'Falha na autenticação. Verifique suas credenciais';
+        setError(errorMessage);
         showDialog({
           type: 'error',
           title: 'Falha no Login',
@@ -46,8 +62,21 @@ const useLogin = (): UseLoginResult => {
         });
       }
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Erro desconhecido ao fazer login';
+      let errorMessage = 'Erro desconhecido ao fazer login';
+
+      if (error instanceof Error) {
+        errorMessage = error.message;
+
+        // Tratamento específico para erros comuns do Clerk
+        if (errorMessage.includes('Invalid password')) {
+          errorMessage = 'Senha inválida. Verifique suas credenciais.';
+        } else if (errorMessage.includes('Identifier not found')) {
+          errorMessage = 'Email não encontrado. Verifique suas credenciais ou crie uma conta.';
+        } else if (errorMessage.includes('network')) {
+          errorMessage = 'Erro de conexão. Verifique sua internet e tente novamente.';
+        }
+      }
+
       setError(errorMessage);
       showDialog({
         type: 'error',

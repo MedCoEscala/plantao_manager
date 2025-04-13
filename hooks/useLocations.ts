@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useUser } from '@clerk/clerk-expo';
-import { usePrisma } from '../app/contexts/PrismaContext';
 import { v4 as uuidv4 } from 'uuid';
+import { authenticatedFetch } from '../app/utils/api-client';
 
 export interface Location {
   id: string;
@@ -10,8 +10,8 @@ export interface Location {
   phone?: string | null;
   color?: string;
   userId: string;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string | Date;
+  updatedAt: string | Date;
 }
 
 export interface LocationCreateInput {
@@ -28,11 +28,10 @@ export interface LocationUpdateInput extends Partial<LocationCreateInput> {
 export function useLocations() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-  const { user } = useUser();
-  const { prisma, isReady } = usePrisma();
+  const { user, isLoaded } = useUser();
 
   const getLocations = useCallback(async (): Promise<Location[]> => {
-    if (!isReady || !user) {
+    if (!isLoaded || !user) {
       return [];
     }
 
@@ -40,10 +39,7 @@ export function useLocations() {
     setError(null);
 
     try {
-      const locations = await prisma.location.findMany({
-        where: { userId: user.id },
-        orderBy: { name: 'asc' },
-      });
+      const locations = await authenticatedFetch<Location[]>('locations');
       return locations;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erro ao buscar locais';
@@ -53,11 +49,11 @@ export function useLocations() {
     } finally {
       setLoading(false);
     }
-  }, [prisma, isReady, user]);
+  }, [isLoaded, user]);
 
   const getLocationById = useCallback(
     async (id: string): Promise<Location | null> => {
-      if (!isReady || !user) {
+      if (!isLoaded || !user) {
         return null;
       }
 
@@ -65,13 +61,7 @@ export function useLocations() {
       setError(null);
 
       try {
-        const location = await prisma.location.findFirst({
-          where: {
-            id,
-            userId: user.id,
-          },
-        });
-
+        const location = await authenticatedFetch<Location | null>(`locations/${id}`);
         return location;
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Erro ao buscar local';
@@ -82,12 +72,12 @@ export function useLocations() {
         setLoading(false);
       }
     },
-    [prisma, isReady, user]
+    [isLoaded, user]
   );
 
   const createLocation = useCallback(
     async (data: LocationCreateInput): Promise<Location | null> => {
-      if (!isReady || !user) {
+      if (!isLoaded || !user) {
         return null;
       }
 
@@ -95,14 +85,16 @@ export function useLocations() {
       setError(null);
 
       try {
-        const id = uuidv4();
-        const location = await prisma.location.create({
-          data: {
-            id,
-            ...data,
-            color: data.color || '#0077B6', // Cor padrão se não especificada
-            userId: user.id,
-          },
+        // Adicionar id único para a localização
+        const locationData = {
+          id: uuidv4(),
+          ...data,
+          color: data.color || '#0077B6', // Cor padrão se não especificada
+        };
+
+        const location = await authenticatedFetch<Location>('locations', {
+          method: 'POST',
+          body: JSON.stringify(locationData),
         });
 
         return location;
@@ -115,12 +107,12 @@ export function useLocations() {
         setLoading(false);
       }
     },
-    [prisma, isReady, user]
+    [isLoaded, user]
   );
 
   const updateLocation = useCallback(
     async (data: LocationUpdateInput): Promise<boolean> => {
-      if (!isReady || !user) {
+      if (!isLoaded || !user) {
         return false;
       }
 
@@ -130,20 +122,9 @@ export function useLocations() {
       try {
         const { id, ...updateData } = data;
 
-        const existingLocation = await prisma.location.findFirst({
-          where: {
-            id,
-            userId: user.id,
-          },
-        });
-
-        if (!existingLocation) {
-          throw new Error('Local não encontrado ou não pertence ao usuário');
-        }
-
-        await prisma.location.update({
-          where: { id },
-          data: updateData,
+        await authenticatedFetch(`locations/${id}`, {
+          method: 'PUT',
+          body: JSON.stringify(updateData),
         });
 
         return true;
@@ -156,12 +137,12 @@ export function useLocations() {
         setLoading(false);
       }
     },
-    [prisma, isReady, user]
+    [isLoaded, user]
   );
 
   const deleteLocation = useCallback(
     async (id: string): Promise<boolean> => {
-      if (!isReady || !user) {
+      if (!isLoaded || !user) {
         return false;
       }
 
@@ -169,30 +150,8 @@ export function useLocations() {
       setError(null);
 
       try {
-        const shiftsCount = await prisma.shift.count({
-          where: {
-            locationId: id,
-            userId: user.id,
-          },
-        });
-
-        if (shiftsCount > 0) {
-          throw new Error('Não é possível excluir este local porque há plantões associados a ele');
-        }
-
-        const existingLocation = await prisma.location.findFirst({
-          where: {
-            id,
-            userId: user.id,
-          },
-        });
-
-        if (!existingLocation) {
-          throw new Error('Local não encontrado ou não pertence ao usuário');
-        }
-
-        await prisma.location.delete({
-          where: { id },
+        await authenticatedFetch(`locations/${id}`, {
+          method: 'DELETE',
         });
 
         return true;
@@ -205,7 +164,7 @@ export function useLocations() {
         setLoading(false);
       }
     },
-    [prisma, isReady, user]
+    [isLoaded, user]
   );
 
   return {
