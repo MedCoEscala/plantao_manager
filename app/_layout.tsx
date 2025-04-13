@@ -6,11 +6,11 @@ import { useEffect } from 'react';
 import { ClerkLoaded, ClerkProvider } from '@clerk/clerk-expo';
 import { tokenCache } from '@/cache';
 import { DialogProvider } from '@app/contexts/DialogContext';
-import { SQLiteProvider } from '@app/contexts/SQLiteContext';
 import './styles/global.css';
 import SyncProvider from './contexts/SyncContext';
 import NetworkProvider from './contexts/NetworkContext';
 import NetworkStatus from './components/NetworkStatus';
+import PrismaProvider from './contexts/PrismaContext';
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!;
 
@@ -41,7 +41,7 @@ export default function RootLayout() {
   return (
     <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
       <ClerkLoaded>
-        <SQLiteProvider>
+        <PrismaProvider>
           <DialogProvider>
             <SyncProvider>
               <NetworkProvider>
@@ -54,7 +54,7 @@ export default function RootLayout() {
               </NetworkProvider>
             </SyncProvider>
           </DialogProvider>
-        </SQLiteProvider>
+        </PrismaProvider>
       </ClerkLoaded>
     </ClerkProvider>
   );

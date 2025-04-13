@@ -1,45 +1,26 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth, useUser } from '@clerk/clerk-expo';
 import * as Clipboard from 'expo-clipboard';
-import { showDatabaseInfo, showTableData } from '@app/utils/debug';
-import { Tables } from '@app/database/schema';
-import { Toast } from '@app/components/ui/Toast';
+import { PrismaClient } from '@prisma/client';
 import { router } from 'expo-router';
-import SyncStatus from '@app/components/SyncStatus';
-import SyncConflictModal from '@app/components/SyncConflictModal';
-import { useSync } from '@app/contexts/SyncContext';
-import syncManager, { ConflictData } from '@app/services/sync/syncManager';
-import UserMetadataService from '@app/services/profile/userMetadataService';
+import { Toast } from '@app/components/ui/Toast';
+import { useDialog } from '@app/contexts/DialogContext';
+
+const prisma = new PrismaClient();
 
 export default function ProfileScreen() {
   const { signOut } = useAuth();
   const { user } = useUser();
-  const { syncNow, pendingOperations } = useSync();
+  const { showDialog } = useDialog();
   const [toast, setToast] = useState({
     visible: false,
     message: '',
     type: 'info' as 'success' | 'error' | 'info' | 'warning',
   });
-  const [showConflictModal, setShowConflictModal] = useState(false);
-  const [currentConflict, setCurrentConflict] = useState<ConflictData | null>(null);
-  const [conflicts, setConflicts] = useState<ConflictData[]>([]);
-
-  useEffect(() => {
-    const checkConflicts = async () => {
-      const unresolvedConflicts = syncManager.getUnresolvedConflicts();
-      setConflicts(unresolvedConflicts);
-    };
-
-    checkConflicts();
-
-    const intervalId = setInterval(checkConflicts, 30000);
-
-    return () => clearInterval(intervalId);
-  }, []);
 
   const getInitials = (name: string) => {
     if (!name) return '?';
@@ -83,11 +64,7 @@ export default function ProfileScreen() {
 
   const handleLogout = async () => {
     try {
-      // Mostrar informações do banco de dados antes de sair
-      showDatabaseInfo();
-      // Realizar logout
       await signOut();
-      // Redirecionar para a tela de login
       router.replace('/(auth)/sign-in');
     } catch (error) {
       console.error('Erro ao fazer logout:', error);
@@ -95,133 +72,28 @@ export default function ProfileScreen() {
     }
   };
 
-  // Obter dados do usuário usando o serviço de metadados
-  const userData = user ? UserMetadataService.getUserMetadata(user) : null;
-
-  // Usar os dados extraídos pelo serviço ou fallback para valores diretos
-  const userName = userData?.name || 'Usuário';
-  const userEmail = userData?.email || 'email@exemplo.com';
-  const userPhone = userData?.phoneNumber || 'Não informado';
-  const userBirthDate = userData?.birthDate || undefined;
-
-  const showConflict = (conflict: ConflictData) => {
-    setCurrentConflict(conflict);
-    setShowConflictModal(true);
-  };
-
-  const handleResolveConflict = async (
-    conflictId: string,
-    resolution: 'local' | 'remote' | 'merged',
-    mergedData?: any
-  ) => {
-    try {
-      const success = await syncManager.resolveConflict(conflictId, resolution, mergedData);
-
-      if (success) {
-        const remaining = syncManager.getUnresolvedConflicts();
-        setConflicts(remaining);
-
-        setShowConflictModal(false);
-        setCurrentConflict(null);
-
-        showLocalToast('Conflito resolvido com sucesso', 'success');
-
-        if (resolution !== 'remote') {
-          syncNow();
-        }
-      } else {
-        showLocalToast('Erro ao resolver conflito', 'error');
-      }
-    } catch (error) {
-      console.error('Erro ao resolver conflito:', error);
-      showLocalToast('Erro ao resolver conflito', 'error');
-    }
-  };
+  const userName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : 'Usuário';
+  const userEmail = user?.primaryEmailAddress?.emailAddress || 'email@exemplo.com';
+  const userPhone = user?.phoneNumbers?.[0]?.phoneNumber || 'Não informado';
+  const userBirthDate = (user?.publicMetadata?.birthDate as string) || undefined;
 
   const renderDebugSection = () => {
     return (
       <View className="mb-6">
         <Text className="mb-3 text-lg font-bold text-gray-800">Debug e Suporte</Text>
+
         <TouchableOpacity
           className="mb-3 rounded-lg bg-gray-400 p-3"
-          onPress={() => showDatabaseInfo()}>
+          onPress={() => {
+            showDialog({
+              type: 'info',
+              title: 'Informações do Banco',
+              message:
+                'Esse app utiliza NeonDB (PostgreSQL) em nuvem. Os dados são armazenados online.',
+            });
+          }}>
           <Text className="font-medium text-white">Ver Informações do Banco de Dados</Text>
         </TouchableOpacity>
-
-        <View className="flex-row items-center justify-between py-3">
-          <Text className="text-base text-gray-800">Ver Dados (debug):</Text>
-        </View>
-
-        <View className="flex-row flex-wrap justify-between">
-          <TouchableOpacity
-            className="m-1 min-w-[30%] items-center rounded-lg bg-gray-400 p-2"
-            onPress={() => showTableData(Tables.USERS)}>
-            <Text className="text-xs font-medium text-white">Usuários</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            className="m-1 min-w-[30%] items-center rounded-lg bg-gray-400 p-2"
-            onPress={() => showTableData(Tables.LOCATIONS)}>
-            <Text className="text-xs font-medium text-white">Locais</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            className="m-1 min-w-[30%] items-center rounded-lg bg-gray-400 p-2"
-            onPress={() => showTableData(Tables.CONTRACTORS)}>
-            <Text className="text-xs font-medium text-white">Contratantes</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            className="m-1 min-w-[30%] items-center rounded-lg bg-gray-400 p-2"
-            onPress={() => showTableData(Tables.SHIFTS)}>
-            <Text className="text-xs font-medium text-white">Plantões</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            className="m-1 min-w-[30%] items-center rounded-lg bg-gray-400 p-2"
-            onPress={() => showTableData(Tables.PAYMENTS)}>
-            <Text className="text-xs font-medium text-white">Pagamentos</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  };
-
-  const renderSyncSection = () => {
-    return (
-      <View className="mb-6">
-        <Text className="mb-3 text-lg font-bold text-gray-800">Sincronização</Text>
-
-        <SyncStatus showDetail={true} onPress={pendingOperations > 0 ? syncNow : undefined} />
-
-        {conflicts.length > 0 && (
-          <>
-            <Text className="mb-2 mt-4 text-base font-medium text-gray-800">
-              Conflitos pendentes
-            </Text>
-            {conflicts.map((conflict) => (
-              <TouchableOpacity
-                key={conflict.id}
-                className="mb-2 flex-row items-center justify-between rounded-lg border border-yellow-200 bg-yellow-50 p-3"
-                onPress={() => showConflict(conflict)}>
-                <View className="flex-row items-center">
-                  <Ionicons name="alert-circle" size={20} color="#F59E0B" />
-                  <Text className="ml-2 text-sm text-yellow-800">
-                    Conflito em{' '}
-                    {conflict.entity === 'user'
-                      ? 'usuário'
-                      : conflict.entity === 'location'
-                        ? 'local'
-                        : conflict.entity === 'shift'
-                          ? 'plantão'
-                          : 'pagamento'}
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={16} color="#F59E0B" />
-              </TouchableOpacity>
-            ))}
-          </>
-        )}
       </View>
     );
   };
@@ -254,8 +126,6 @@ export default function ProfileScreen() {
             </View>
           </View>
         </View>
-
-        {renderSyncSection()}
 
         <View className="mb-6">
           <Text className="mb-3 text-lg font-bold text-gray-800">Opções</Text>
@@ -321,13 +191,6 @@ export default function ProfileScreen() {
         message={toast.message}
         type={toast.type}
         onDismiss={hideToast}
-      />
-
-      <SyncConflictModal
-        visible={showConflictModal}
-        conflict={currentConflict}
-        onClose={() => setShowConflictModal(false)}
-        onResolve={handleResolveConflict}
       />
     </SafeAreaView>
   );

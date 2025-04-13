@@ -19,3 +19,8 @@ export interface ProfileService {
   updateUserProfile: (data: ProfileUpdateData) => Promise<ProfileResponse>;
   uploadProfilePicture?: (uri: string) => Promise<ProfileResponse>;
 }
+
+// Exportação padrão para evitar avisos de rotas no React Native
+export default function ProfileTypes() {
+  return null;
+}

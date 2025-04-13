@@ -6,16 +6,84 @@ const prisma = new PrismaClient();
 async function authenticate(req: Request): Promise<string | null> {
   const authHeader = req.headers.get('authorization');
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    console.log('Requisição sem cabeçalho de autorização ou formato inválido');
     return null;
   }
 
   const token = authHeader.split(' ')[1];
+  console.log('Token recebido:', token.substring(0, 10) + '...');
+
   try {
+    // Em ambiente de desenvolvimento, permitir um token de bypass para testes
+    if (process.env.NODE_ENV !== 'production' && token === 'dev-token-bypass') {
+      console.log('Usando token de bypass para desenvolvimento');
+      return 'dev-user-id';
+    }
+
     const { sub } = await clerk.verifyToken(token);
+    console.log('Token verificado com sucesso. User ID:', sub);
     return sub;
   } catch (error) {
     console.error('Erro de autenticação:', error);
     return null;
+  }
+}
+
+// Função healthCheck para reutilizar em múltiplos métodos HTTP
+async function handleHealthCheck(): Promise<Response> {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    return Response.json({
+      status: 'ok',
+      database: 'connected',
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Erro na verificação de health check:', error);
+    return Response.json(
+      { status: 'error', message: 'Database error', timestamp: new Date().toISOString() },
+      { status: 500 }
+    );
+  }
+}
+
+// Função para verificar o status da API
+async function handleApiStatus(): Promise<Response> {
+  try {
+    // Verificar conexão com banco de dados
+    const dbStatus = await prisma.$queryRaw`SELECT 1`
+      .then(() => 'connected')
+      .catch((error) => {
+        console.error('Erro na conexão com banco de dados:', error);
+        return 'error';
+      });
+
+    // Verificar conexão com Clerk
+    let clerkStatus = 'unknown';
+    try {
+      const keys = Object.keys(clerk);
+      clerkStatus = keys.length > 0 ? 'initialized' : 'error';
+    } catch (error) {
+      console.error('Erro ao verificar Clerk:', error);
+      clerkStatus = 'error';
+    }
+
+    return Response.json({
+      status: 'online',
+      apiVersion: '1.0.0',
+      environment: process.env.NODE_ENV || 'development',
+      timestamp: new Date().toISOString(),
+      services: {
+        database: dbStatus,
+        auth: clerkStatus,
+      },
+    });
+  } catch (error) {
+    console.error('Erro ao verificar status da API:', error);
+    return Response.json(
+      { status: 'error', message: 'API error', timestamp: new Date().toISOString() },
+      { status: 500 }
+    );
   }
 }
 
@@ -25,6 +93,36 @@ export async function GET(request: Request): Promise<Response> {
 
   if (pathParts[0] === 'api') {
     pathParts.shift();
+  }
+
+  // Endpoint de health check (não requer autenticação)
+  if (pathParts[0] === 'health-check') {
+    return handleHealthCheck();
+  }
+
+  // Endpoint para status da API (não requer autenticação)
+  if (pathParts[0] === 'status') {
+    return handleApiStatus();
+  }
+
+  // Endpoint para debug de usuários (apenas em desenvolvimento)
+  if (pathParts[0] === 'debug' && pathParts[1] === 'users') {
+    if (process.env.NODE_ENV !== 'production') {
+      try {
+        const users = await prisma.user.findMany({
+          orderBy: { name: 'asc' },
+        });
+        return Response.json({
+          count: users.length,
+          users,
+        });
+      } catch (error) {
+        console.error('Erro ao listar usuários:', error);
+        return Response.json({ error: 'Erro ao listar usuários' }, { status: 500 });
+      }
+    } else {
+      return Response.json({ error: 'Endpoint indisponível em produção' }, { status: 403 });
+    }
   }
 
   const resource = pathParts[0];
@@ -152,6 +250,11 @@ export async function POST(request: Request): Promise<Response> {
 
   if (pathParts[0] === 'api') {
     pathParts.shift();
+  }
+
+  // Endpoint de health check (não requer autenticação)
+  if (pathParts[0] === 'health-check') {
+    return handleHealthCheck();
   }
 
   const resource = pathParts[0];
@@ -394,4 +497,9 @@ export async function DELETE(request: Request): Promise<Response> {
     console.error(`Erro ao processar requisição DELETE ${resource}:`, error);
     return Response.json({ error: 'Erro interno do servidor' }, { status: 500 });
   }
+}
+
+// Exportação padrão para evitar avisos de rotas no React Native
+export default function API() {
+  return null;
 }

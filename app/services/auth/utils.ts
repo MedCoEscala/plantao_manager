@@ -15,6 +15,7 @@ export function formatUserFromClerk(clerkUser: any, email: string): User {
   };
 }
 
-export default {
-  formatUserFromClerk,
-};
+// Exportação padrão para evitar avisos de rota em React Native
+export default function AuthUtils() {
+  return null;
+}

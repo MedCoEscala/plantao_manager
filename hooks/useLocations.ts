@@ -1,6 +1,18 @@
 import { useState, useCallback } from 'react';
-import { useApi, Location, ApiError } from '../app/services/api';
+import { useUser } from '@clerk/clerk-expo';
+import { usePrisma } from '../app/contexts/PrismaContext';
 import { v4 as uuidv4 } from 'uuid';
+
+export interface Location {
+  id: string;
+  name: string;
+  address: string;
+  phone?: string | null;
+  color?: string;
+  userId: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 export interface LocationCreateInput {
   name: string;
@@ -14,17 +26,24 @@ export interface LocationUpdateInput extends Partial<LocationCreateInput> {
 }
 
 export function useLocations() {
-  const api = useApi();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  const { user } = useUser();
+  const { prisma, isReady } = usePrisma();
 
-  // Buscar todos os locais
   const getLocations = useCallback(async (): Promise<Location[]> => {
+    if (!isReady || !user) {
+      return [];
+    }
+
     setLoading(true);
     setError(null);
 
     try {
-      const locations = await api.getLocations();
+      const locations = await prisma.location.findMany({
+        where: { userId: user.id },
+        orderBy: { name: 'asc' },
+      });
       return locations;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erro ao buscar locais';
@@ -34,23 +53,27 @@ export function useLocations() {
     } finally {
       setLoading(false);
     }
-  }, [api]);
+  }, [prisma, isReady, user]);
 
-  // Buscar local   por ID
   const getLocationById = useCallback(
     async (id: string): Promise<Location | null> => {
+      if (!isReady || !user) {
+        return null;
+      }
+
       setLoading(true);
       setError(null);
 
       try {
-        const location = await api.getLocation(id);
+        const location = await prisma.location.findFirst({
+          where: {
+            id,
+            userId: user.id,
+          },
+        });
+
         return location;
       } catch (err) {
-        // Se for erro 404, retornamos null
-        if (err instanceof ApiError && err.status === 404) {
-          return null;
-        }
-
         const errorMessage = err instanceof Error ? err.message : 'Erro ao buscar local';
         setError(new Error(errorMessage));
         console.error(`Erro ao buscar local com ID ${id}:`, err);
@@ -59,21 +82,27 @@ export function useLocations() {
         setLoading(false);
       }
     },
-    [api]
+    [prisma, isReady, user]
   );
 
-  // Criar novo local
   const createLocation = useCallback(
     async (data: LocationCreateInput): Promise<Location | null> => {
+      if (!isReady || !user) {
+        return null;
+      }
+
       setLoading(true);
       setError(null);
 
       try {
-        // Gerar um ID no cliente para manter compatibilidade com o código existente
         const id = uuidv4();
-        const location = await api.createLocation({
-          ...data,
-          id,
+        const location = await prisma.location.create({
+          data: {
+            id,
+            ...data,
+            color: data.color || '#0077B6', // Cor padrão se não especificada
+            userId: user.id,
+          },
         });
 
         return location;
@@ -86,19 +115,37 @@ export function useLocations() {
         setLoading(false);
       }
     },
-    [api]
+    [prisma, isReady, user]
   );
 
-  // Atualizar local existente
   const updateLocation = useCallback(
     async (data: LocationUpdateInput): Promise<boolean> => {
+      if (!isReady || !user) {
+        return false;
+      }
+
       setLoading(true);
       setError(null);
 
       try {
-        // Removemos o ID dos dados antes de enviar para a API
         const { id, ...updateData } = data;
-        await api.updateLocation(id, updateData);
+
+        const existingLocation = await prisma.location.findFirst({
+          where: {
+            id,
+            userId: user.id,
+          },
+        });
+
+        if (!existingLocation) {
+          throw new Error('Local não encontrado ou não pertence ao usuário');
+        }
+
+        await prisma.location.update({
+          where: { id },
+          data: updateData,
+        });
+
         return true;
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Erro ao atualizar local';
@@ -109,26 +156,48 @@ export function useLocations() {
         setLoading(false);
       }
     },
-    [api]
+    [prisma, isReady, user]
   );
 
-  // Excluir local
   const deleteLocation = useCallback(
     async (id: string): Promise<boolean> => {
+      if (!isReady || !user) {
+        return false;
+      }
+
       setLoading(true);
       setError(null);
 
       try {
-        await api.deleteLocation(id);
+        const shiftsCount = await prisma.shift.count({
+          where: {
+            locationId: id,
+            userId: user.id,
+          },
+        });
+
+        if (shiftsCount > 0) {
+          throw new Error('Não é possível excluir este local porque há plantões associados a ele');
+        }
+
+        const existingLocation = await prisma.location.findFirst({
+          where: {
+            id,
+            userId: user.id,
+          },
+        });
+
+        if (!existingLocation) {
+          throw new Error('Local não encontrado ou não pertence ao usuário');
+        }
+
+        await prisma.location.delete({
+          where: { id },
+        });
+
         return true;
       } catch (err) {
-        const errorMessage =
-          err instanceof ApiError && err.status === 400
-            ? err.data?.error || 'Não é possível excluir este local'
-            : err instanceof Error
-              ? err.message
-              : 'Erro ao excluir local';
-
+        const errorMessage = err instanceof Error ? err.message : 'Erro ao excluir local';
         setError(new Error(errorMessage));
         console.error(`Erro ao excluir local com ID ${id}:`, err);
         return false;
@@ -136,7 +205,7 @@ export function useLocations() {
         setLoading(false);
       }
     },
-    [api]
+    [prisma, isReady, user]
   );
 
   return {

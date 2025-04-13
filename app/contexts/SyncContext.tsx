@@ -2,13 +2,8 @@
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import NetInfo from '@react-native-community/netinfo';
-import { useSQLite } from './SQLiteContext';
+import { usePrisma } from './PrismaContext';
 import { useAuth } from '@clerk/clerk-expo';
-import syncManager from '../services/sync/syncManager';
-import userRepository from '../repositories/userRepository';
-import locationRepository from '../repositories/locationRepository';
-import shiftRepository from '../repositories/shiftRepository';
-import paymentRepository from '../repositories/paymentRepository';
 
 // Definir os tipos que precisamos localmente
 type AppStateStatus = 'active' | 'background' | 'inactive' | 'unknown' | 'extension';
@@ -49,26 +44,8 @@ export const SyncProvider: React.FC<SyncProviderProps> = ({ children }) => {
   const [pendingOperations, setPendingOperations] = useState<number>(0);
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'success' | 'error'>('idle');
 
-  const { database, isDBReady } = useSQLite();
+  const { prisma, isReady } = usePrisma();
   const { isSignedIn, isLoaded } = useAuth();
-
-  useEffect(() => {
-    if (database && isDBReady) {
-      userRepository.initialize(database);
-      locationRepository.initialize(database);
-      shiftRepository.initialize(database);
-      paymentRepository.initialize(database);
-
-      syncManager.initialize(database);
-
-      const loadLastSyncTime = async () => {
-        const time = await syncManager.getLastSyncTime();
-        setLastSyncTime(time);
-      };
-
-      loadLastSyncTime();
-    }
-  }, [database, isDBReady]);
 
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener((state) => {
@@ -98,29 +75,13 @@ export const SyncProvider: React.FC<SyncProviderProps> = ({ children }) => {
   }, [pendingOperations, isOnline, isSignedIn]);
 
   useEffect(() => {
-    const checkPendingOperations = async () => {
-      const hasPending = await syncManager.hasPendingOperations();
-      const count = await syncManager.getPendingOperationsCount();
-      setPendingOperations(count);
-    };
-
-    checkPendingOperations();
-
-    const intervalId = setInterval(checkPendingOperations, 5 * 60 * 1000);
-
-    return () => {
-      clearInterval(intervalId);
-    };
-  }, []);
-
-  useEffect(() => {
     if (isOnline && pendingOperations > 0 && isSignedIn && isLoaded && !isSyncing) {
       syncNow();
     }
   }, [isOnline, pendingOperations, isSignedIn, isLoaded, isSyncing]);
 
   const syncNow = async (): Promise<boolean> => {
-    if (isSyncing || !isOnline || !isSignedIn || !isLoaded) {
+    if (isSyncing || !isOnline || !isSignedIn || !isLoaded || !isReady) {
       return false;
     }
 
@@ -128,21 +89,14 @@ export const SyncProvider: React.FC<SyncProviderProps> = ({ children }) => {
       setIsSyncing(true);
       setSyncStatus('syncing');
 
-      const success = await syncManager.syncNow();
+      // Implementação simplificada com Prisma
+      // Como não estamos mais realizando sincronização local/remota
+      // vamos apenas atualizar o status e retornar sucesso
+      setLastSyncTime(new Date());
+      setPendingOperations(0);
+      setSyncStatus('success');
 
-      if (success) {
-        const time = await syncManager.getLastSyncTime();
-        setLastSyncTime(time);
-
-        const count = await syncManager.getPendingOperationsCount();
-        setPendingOperations(count);
-
-        setSyncStatus('success');
-      } else {
-        setSyncStatus('error');
-      }
-
-      return success;
+      return true;
     } catch (error) {
       console.error('Erro durante sincronização:', error);
       setSyncStatus('error');

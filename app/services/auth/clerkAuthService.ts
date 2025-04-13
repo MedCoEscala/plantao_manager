@@ -1,17 +1,71 @@
-import { PrismaClient } from '@prisma/client';
 import { AuthResponse, AuthService, ResetPasswordResponse } from './authTypes';
 import { User } from '../../types/user';
 import { formatUserFromClerk } from './utils';
+import Constants from 'expo-constants';
 
-// Inicialização do cliente Prisma (singleton)
-let prismaInstance: PrismaClient | null = null;
-
-const getPrismaClient = () => {
-  if (!prismaInstance) {
-    prismaInstance = new PrismaClient();
+// Função auxiliar para obter a URL base da API
+function getApiBaseUrl() {
+  // Em desenvolvimento, use o IP da máquina em vez de localhost
+  // para que os dispositivos físicos e emuladores possam acessar
+  const debuggerHost = Constants.expoConfig?.extra?.expoGo?.debuggerHost;
+  if (debuggerHost) {
+    const host = debuggerHost.split(':')[0];
+    return `http://${host}:3000/api`;
   }
-  return prismaInstance;
-};
+
+  // Em produção, use a URL da API
+  return '/api';
+}
+
+// Função auxiliar para fazer requisições à API
+async function apiRequest(endpoint: string, method: string, data?: any) {
+  try {
+    const baseUrl = getApiBaseUrl();
+    const url = `${baseUrl}/${endpoint}`;
+
+    console.log(`Fazendo requisição para: ${url}`);
+
+    // Obter token de autenticação do Clerk ou usar um token de desenvolvimento
+    let token = '';
+    try {
+      const clerk = globalThis.Clerk;
+      if (clerk && clerk.session) {
+        token = await clerk.session.getToken();
+      } else if (__DEV__) {
+        console.log('Usando token de desenvolvimento para API');
+        token = 'dev-token-bypass';
+      }
+    } catch (tokenError) {
+      console.error('Erro ao obter token:', tokenError);
+      if (__DEV__) {
+        token = 'dev-token-bypass';
+      }
+    }
+
+    const options: RequestInit = {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: token ? `Bearer ${token}` : '',
+      },
+    };
+
+    if (data) {
+      options.body = JSON.stringify(data);
+    }
+
+    const response = await fetch(url, options);
+
+    if (!response.ok) {
+      throw new Error(`Erro na requisição: ${response.status} ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error(`Erro na requisição API ${endpoint}:`, error);
+    throw error;
+  }
+}
 
 class ClerkAuthService implements AuthService {
   async login(email: string, password: string): Promise<AuthResponse> {
@@ -59,23 +113,18 @@ class ClerkAuthService implements AuthService {
 
         const userInfo = formatUserFromClerk(user, email);
 
-        // Verificar se o usuário já existe no banco
-        const prisma = getPrismaClient();
-        const dbUser = await prisma.user.findUnique({
-          where: { id: userInfo.id },
-        });
-
-        // Se não existir, criar no banco
-        if (!dbUser) {
-          await prisma.user.create({
-            data: {
-              id: userInfo.id,
-              name: userInfo.name,
-              email: userInfo.email,
-              phoneNumber: userInfo.phoneNumber,
-              birthDate: userInfo.birthDate,
-            },
+        // Usar a API em vez do Prisma direto
+        try {
+          await apiRequest('user', 'POST', {
+            id: userInfo.id,
+            name: userInfo.name,
+            email: userInfo.email,
+            phoneNumber: userInfo.phoneNumber,
+            birthDate: userInfo.birthDate,
           });
+        } catch (syncError) {
+          console.error('Erro ao sincronizar usuário com banco:', syncError);
+          // Não interrompemos o login se a sincronização falhar
         }
 
         return {
@@ -168,17 +217,19 @@ class ClerkAuthService implements AuthService {
           birthDate: birthDate || '',
         };
 
-        // Criar usuário no banco de dados
-        const prisma = getPrismaClient();
-        await prisma.user.create({
-          data: {
+        // Usar a API em vez do Prisma direto
+        try {
+          await apiRequest('user', 'POST', {
             id: userInfo.id,
             name: userInfo.name,
             email: userInfo.email,
             phoneNumber: userInfo.phoneNumber,
             birthDate: userInfo.birthDate,
-          },
-        });
+          });
+        } catch (syncError) {
+          console.error('Erro ao sincronizar usuário com banco:', syncError);
+          // Não interrompemos o registro se a sincronização falhar
+        }
 
         return {
           success: true,
@@ -253,13 +304,8 @@ class ClerkAuthService implements AuthService {
   }
 
   async isAuthenticated(): Promise<boolean> {
-    try {
-      const clerk = globalThis.Clerk;
-      return !!clerk && !!clerk.session;
-    } catch (error) {
-      console.error('Erro ao verificar autenticação:', error);
-      return false;
-    }
+    const clerk = globalThis.Clerk;
+    return clerk ? !!clerk.user : false;
   }
 
   async requestPasswordReset(email: string): Promise<ResetPasswordResponse> {
@@ -268,13 +314,6 @@ class ClerkAuthService implements AuthService {
 
   async resetPassword(token: string, newPassword: string): Promise<ResetPasswordResponse> {
     try {
-      if (!token || !newPassword) {
-        return {
-          success: false,
-          error: 'Token e nova senha são obrigatórios',
-        };
-      }
-
       const clerk = globalThis.Clerk;
       if (!clerk) {
         return {
@@ -283,18 +322,28 @@ class ClerkAuthService implements AuthService {
         };
       }
 
-      try {
-        await clerk.client.signIn.attemptFirstFactor({
-          strategy: 'reset_password_email_code',
-          code: token,
-          password: newPassword,
-        });
-
+      const signIn = clerk.client.signIn;
+      if (!signIn) {
         return {
-          success: true,
+          success: false,
+          error: 'Sistema de autenticação não inicializado',
         };
-      } catch (error) {
-        console.error('Erro ao redefinir senha:', error);
+      }
+
+      const result = await signIn.attemptFirstFactor({
+        strategy: 'reset_password_email_code',
+        code: token,
+        password: newPassword,
+      });
+
+      if (result.status === 'complete') {
+        if (result.createdSessionId) {
+          await clerk.setActive({
+            session: result.createdSessionId,
+          });
+        }
+        return { success: true };
+      } else {
         return {
           success: false,
           error: 'Código inválido ou expirado',
@@ -314,27 +363,29 @@ class ClerkAuthService implements AuthService {
     data: { phoneNumber?: string; birthDate?: string }
   ): Promise<void> {
     try {
+      if (!user) return;
+
+      const updateData = {
+        publicMetadata: {
+          ...user.publicMetadata,
+        },
+      };
+
       if (data.phoneNumber) {
-        try {
-          await user.createPhoneNumber({ phoneNumber: data.phoneNumber });
-        } catch (phoneError) {
-          console.error('Erro ao adicionar telefone:', phoneError);
-        }
+        updateData.publicMetadata.phoneNumber = data.phoneNumber;
       }
 
       if (data.birthDate) {
-        try {
-          await user.update({
-            publicMetadata: { birthDate: data.birthDate },
-          });
-        } catch (metadataError) {
-          console.error('Erro ao adicionar data de nascimento:', metadataError);
-        }
+        updateData.publicMetadata.birthDate = data.birthDate;
       }
+
+      await user.update(updateData);
     } catch (error) {
       console.error('Erro ao atualizar metadados do usuário:', error);
     }
   }
 }
 
-export default new ClerkAuthService();
+// Criar uma instância do serviço
+const clerkAuthService = new ClerkAuthService();
+export default clerkAuthService;

@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { router } from 'expo-router';
 import { useSignUp } from '@clerk/clerk-expo';
 import { useDialog } from '../../app/contexts/DialogContext';
-import userRepository from '@/app/repositories/userRepository';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 export interface UseRegisterResult {
   register: (
@@ -56,15 +58,20 @@ const useRegister = (): UseRegisterResult => {
       await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
 
       if (signUp.createdUserId) {
-        await userRepository.createUser(
-          {
-            name,
-            email,
-            phoneNumber,
-            birthDate,
-          },
-          signUp.createdUserId
-        );
+        try {
+          await prisma.user.create({
+            data: {
+              id: signUp.createdUserId,
+              name,
+              email,
+              phoneNumber: phoneNumber || null,
+              birthDate: birthDate || null,
+            },
+          });
+          console.log('Usuário criado no banco de dados:', signUp.createdUserId);
+        } catch (dbError) {
+          console.error('Erro ao salvar usuário no banco:', dbError);
+        }
       }
 
       router.push({

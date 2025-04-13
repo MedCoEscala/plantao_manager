@@ -27,6 +27,7 @@ export interface AuthService {
   isAuthenticated: () => Promise<boolean>;
 }
 
-export default {
-  AuthService: null as any,
-};
+// Exportação padrão para evitar avisos de rota em React Native
+export default function AuthTypes() {
+  return null;
+}

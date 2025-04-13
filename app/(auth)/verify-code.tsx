@@ -8,7 +8,9 @@ import { useSignUp, useUser } from '@clerk/clerk-expo';
 import Button from '../components/ui/Button';
 import { useToast } from '../components/ui/Toast';
 import { useDialog } from '../contexts/DialogContext';
-import userRepository from '../repositories/userRepository';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 export default function VerifyCodeScreen() {
   const [code, setCode] = useState('');
@@ -89,25 +91,36 @@ export default function VerifyCodeScreen() {
 
             await saveUserMetadata();
 
-            await userRepository.syncUserFromRemote({
-              id: user.id,
-              name: `${user.firstName || ''} ${user.lastName || ''}`.trim(),
-              email: user.primaryEmailAddress?.emailAddress || (email as string),
-              phoneNumber: (phoneNumber as string) || undefined,
-              birthDate: (birthDate as string) || undefined,
-              createdAt:
-                typeof user.createdAt === 'string'
-                  ? user.createdAt
-                  : user.createdAt instanceof Date
-                    ? user.createdAt.toISOString()
-                    : new Date().toISOString(),
-              updatedAt:
-                typeof user.updatedAt === 'string'
-                  ? user.updatedAt
-                  : user.updatedAt instanceof Date
-                    ? user.updatedAt.toISOString()
-                    : new Date().toISOString(),
-            });
+            try {
+              const existingUser = await prisma.user.findUnique({
+                where: { id: user.id },
+              });
+
+              const userData = {
+                name: `${user.firstName || ''} ${user.lastName || ''}`.trim(),
+                email: user.primaryEmailAddress?.emailAddress || (email as string),
+                phoneNumber: (phoneNumber as string) || null,
+                birthDate: (birthDate as string) || null,
+              };
+
+              if (existingUser) {
+                await prisma.user.update({
+                  where: { id: user.id },
+                  data: userData,
+                });
+              } else {
+                await prisma.user.create({
+                  data: {
+                    id: user.id,
+                    ...userData,
+                  },
+                });
+              }
+
+              console.log('Usuário salvo no banco com sucesso');
+            } catch (dbError) {
+              console.error('Erro ao salvar usuário no banco:', dbError);
+            }
           } catch (error) {
             console.error('Erro ao atualizar dados do usuário:', error);
           }

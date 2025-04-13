@@ -3,3 +3,8 @@ import type { AuthResponse, AuthService, ResetPasswordResponse } from './authTyp
 
 export { clerkAuthService as authService };
 export type { AuthResponse, AuthService, ResetPasswordResponse };
+
+// Exportação padrão para evitar avisos de rota em React Native
+export default function AuthModule() {
+  return null;
+}
