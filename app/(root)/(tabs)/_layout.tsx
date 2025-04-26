@@ -1,7 +1,9 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import SyncStatus from '@/app/components/SyncStatus';
+// SyncStatus foi comentado, então esta importação não causará erro,
+// mas o headerRight precisará ser ajustado ou removido.
+// import SyncStatus from '@/components/SyncStatus';
 
 export default function TabsLayout() {
   return (
@@ -20,7 +22,8 @@ export default function TabsLayout() {
           backgroundColor: '#FFFFFF',
         },
         headerTintColor: '#2B2D42',
-        headerRight: () => <SyncStatus />,
+        // Remover headerRight por enquanto, pois SyncStatus está comentado
+        // headerRight: () => <SyncStatus />,
         headerRightContainerStyle: {
           paddingRight: 16,
         },
@@ -28,7 +31,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Plantões',
+          title: 'Plantões', // Renomear para algo como "Home" ou "Dashboard"?
           tabBarIcon: ({ color, size }) => <Ionicons name="calendar" size={size} color={color} />,
         }}
       />
@@ -47,7 +50,7 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="profile"
+        name="profile" // Esta é a tela de perfil que causava duplicidade
         options={{
           title: 'Perfil',
           tabBarIcon: ({ color, size }) => <Ionicons name="person" size={size} color={color} />,
@@ -56,3 +59,14 @@ export default function TabsLayout() {
     </Tabs>
   );
 }
+
+// Remover o Slot que adicionamos temporariamente
+/*
+import React from 'react';
+import { Slot } from 'expo-router';
+
+export default function RootTabLayout() {
+  // Simplesmente renderiza as rotas filhas sem o layout de Tabs
+  return <Slot />;
+}
+*/

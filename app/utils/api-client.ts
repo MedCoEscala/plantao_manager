@@ -1,51 +1,4 @@
-import Constants from 'expo-constants';
-import * as Linking from 'expo-linking';
 import * as Network from '@react-native-community/netinfo';
-
-/**
- * Obtém a URL base da API com base no ambiente
- */
-export function getApiBaseUrl(): string {
-  // Verificar se a URL está explicitamente definida no .env
-  const apiUrl = process.env.EXPO_PUBLIC_API_URL;
-  if (apiUrl && apiUrl.trim() !== '') {
-    console.log(`Usando API URL do .env: ${apiUrl}`);
-    return apiUrl.trim().endsWith('/api') ? apiUrl.trim() : `${apiUrl.trim()}/api`;
-  }
-
-  // Em desenvolvimento com Expo Go
-  if (__DEV__) {
-    // Tenta obter o host do debugger (funciona para a maioria dos cenários de desenvolvimento)
-    const debuggerHost = Constants.expoConfig?.extra?.expoGo?.debuggerHost;
-    if (debuggerHost) {
-      const host = debuggerHost.split(':')[0];
-      console.log(`Usando host do debugger: ${host}`);
-      // Usamos a porta 3000 para a API por padrão
-      return `http://${host}:3000/api`;
-    }
-
-    // Tenta obter o host pelo URL atual (fallback)
-    try {
-      const url = Linking.createURL('');
-      console.log(`URL do Linking: ${url}`);
-      const hostMatch = url.match(/exp:\/\/([^:]+)/);
-      if (hostMatch && hostMatch[1]) {
-        console.log(`Usando host do Linking: ${hostMatch[1]}`);
-        return `http://${hostMatch[1]}:3000/api`;
-      }
-    } catch (e) {
-      console.warn('Erro ao obter host pelo URL:', e);
-    }
-
-    // Se não encontrou o host, usa um fallback para desenvolvimento local
-    console.log('Usando fallback para localhost');
-    return 'http://localhost:3000/api';
-  }
-
-  // Fallback para API relativa (quando executado em produção)
-  console.warn('EXPO_PUBLIC_API_URL não está definido. Usando fallback para API relativa.');
-  return '/api';
-}
 
 /**
  * Verifica se o dispositivo está conectado à internet
@@ -65,69 +18,64 @@ interface FetchOptions extends RequestInit {
 }
 
 /**
- * Faz uma requisição autenticada para a API com suporte a retry e timeout
+ * Faz uma requisição autenticada para as API Routes locais com suporte a retry e timeout
  */
 export async function authenticatedFetch<T = any>(
-  endpoint: string,
+  endpoint: string, // Caminho relativo da API Route (ex: '/api/users/sync')
   options?: FetchOptions,
-  token?: string
+  getToken?: () => Promise<string | null> // Passar a função getToken do useAuth
 ): Promise<T> {
   const defaultOptions: FetchOptions = {
-    retry: 1, // Por padrão, apenas 1 tentativa (sem retry)
-    timeout: 30000, // 30 segundos de timeout por padrão
+    retry: 1,
+    timeout: 30000,
     ignoreConnectivity: false,
     ...options,
   };
 
-  // Extraímos os valores com valores padrão caso sejam undefined
   const retryCount = defaultOptions.retry ?? 1;
   const timeout = defaultOptions.timeout ?? 30000;
   const ignoreConnectivity = defaultOptions.ignoreConnectivity ?? false;
   const fetchOptions = { ...defaultOptions };
 
-  // Removemos as propriedades não-padrão do RequestInit
   delete fetchOptions.retry;
   delete fetchOptions.timeout;
   delete fetchOptions.ignoreConnectivity;
 
-  // Verificar conectividade primeiro, a menos que seja explicitamente ignorado
   if (!ignoreConnectivity) {
     const isConnected = await checkConnectivity();
     if (!isConnected) {
-      throw new Error(
-        'Sem conexão com a internet. Por favor, verifique sua rede e tente novamente.'
-      );
+      throw new Error('Sem conexão com a internet.');
     }
   }
 
   let lastError: Error | null = null;
   let attempts = 0;
 
+  // Valida se o endpoint começa com /api/
+  if (!endpoint.startsWith('/api/')) {
+    console.warn(
+      `Endpoint \"${endpoint}\" não parece ser uma API Route válida. Deve começar com /api/`
+    );
+    // Considerar lançar um erro ou continuar, dependendo da política desejada.
+    // throw new Error('Endpoint inválido para API Route.');
+  }
+
   while (attempts <= retryCount) {
     attempts++;
     try {
-      const baseUrl = getApiBaseUrl();
-      const url = endpoint.startsWith('/') ? `${baseUrl}${endpoint}` : `${baseUrl}/${endpoint}`;
+      // Usa o endpoint relativo diretamente, pois as API Routes são locais
+      const url = endpoint;
 
       console.log(`Fazendo requisição para: ${url} (tentativa ${attempts}/${retryCount + 1})`);
 
-      // Obter token de autenticação
-      let authToken = token;
-      if (!authToken) {
+      let authToken: string | null = null;
+      if (getToken) {
+        // Check if getToken function was provided
         try {
-          // @ts-ignore - Ignore erro de tipagem para globalThis.Clerk
-          const clerk = globalThis.Clerk;
-          if (clerk && clerk.session) {
-            authToken = await clerk.session.getToken();
-          } else if (__DEV__) {
-            console.log('Usando token de desenvolvimento para API');
-            authToken = 'dev-token-bypass';
-          }
+          authToken = await getToken();
         } catch (tokenError) {
-          console.error('Erro ao obter token:', tokenError);
-          if (__DEV__) {
-            authToken = 'dev-token-bypass';
-          }
+          console.error('Erro ao obter token via getToken():', tokenError);
+          // Decide se continua sem token ou lança erro
         }
       }
 
@@ -135,9 +83,10 @@ export async function authenticatedFetch<T = any>(
       headers.set('Content-Type', 'application/json');
       if (authToken) {
         headers.set('Authorization', `Bearer ${authToken}`);
+      } else {
+        console.warn('Nenhum token de autenticação fornecido ou obtido.');
       }
 
-      // Adicionar um controller para abortar a requisição no timeout
       const controller = new AbortController();
       const id = setTimeout(() => controller.abort(), timeout);
 
@@ -147,49 +96,50 @@ export async function authenticatedFetch<T = any>(
         signal: controller.signal,
       });
 
-      clearTimeout(id); // Limpar o timeout
+      clearTimeout(id);
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
+        let errorData = { message: `Erro: ${response.status} ${response.statusText}` };
+        try {
+          errorData = await response.json();
+        } catch (parseError) {
+          // Ignora erro de parse se o corpo não for JSON válido
+        }
         throw new Error(
-          errorData.error ||
-            errorData.message ||
-            `Erro na requisição: ${response.status} ${response.statusText}`
+          errorData.message || `Erro na requisição: ${response.status} ${response.statusText}`
         );
       }
 
-      return await response.json();
+      // Retorna o corpo da resposta parseado como JSON ou null se não houver corpo
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        return await response.json();
+      } else {
+        return null as T; // Ou string vazia, dependendo do que fizer mais sentido
+      }
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
-
-      // Se for erro de timeout ou abort, loga de maneira específica
       if (lastError.name === 'AbortError') {
-        console.error(`Timeout na requisição API ${endpoint} após ${timeout}ms`);
+        console.error(`Timeout na requisição ${endpoint} após ${timeout}ms`);
       } else {
         console.error(
-          `Erro na requisição API ${endpoint} (tentativa ${attempts}/${retryCount + 1}):`,
-          lastError
+          `Erro na requisição ${endpoint} (tentativa ${attempts}/${retryCount + 1}):`,
+          lastError.message // Log apenas a mensagem para ser mais limpo
         );
       }
-
-      // Se ainda tiver tentativas restantes, espere um pouco antes de tentar novamente
       if (attempts <= retryCount) {
-        // Espera progressiva: 1s, 2s, 4s...
         const delay = Math.min(1000 * Math.pow(2, attempts - 1), 10000);
         await new Promise((resolve) => setTimeout(resolve, delay));
       } else {
-        // Última tentativa falhou, propaga o erro
         throw lastError;
       }
     }
   }
 
-  // Este código nunca será alcançado devido ao throw no loop, mas TypeScript precisa dele
-  throw lastError;
+  throw lastError; // Nunca alcançado, mas necessário para TypeScript
 }
 
 export default {
-  getApiBaseUrl,
   authenticatedFetch,
   checkConnectivity,
 };

@@ -11,7 +11,6 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useLocations, Location } from '../../../hooks/useLocations';
 import { useDialog } from '@app/contexts/DialogContext';
 
 const COLORS = [

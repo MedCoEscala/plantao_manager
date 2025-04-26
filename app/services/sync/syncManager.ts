@@ -1,303 +1,155 @@
+// Comentando todo o conteúdo
+/*
+import { initDatabase } from '@/database/init';
+import { SyncOperation, SyncStats } from './syncTypes';
+import { db } from '@/database/client';
 import NetInfo from '@react-native-community/netinfo';
-import * as SecureStore from 'expo-secure-store';
-import { SQLiteDatabase } from 'expo-sqlite';
-import { v4 as uuidv4 } from 'uuid';
+import { synchronizeShifts } from './syncActions/shiftSync';
+import { synchronizeLocations } from './syncActions/locationSync';
+import { synchronizePayments } from './syncActions/paymentSync';
 
-const SYNC_QUEUE_KEY = 'sync_queue';
-const LAST_SYNC_TIME_KEY = 'last_sync_time';
-const CONFLICT_STRATEGY_KEY = 'sync_conflict_strategy';
+const MAX_RETRIES = 3;
+const BATCH_SIZE = 10;
+let isSyncing = false;
+let lastSyncTime: number | null = null;
 
-export type SyncEntityType = 'user' | 'location' | 'shift' | 'payment';
-export type SyncOperationType = 'create' | 'update' | 'delete';
-export type ConflictStrategy = 'remote-wins' | 'local-wins' | 'manual';
-
-export interface SyncOperation {
-  id: string;
-  type: SyncOperationType;
-  entity: SyncEntityType;
-  data: any;
-  timestamp: number;
-  retryCount?: number;
-}
-
-export interface ConflictData {
-  id: string;
-  entity: SyncEntityType;
-  entityId: string;
-  localData: any;
-  remoteData: any;
-  timestamp: number;
-}
-
-export class SyncManager {
-  private db: SQLiteDatabase | null = null;
-  private syncQueue: SyncOperation[] = [];
-  private conflicts: ConflictData[] = [];
-  private isSyncing: boolean = false;
-  private isOnline: boolean = false;
-  private conflictStrategy: ConflictStrategy = 'remote-wins';
-  private unsubscribeNetInfo: (() => void) | null = null;
-  private repositories: Record<SyncEntityType, any> = {
-    user: null,
-    location: null,
-    shift: null,
-    payment: null,
-  };
-
-  constructor() {
-    this.unsubscribeNetInfo = NetInfo.addEventListener((state) => {
-      const wasOffline = !this.isOnline;
-      this.isOnline = !!state.isConnected;
-
-      if (wasOffline && this.isOnline && this.syncQueue.length > 0) {
-        this.syncNow();
-      }
+async function getPendingOperations(): Promise<SyncOperation[]> {
+  return new Promise((resolve, reject) => {
+    db.transaction((tx) => {
+      tx.executeSql(
+        `SELECT * FROM sync_queue WHERE status = 'pending' OR status = 'error' ORDER BY timestamp ASC;`,
+        [],
+        (_, { rows }) => resolve(rows._array),
+        (_, error) => {
+          reject(error);
+          return false;
+        }
+      );
     });
+  });
+}
 
-    this.loadConflictStrategy();
+async function updateOperationStatus(
+  id: string,
+  status: 'syncing' | 'synced' | 'error',
+  errorMsg?: string
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    db.transaction((tx) => {
+      tx.executeSql(
+        `UPDATE sync_queue SET status = ?, error = ?, attempts = attempts + 1, lastAttempt = ? WHERE id = ?;`,
+        [status, errorMsg || null, Date.now(), id],
+        () => resolve(),
+        (_, error) => {
+          reject(error);
+          return false;
+        }
+      );
+    });
+  });
+}
+
+async function processOperation(op: SyncOperation): Promise<void> {
+  console.log(`Processing ${op.entity} ${op.type}: ${op.id}`);
+  await updateOperationStatus(op.id, 'syncing');
+  try {
+    switch (op.entity) {
+      case 'Shift':
+        await synchronizeShifts(op);
+        break;
+      case 'Location':
+        await synchronizeLocations(op);
+        break;
+      case 'Payment':
+        await synchronizePayments(op);
+        break;
+      default:
+        throw new Error(`Unknown entity type: ${op.entity}`);
+    }
+    await updateOperationStatus(op.id, 'synced');
+    console.log(`Synced ${op.entity} ${op.type}: ${op.id}`);
+  } catch (error: any) {
+    console.error(`Error syncing ${op.entity} ${op.type} ${op.id}:`, error);
+    await updateOperationStatus(op.id, 'error', error.message);
+    // Considerar não lançar erro aqui para continuar o batch
+    // throw error; // Se descomentar, um erro para o batch inteiro
+  }
+}
+
+export async function triggerSync(): Promise<SyncStats> {
+  if (isSyncing) {
+    console.log('Sync already in progress.');
+    return getSyncStats();
   }
 
-  public initialize = async (database: SQLiteDatabase): Promise<void> => {
-    this.db = database;
-    await this.loadQueueFromStorage();
+  const netState = await NetInfo.fetch();
+  if (!netState.isConnected) {
+    console.log('Sync skipped: No internet connection.');
+    return getSyncStats();
+  }
 
-    const netState = await NetInfo.fetch();
-    this.isOnline = !!netState.isConnected;
-  };
+  isSyncing = true;
+  console.log('Starting sync...');
 
-  public registerRepository = (entity: SyncEntityType, repository: any): void => {
-    this.repositories[entity] = repository;
-  };
+  try {
+    await initDatabase(); // Garante que a tabela exista
+    let pendingOps = await getPendingOperations();
+    console.log(`Found ${pendingOps.length} pending operations.`);
 
-  public queueOperation = async (
-    type: SyncOperationType,
-    entity: SyncEntityType,
-    data: any
-  ): Promise<string> => {
-    const operation: SyncOperation = {
-      id: uuidv4(),
-      type,
-      entity,
-      data,
-      timestamp: Date.now(),
-      retryCount: 0,
-    };
+    const opsToProcess = pendingOps.filter(op => op.attempts < MAX_RETRIES);
+    const erroredOps = pendingOps.filter(op => op.status === 'error' && op.attempts >= MAX_RETRIES);
 
-    this.syncQueue.push(operation);
-    await this.saveQueueToStorage();
-
-    if (this.isOnline && !this.isSyncing) {
-      this.syncNow();
+    for (let i = 0; i < opsToProcess.length; i += BATCH_SIZE) {
+      const batch = opsToProcess.slice(i, i + BATCH_SIZE);
+      console.log(`Processing batch ${i / BATCH_SIZE + 1}/${Math.ceil(opsToProcess.length / BATCH_SIZE)}`);
+      await Promise.all(batch.map(processOperation));
+      // Poderia adicionar um pequeno delay entre batches se necessário
     }
 
-    return operation.id;
-  };
+    lastSyncTime = Date.now();
+    console.log('Sync finished.');
 
-  public syncNow = async (): Promise<boolean> => {
-    if (this.isSyncing || !this.isOnline || this.syncQueue.length === 0) {
-      return false;
-    }
-
-    try {
-      this.isSyncing = true;
-
-      const operationsToSync = [...this.syncQueue];
-      const successfulOps: string[] = [];
-      const failedOps: string[] = [];
-
-      for (const operation of operationsToSync) {
-        try {
-          const success = await this.processOperation(operation);
-          if (success) {
-            successfulOps.push(operation.id);
-          } else {
-            const opIndex = this.syncQueue.findIndex((op) => op.id === operation.id);
-            if (opIndex >= 0) {
-              this.syncQueue[opIndex].retryCount = (this.syncQueue[opIndex].retryCount || 0) + 1;
-
-              if (this.syncQueue[opIndex].retryCount > 5) {
-                failedOps.push(operation.id);
-              }
-            }
-          }
-        } catch (error) {
-          console.error(`Erro ao processar operação ${operation.id}:`, error);
-        }
-      }
-
-      if (successfulOps.length > 0 || failedOps.length > 0) {
-        this.syncQueue = this.syncQueue.filter(
-          (op) => !successfulOps.includes(op.id) && !failedOps.includes(op.id)
-        );
-        await this.saveQueueToStorage();
-        await this.updateLastSyncTime();
-      }
-
-      return successfulOps.length === operationsToSync.length;
-    } catch (error) {
-      console.error('Erro durante sincronização:', error);
-      return false;
-    } finally {
-      this.isSyncing = false;
-    }
-  };
-
-  public getLastSyncTime = async (): Promise<Date | null> => {
-    try {
-      const lastSyncStr = await SecureStore.getItemAsync(LAST_SYNC_TIME_KEY);
-      if (!lastSyncStr) return null;
-
-      return new Date(parseInt(lastSyncStr));
-    } catch (error) {
-      console.error('Erro ao obter último horário de sincronização:', error);
-      return null;
-    }
-  };
-
-  public hasPendingOperations = (): boolean => {
-    return this.syncQueue.length > 0;
-  };
-
-  public getPendingOperationsCount = (): number => {
-    return this.syncQueue.length;
-  };
-
-  public getUnresolvedConflicts = (): ConflictData[] => {
-    return this.conflicts;
-  };
-
-  public setConflictStrategy = async (strategy: ConflictStrategy): Promise<void> => {
-    this.conflictStrategy = strategy;
-    await SecureStore.setItemAsync(CONFLICT_STRATEGY_KEY, strategy);
-  };
-
-  private loadConflictStrategy = async (): Promise<void> => {
-    try {
-      const strategy = await SecureStore.getItemAsync(CONFLICT_STRATEGY_KEY);
-      if (strategy) {
-        this.conflictStrategy = strategy as ConflictStrategy;
-      }
-    } catch (error) {
-      console.error('Erro ao carregar estratégia de resolução de conflitos:', error);
-    }
-  };
-
-  public resolveConflict = async (
-    conflictId: string,
-    resolution: 'local' | 'remote' | 'merged',
-    mergedData?: any
-  ): Promise<boolean> => {
-    const conflictIndex = this.conflicts.findIndex((c) => c.id === conflictId);
-    if (conflictIndex < 0) return false;
-
-    const conflict = this.conflicts[conflictIndex];
-
-    try {
-      if (resolution === 'local') {
-        await this.queueOperation('update', conflict.entity, conflict.localData);
-      } else if (resolution === 'remote') {
-        await this.applyRemoteData(conflict.entity, conflict.remoteData);
-      } else if (resolution === 'merged' && mergedData) {
-        await this.applyRemoteData(conflict.entity, mergedData);
-        await this.queueOperation('update', conflict.entity, mergedData);
-      } else {
-        return false;
-      }
-
-      this.conflicts.splice(conflictIndex, 1);
-      return true;
-    } catch (error) {
-      console.error('Erro ao resolver conflito:', error);
-      return false;
-    }
-  };
-
-  private processOperation = async (operation: SyncOperation): Promise<boolean> => {
-    try {
-      console.log(`Sincronizando ${operation.entity} - ${operation.type}:`, operation.data);
-
-      await new Promise((resolve) => setTimeout(resolve, 300));
-
-      return true;
-    } catch (error) {
-      console.error(`Erro ao processar operação ${operation.id}:`, error);
-      return false;
-    }
-  };
-
-  private applyRemoteData = async (entity: SyncEntityType, data: any): Promise<boolean> => {
-    try {
-      const repository = this.repositories[entity];
-      if (!repository) {
-        console.error(`Repositório para entidade ${entity} não registrado`);
-        return false;
-      }
-
-      if (typeof repository.syncFromRemote === 'function') {
-        return await repository.syncFromRemote(data);
-      }
-
-      return false;
-    } catch (error) {
-      console.error('Erro ao aplicar dados remotos:', error);
-      return false;
-    }
-  };
-
-  public addConflict = (
-    entity: SyncEntityType,
-    entityId: string,
-    localData: any,
-    remoteData: any
-  ): string => {
-    const conflictId = uuidv4();
-    this.conflicts.push({
-      id: conflictId,
-      entity,
-      entityId,
-      localData,
-      remoteData,
-      timestamp: Date.now(),
-    });
-    return conflictId;
-  };
-
-  // Gerenciamento de armazenamento da fila
-  private loadQueueFromStorage = async (): Promise<void> => {
-    try {
-      const queueStr = await SecureStore.getItemAsync(SYNC_QUEUE_KEY);
-      if (queueStr) {
-        this.syncQueue = JSON.parse(queueStr);
-      }
-    } catch (error) {
-      console.error('Erro ao carregar fila de sincronização:', error);
-      this.syncQueue = [];
-    }
-  };
-
-  private saveQueueToStorage = async (): Promise<void> => {
-    try {
-      await SecureStore.setItemAsync(SYNC_QUEUE_KEY, JSON.stringify(this.syncQueue));
-    } catch (error) {
-      console.error('Erro ao salvar fila de sincronização:', error);
-    }
-  };
-
-  private updateLastSyncTime = async (): Promise<void> => {
-    try {
-      await SecureStore.setItemAsync(LAST_SYNC_TIME_KEY, Date.now().toString());
-    } catch (error) {
-      console.error('Erro ao atualizar horário de sincronização:', error);
-    }
-  };
-
-  public dispose = (): void => {
-    if (this.unsubscribeNetInfo) {
-      this.unsubscribeNetInfo();
-      this.unsubscribeNetInfo = null;
-    }
-  };
+  } catch (error) {
+    console.error('Error during sync process:', error);
+    // O erro específico da operação já foi logado e status atualizado
+  } finally {
+    isSyncing = false;
+  }
+  return getSyncStats();
 }
 
-const syncManager = new SyncManager();
-export default syncManager;
+export async function getSyncStats(): Promise<SyncStats> {
+   return new Promise((resolve, reject) => {
+    db.transaction((tx) => {
+      let stats: Partial<SyncStats> = { pending: 0, synced: 0, errors: 0 };
+      tx.executeSql(
+        `SELECT status, COUNT(*) as count FROM sync_queue GROUP BY status;`,
+        [],
+        (_, { rows }) => {
+          rows._array.forEach(row => {
+            if (row.status === 'pending') stats.pending = row.count;
+            else if (row.status === 'synced') stats.synced = row.count;
+            else if (row.status === 'error') stats.errors = row.count;
+          });
+          stats.lastSyncTime = lastSyncTime || undefined;
+          resolve(stats as SyncStats);
+        },
+        (_, error) => {
+          // Se a tabela não existe, retorna stats zerados
+          if (error.message.includes('no such table')) {
+             resolve({ pending: 0, synced: 0, errors: 0, lastSyncTime: lastSyncTime || undefined });
+          } else {
+             console.error("Error fetching sync stats:", error);
+             reject(error);
+          }
+          return true; // Indica que o erro foi tratado (ou ignorado)
+        }
+      );
+    });
+  });
+}
+
+// TODO: Adicionar lógica para enfileirar operações (addSyncOperation)
+// que seria chamada pelos repositórios quando offline.
+*/
+export {}; // Export vazio

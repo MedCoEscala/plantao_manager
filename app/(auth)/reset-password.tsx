@@ -1,13 +1,23 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  ScrollView,
+  Platform,
+  KeyboardAvoidingView,
+  StyleSheet,
+} from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import Button from '../components/ui/Button';
-import Input from '../components/ui/Input';
-import { useToast } from '../components/ui/Toast';
-import { usePasswordReset } from '../../hooks/auth/usePasswordReset';
+import { useSignIn } from '@clerk/clerk-expo';
+// Assumindo componentes UI
+import Button from '@/components/ui/Button';
+import Input from '@/components/ui/Input';
+import { useToast } from '@/components/ui/Toast';
 
 export default function ResetPasswordScreen() {
   const [code, setCode] = useState('');
@@ -16,13 +26,15 @@ export default function ResetPasswordScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const { resetPassword, isLoading } = usePasswordReset();
+  const { signIn, setActive, isLoaded } = useSignIn();
   const router = useRouter();
   const { showToast } = useToast();
   const params = useLocalSearchParams();
-  const email = params.email as string;
+  const email = params.email as string; // Pega o email passado da tela anterior
+  const [isLoading, setIsLoading] = useState(false);
 
-  if (!email) {
+  // Se não houver email (veio direto para cá), volta para o início do fluxo
+  if (!email && isLoaded) {
     router.replace('/(auth)/forgot-password');
     return null;
   }
@@ -32,138 +44,199 @@ export default function ResetPasswordScreen() {
       showToast('Por favor, informe o código de verificação', 'error');
       return false;
     }
-
     if (!newPassword.trim()) {
       showToast('Por favor, informe a nova senha', 'error');
       return false;
     }
-
-    if (newPassword.length < 6) {
-      showToast('A senha deve ter pelo menos 6 caracteres', 'error');
+    if (newPassword.length < 8) {
+      showToast('A nova senha deve ter pelo menos 8 caracteres', 'error');
       return false;
     }
-
     if (newPassword !== confirmPassword) {
       showToast('As senhas não conferem', 'error');
       return false;
     }
-
     return true;
   };
 
   const handleResetPassword = async () => {
-    if (!validateForm()) {
+    if (!validateForm() || !isLoaded) {
       return;
     }
 
+    setIsLoading(true);
     try {
-      await resetPassword(code.trim(), newPassword.trim());
-      showToast('Senha redefinida com sucesso!', 'success');
-    } catch (error) {
-      console.error('Erro ao redefinir senha:', error);
-      showToast('Erro ao redefinir senha. Verifique o código e tente novamente.', 'error');
+      // Tenta completar o fluxo de reset de senha
+      const result = await signIn.attemptFirstFactor({
+        strategy: 'reset_password_email_code',
+        code: code.trim(),
+        password: newPassword.trim(),
+      });
+
+      if (result.status === 'complete') {
+        // Senha redefinida com sucesso, ativa a nova sessão
+        await setActive({ session: result.createdSessionId });
+        showToast('Senha redefinida com sucesso!', 'success');
+        router.replace('/(root)/profile'); // Redireciona para o perfil
+      } else {
+        // Status inesperado
+        console.error('Status inesperado ao resetar senha:', JSON.stringify(result, null, 2));
+        showToast('Status inesperado ao redefinir senha.', 'error');
+      }
+    } catch (err: any) {
+      console.error('Erro ao resetar senha Clerk:', JSON.stringify(err, null, 2));
+      const firstError = err.errors?.[0];
+      const errorMessage =
+        firstError?.longMessage || firstError?.message || 'Erro ao redefinir senha.';
+      // Tratar código inválido/expirado
+      if (firstError?.code === 'form_code_incorrect') {
+        showToast('Código de verificação inválido ou expirado.', 'error');
+      } else {
+        showToast(errorMessage, 'error');
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 
+  if (!isLoaded) {
+    return (
+      <SafeAreaView style={styles.loadingContainer}>
+        <Text>Carregando...</Text>
+      </SafeAreaView>
+    );
+  }
+
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaView style={styles.safeArea}>
       <StatusBar style="dark" />
-
-      <ScrollView className="flex-1">
-        <View className="px-6 py-8">
-          <TouchableOpacity
-            onPress={() => router.back()}
-            className="mb-4 h-10 w-10 items-center justify-center">
-            <Ionicons name="arrow-back" size={24} color="#333" />
-          </TouchableOpacity>
-
-          <View className="mb-8">
-            <Text className="mb-2 text-3xl font-bold text-primary">Redefinir Senha</Text>
-            <Text className="text-text-light">
-              Digite o código enviado para {email} e defina sua nova senha
-            </Text>
-          </View>
-
-          <View className="mb-4">
-            <Input
-              label="Código de Verificação"
-              placeholder="Digite o código recebido por email"
-              value={code}
-              onChangeText={setCode}
-              keyboardType="number-pad"
-              fullWidth
-            />
-          </View>
-
-          <View className="mb-4">
-            <Text className="mb-1 text-sm font-medium text-text-light">Nova Senha</Text>
-            <View className="flex-row items-center rounded-lg border border-gray-300 px-3 py-2">
-              <Ionicons
-                name="lock-closed-outline"
-                size={20}
-                color="#666"
-                style={{ marginRight: 8 }}
-              />
-              <TextInput
-                className="flex-1 text-text-dark"
-                placeholder="Nova senha"
-                value={newPassword}
-                onChangeText={setNewPassword}
-                secureTextEntry={!showPassword}
-              />
-              <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                <Ionicons
-                  name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                  size={20}
-                  color="#666"
-                />
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <View className="mb-6">
-            <Text className="mb-1 text-sm font-medium text-text-light">Confirmar Senha</Text>
-            <View className="flex-row items-center rounded-lg border border-gray-300 px-3 py-2">
-              <Ionicons
-                name="lock-closed-outline"
-                size={20}
-                color="#666"
-                style={{ marginRight: 8 }}
-              />
-              <TextInput
-                className="flex-1 text-text-dark"
-                placeholder="Confirme a nova senha"
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                secureTextEntry={!showConfirmPassword}
-              />
-              <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
-                <Ionicons
-                  name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
-                  size={20}
-                  color="#666"
-                />
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <Button
-            variant="primary"
-            loading={isLoading}
-            onPress={handleResetPassword}
-            fullWidth
-            className="mb-4">
-            Redefinir Senha
-          </Button>
-
-          <View className="mt-6 flex-row justify-center">
-            <Text className="text-text-light">Lembrou sua senha? </Text>
-            <TouchableOpacity onPress={() => router.replace('/(auth)/sign-in')}>
-              <Text className="font-medium text-primary">Entrar</Text>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardView}>
+        <ScrollView contentContainerStyle={styles.scrollViewContent}>
+          <View style={styles.container}>
+            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+              <Ionicons name="arrow-back" size={24} color="#333" />
             </TouchableOpacity>
+
+            <View style={styles.header}>
+              <Text style={styles.title}>Redefinir Senha</Text>
+              <Text style={styles.subtitle}>
+                Digite o código enviado para {email} e defina sua nova senha.
+              </Text>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Input
+                label="Código de Verificação"
+                placeholder="Código recebido por email"
+                value={code}
+                onChangeText={setCode}
+                keyboardType="number-pad"
+                maxLength={6}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              {' '}
+              // Nova Senha
+              <Text style={styles.label}>Nova Senha</Text>
+              <View style={styles.passwordInputContainer}>
+                <Ionicons name="lock-closed-outline" size={20} color="#666" style={styles.icon} />
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="Nova senha (mínimo 8 caracteres)"
+                  value={newPassword}
+                  onChangeText={setNewPassword}
+                  secureTextEntry={!showPassword}
+                />
+                <TouchableOpacity
+                  onPress={() => setShowPassword(!showPassword)}
+                  style={styles.eyeIcon}>
+                  <Ionicons
+                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                    size={24}
+                    color="#666"
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              {' '}
+              // Confirmar Nova Senha
+              <Text style={styles.label}>Confirmar Nova Senha</Text>
+              <View style={styles.passwordInputContainer}>
+                <Ionicons name="lock-closed-outline" size={20} color="#666" style={styles.icon} />
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="Confirme a nova senha"
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  secureTextEntry={!showConfirmPassword}
+                />
+                <TouchableOpacity
+                  onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                  style={styles.eyeIcon}>
+                  <Ionicons
+                    name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
+                    size={24}
+                    color="#666"
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <Button
+              variant="primary"
+              loading={isLoading}
+              onPress={handleResetPassword}
+              style={styles.actionButton}>
+              Redefinir Senha
+            </Button>
+
+            <View style={styles.linksContainer}>
+              <Link href="/(auth)/sign-in" asChild>
+                <TouchableOpacity>
+                  <Text style={styles.footerLink}>Voltar para Login</Text>
+                </TouchableOpacity>
+              </Link>
+            </View>
           </View>
-        </View>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
+
+// Estilos
+const styles = StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: 'white' },
+  keyboardView: { flex: 1 },
+  scrollViewContent: { flexGrow: 1, justifyContent: 'center' },
+  container: { paddingHorizontal: 24, paddingVertical: 32 },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  backButton: { marginBottom: 16, alignSelf: 'flex-start' },
+  header: { marginBottom: 32, alignItems: 'center' },
+  title: { fontSize: 30, fontWeight: 'bold', color: '#4F46E5', marginBottom: 8 },
+  subtitle: { color: '#6B7280', textAlign: 'center' },
+  inputGroup: { marginBottom: 16 },
+  label: { marginBottom: 4, fontSize: 14, fontWeight: '500', color: '#6B7280' },
+  passwordInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    paddingHorizontal: 12,
+  },
+  icon: { marginRight: 8 },
+  textInput: { flex: 1, color: '#1F2937', height: 48 },
+  eyeIcon: { padding: 5 },
+  actionButton: {
+    marginTop: 8,
+    marginBottom: 16,
+  },
+  linksContainer: { marginTop: 24, alignItems: 'center' },
+  footerLink: { fontWeight: '500', color: '#4F46E5' },
+});

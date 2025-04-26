@@ -1,0 +1,90 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String       @id @default(cuid())
+  clerkId     String       @unique @map("clerk_id")
+  email       String       @unique
+  firstName   String?      @map("first_name")
+  lastName    String?      @map("last_name")
+  imageUrl    String?      @map("image_url")
+  name        String?
+  phoneNumber String?      @map("phone_number")
+  birthDate   DateTime?    @map("birth_date") @db.Date
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+  locations   Location[]
+  plantoes    Plantao[]
+  contractors Contractor[]
+
+  @@map("users")
+}
+
+model Location {
+  id        String    @id @default(cuid())
+  name      String
+  address   String?
+  phone     String?
+  color     String    @default("#0077B6")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  userId    String    @map("user_id")
+  user      User      @relation(fields: [userId], references: [id])
+  plantoes  Plantao[]
+
+  @@map("locations")
+}
+
+model Contractor {
+  id        String    @id @default(cuid())
+  name      String
+  email     String?
+  phone     String?
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  userId    String    @map("user_id")
+  user      User      @relation(fields: [userId], references: [id])
+  plantoes  Plantao[]
+
+  @@map("contractors")
+}
+
+model Plantao {
+  id           String      @id @default(cuid())
+  date         DateTime    @db.Date
+  value        Float
+  isFixed      Boolean     @default(false) @map("is_fixed")
+  paymentType  String
+  notes        String?
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+  userId       String      @map("user_id")
+  locationId   String?     @map("location_id")
+  contractorId String?     @map("contractor_id")
+  user         User        @relation(fields: [userId], references: [id])
+  location     Location?   @relation(fields: [locationId], references: [id])
+  contractor   Contractor? @relation(fields: [contractorId], references: [id])
+  payments     Payment[]
+
+  @@map("plantoes")
+}
+
+model Payment {
+  id          String    @id @default(cuid())
+  plantaoId   String    @map("plantao_id")
+  paymentDate DateTime? @map("payment_date") @db.Date
+  paid        Boolean   @default(false)
+  notes       String?
+  method      String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  plantao     Plantao   @relation(fields: [plantaoId], references: [id], onDelete: Cascade)
+
+  @@map("payments")
+}

@@ -1,118 +1,305 @@
-import React from "react";
-import { View, Text, TouchableOpacity } from "react-native";
-import { FlashList } from "@shopify/flash-list";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { StatusBar } from "expo-status-bar";
-import { Ionicons } from "@expo/vector-icons";
+import React, { useState, useCallback } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  FlatList,
+  ActivityIndicator,
+  SafeAreaView,
+  StatusBar,
+  Alert,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { useAuth } from '@clerk/clerk-expo'; // Se precisar de dados do usuário/auth
 
-// Definindo o tipo para um pagamento
+// Defina uma interface para o objeto de pagamento
 interface Payment {
   id: string;
-  hospital: string;
+  description: string;
+  amount: number;
   date: string;
-  amount: string;
-  status: string;
+  status: 'pending' | 'completed' | 'failed';
 }
 
-// Dados fictícios para pagamentos
-const SAMPLE_PAYMENTS: Payment[] = [
+// Dados mockados para pagamentos
+const MOCK_PAYMENTS: Payment[] = [
   {
-    id: "1",
-    hospital: "Hospital São Lucas",
-    date: "10/11/2023",
-    amount: "R$ 1.250,00",
-    status: "Pago",
+    id: 'pay1',
+    description: 'Plantão Hospital Central - Jan/24',
+    amount: 1250.75,
+    date: '2024-02-15',
+    status: 'completed',
   },
   {
-    id: "2",
-    hospital: "Hospital Moinhos de Vento",
-    date: "15/10/2023",
-    amount: "R$ 1.500,00",
-    status: "Pago",
+    id: 'pay2',
+    description: 'Plantão Clínica Sul - Jan/24',
+    amount: 800.0,
+    date: '2024-02-20',
+    status: 'pending',
   },
   {
-    id: "3",
-    hospital: "Hospital de Clínicas",
-    date: "05/10/2023",
-    amount: "R$ 1.200,00",
-    status: "Pendente",
+    id: 'pay3',
+    description: 'Plantão Hospital Norte - Fev/24',
+    amount: 1100.5,
+    date: '2024-03-05',
+    status: 'pending',
+  },
+  {
+    id: 'pay4',
+    description: 'Adiantamento Fev/24',
+    amount: 500.0,
+    date: '2024-02-10',
+    status: 'completed',
+  },
+  {
+    id: 'pay5',
+    description: 'Plantão Extra Fim de Semana',
+    amount: 650.0,
+    date: '2024-03-12',
+    status: 'failed',
   },
 ];
 
-export default function PaymentsScreen() {
+const PaymentsScreen = () => {
+  const router = useRouter();
+  const { isLoaded, userId } = useAuth(); // Exemplo, caso precise do userId
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  // Função para carregar os pagamentos (atualmente mockado)
+  const loadPayments = useCallback(async () => {
+    setRefreshing(true);
+    setLoading(true);
+    // Simula uma chamada de API
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    setPayments(MOCK_PAYMENTS);
+    setRefreshing(false);
+    setLoading(false);
+  }, []);
+
+  // Carrega pagamentos na montagem inicial
+  React.useEffect(() => {
+    loadPayments();
+  }, [loadPayments]);
+
+  // Função para navegar para a tela de adicionar pagamento (ainda não criada)
+  const goToAddPayment = () => {
+    // router.push('/(root)/add-payment'); // Rota exemplo
+    Alert.alert('Navegação', 'Tela de adicionar pagamento ainda não implementada.');
+  };
+
+  // Função para navegar para a tela de detalhes/editar pagamento (ainda não criada)
+  const goToPaymentDetails = (paymentId: string) => {
+    // router.push(`/(root)/payment/${paymentId}`); // Rota exemplo
+    Alert.alert('Navegação', `Tela de detalhes do pagamento ${paymentId} ainda não implementada.`);
+  };
+
+  // Renderiza cada item da lista de pagamentos
   const renderPaymentItem = ({ item }: { item: Payment }) => (
-    <TouchableOpacity className="bg-white rounded-xl p-4 mb-3 shadow-sm">
-      <View className="flex-row justify-between items-center mb-3">
-        <Text className="text-base font-bold text-gray-800 flex-1">
-          {item.hospital}
-        </Text>
-        <View
-          className={`px-2 py-1 rounded ${
-            item.status === "Pago" ? "bg-green-100" : "bg-amber-100"
-          }`}
-        >
-          <Text
-            className={`text-xs font-medium ${
-              item.status === "Pago" ? "text-green-600" : "text-amber-600"
-            }`}
-          >
-            {item.status}
-          </Text>
-        </View>
+    <TouchableOpacity onPress={() => goToPaymentDetails(item.id)} style={styles.itemContainer}>
+      <View style={styles.itemTextContainer}>
+        <Text style={styles.itemDescription}>{item.description}</Text>
+        <Text style={styles.itemDate}>Data: {item.date}</Text>
+        <Text style={styles.itemAmount}>Valor: R$ {item.amount.toFixed(2)}</Text>
       </View>
-      <View className="flex-row">
-        <View className="flex-1">
-          <Text className="text-sm text-gray-500 mb-1">Data</Text>
-          <Text className="text-sm font-medium text-gray-800">{item.date}</Text>
-        </View>
-        <View className="flex-1">
-          <Text className="text-sm text-gray-500 mb-1">Valor</Text>
-          <Text className="text-sm font-medium text-gray-800">
-            {item.amount}
-          </Text>
-        </View>
+      <View style={[styles.statusBadge, getStatusStyle(item.status)]}>
+        <Text style={styles.statusText}>{getStatusText(item.status)}</Text>
       </View>
+      <Ionicons name="chevron-forward" size={20} color="#ccc" />
     </TouchableOpacity>
   );
 
+  // Helper para estilo do status
+  const getStatusStyle = (status: Payment['status']) => {
+    switch (status) {
+      case 'completed':
+        return styles.statusCompleted;
+      case 'pending':
+        return styles.statusPending;
+      case 'failed':
+        return styles.statusFailed;
+      default:
+        return {};
+    }
+  };
+
+  // Helper para texto do status
+  const getStatusText = (status: Payment['status']) => {
+    switch (status) {
+      case 'completed':
+        return 'Completo';
+      case 'pending':
+        return 'Pendente';
+      case 'failed':
+        return 'Falhou';
+      default:
+        return 'Desconhecido';
+    }
+  };
+
+  if (!isLoaded && loading) {
+    return (
+      <SafeAreaView style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#007AFF" />
+      </SafeAreaView>
+    );
+  }
+
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
-      <StatusBar style="dark" />
-      <View className="flex-row justify-between items-center px-4 py-3 border-b border-gray-200">
-        <Text className="text-xl font-bold text-gray-800">Pagamentos</Text>
-        <TouchableOpacity className="p-2">
-          <Ionicons name="filter-outline" size={24} color="#2B2D42" />
-        </TouchableOpacity>
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" />
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Meus Pagamentos</Text>
+        {/* Pode adicionar um botão de filtro ou outras ações aqui */}
       </View>
 
-      <View className="flex-row px-4 py-4">
-        <View className="flex-1 bg-white rounded-xl p-4 mx-1 shadow-sm">
-          <Text className="text-sm text-gray-500 mb-1">Este mês</Text>
-          <Text className="text-lg font-bold text-gray-800">R$ 3.950,00</Text>
-        </View>
-        <View className="flex-1 bg-white rounded-xl p-4 mx-1 shadow-sm">
-          <Text className="text-sm text-gray-500 mb-1">Total</Text>
-          <Text className="text-lg font-bold text-gray-800">R$ 9.750,00</Text>
-        </View>
-      </View>
-
-      {SAMPLE_PAYMENTS.length > 0 ? (
-        <View className="flex-1 px-4">
-          <FlashList
-            data={SAMPLE_PAYMENTS}
-            renderItem={renderPaymentItem}
-            keyExtractor={(item: Payment) => item.id}
-            estimatedItemSize={100}
-          />
+      {payments.length === 0 && !loading ? (
+        <View style={styles.emptyContainer}>
+          <Ionicons name="cash-outline" size={60} color="#ccc" />
+          <Text style={styles.emptyText}>Nenhum pagamento encontrado.</Text>
+          <Text style={styles.emptySubText}>Adicione ou aguarde novos registros.</Text>
         </View>
       ) : (
-        <View className="flex-1 justify-center items-center p-6">
-          <Ionicons name="cash-outline" size={64} color="#8D99AE" />
-          <Text className="mt-4 text-base text-gray-500 text-center">
-            Nenhum pagamento encontrado
-          </Text>
-        </View>
+        <FlatList
+          data={payments}
+          renderItem={renderPaymentItem}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContent}
+          refreshing={refreshing}
+          onRefresh={loadPayments}
+        />
       )}
+
+      {/* Botão Flutuante para Adicionar Pagamento */}
+      <TouchableOpacity style={styles.fab} onPress={goToAddPayment}>
+        <Ionicons name="add" size={30} color="#fff" />
+      </TouchableOpacity>
     </SafeAreaView>
   );
-}
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f8f9fa', // Um cinza bem claro
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+  },
+  header: {
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+    backgroundColor: '#fff', // Fundo branco para o cabeçalho
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333', // Cor escura para o título
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+  },
+  emptyText: {
+    fontSize: 18,
+    color: '#6c757d', // Cinza médio
+    marginTop: 15,
+    textAlign: 'center',
+  },
+  emptySubText: {
+    fontSize: 14,
+    color: '#adb5bd', // Cinza claro
+    marginTop: 5,
+    textAlign: 'center',
+  },
+  listContent: {
+    paddingBottom: 80, // Espaço para o FAB não cobrir o último item
+    paddingHorizontal: 10, // Adiciona um pouco de espaço nas laterais da lista
+  },
+  itemContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    padding: 15,
+    marginVertical: 5, // Espaçamento vertical entre itens
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#eee', // Borda sutil
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2, // Sombra para Android
+  },
+  itemTextContainer: {
+    flex: 1, // Ocupa o espaço disponível
+    marginRight: 10,
+  },
+  itemDescription: {
+    fontSize: 16,
+    fontWeight: '500', // Semi-bold
+    color: '#343a40', // Cinza escuro
+    marginBottom: 4,
+  },
+  itemDate: {
+    fontSize: 13,
+    color: '#6c757d', // Cinza médio
+    marginBottom: 2,
+  },
+  itemAmount: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#28a745', // Verde para valor
+  },
+  statusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginHorizontal: 10,
+    minWidth: 80, // Largura mínima para alinhar
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  statusCompleted: {
+    backgroundColor: '#28a745', // Verde
+  },
+  statusPending: {
+    backgroundColor: '#ffc107', // Amarelo/Laranja
+  },
+  statusFailed: {
+    backgroundColor: '#dc3545', // Vermelho
+  },
+  fab: {
+    position: 'absolute',
+    right: 20,
+    bottom: 20,
+    backgroundColor: '#007AFF', // Azul padrão iOS
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 5,
+  },
+});
+
+export default PaymentsScreen;

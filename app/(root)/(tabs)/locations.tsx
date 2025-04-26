@@ -1,161 +1,207 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { FlashList } from '@shopify/flash-list';
+import React, { useState, useCallback } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  FlatList,
+  ActivityIndicator,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useLocations, Location } from '../../../hooks/useLocations';
-import { useDialog } from '@app/contexts/DialogContext';
+import { useDialog } from '@/contexts/DialogContext';
+
+// --- MOCK DATA --- (Substituir por chamadas reais)
+interface Location {
+  id: string;
+  name: string;
+  address?: string;
+  phone?: string;
+  color?: string;
+}
+const MOCK_LOCATIONS_DATA: Location[] = [
+  {
+    id: 'loc1',
+    name: 'Hospital Central',
+    address: 'Rua Principal, 123',
+    phone: '51 9999-1111',
+    color: '#0077B6',
+  },
+  {
+    id: 'loc2',
+    name: 'Clínica Sul',
+    address: 'Av. Secundária, 456',
+    phone: '51 9999-2222',
+    color: '#2A9D8F',
+  },
+  {
+    id: 'loc3',
+    name: 'Posto de Saúde Norte',
+    address: 'Travessa Terciária, 789',
+    color: '#E9C46A',
+  },
+];
+// --- FIM MOCK DATA ---
 
 export default function LocationsScreen() {
-  const [locations, setLocations] = useState<Location[]>([]);
+  const [locations, setLocations] = useState<Location[]>(MOCK_LOCATIONS_DATA);
   const [refreshing, setRefreshing] = useState(false);
-
-  const { getLocations, deleteLocation, loading, error } = useLocations();
   const { showDialog } = useDialog();
   const router = useRouter();
 
-  // Carregar locais ao montar o componente
-  useEffect(() => {
-    loadLocations();
-  }, []);
-
-  // Função para carregar ou atualizar os locais
-  const loadLocations = async () => {
+  const loadLocations = useCallback(async () => {
     setRefreshing(true);
-    try {
-      const data = await getLocations();
-      setLocations(data);
-    } catch (err) {
-      showDialog({
-        title: 'Erro',
-        message: 'Não foi possível carregar os locais',
-        type: 'error',
-      });
-    } finally {
-      setRefreshing(false);
-    }
-  };
+    // Simular carregamento (substituir por chamada real)
+    await new Promise((res) => setTimeout(res, 1000));
+    setLocations(MOCK_LOCATIONS_DATA); // Reset para mock
+    setRefreshing(false);
+    showDialog({ type: 'success', title: 'Atualizado', message: 'Locais recarregados (mock).' });
+  }, [showDialog]);
 
-  // Confirmar e excluir local
   const confirmDelete = (location: Location) => {
     showDialog({
       title: 'Confirmar exclusão',
-      message: `Deseja realmente excluir o local "${location.name}"?`,
+      message: `Deseja realmente excluir o local "${location.name}"? (Ação simulada)`,
       type: 'confirm',
       confirmText: 'Excluir',
-      cancelText: 'Cancelar',
-      onConfirm: async () => {
-        try {
-          const success = await deleteLocation(location.id);
-          if (success) {
-            showDialog({
-              title: 'Sucesso',
-              message: 'Local excluído com sucesso',
-              type: 'success',
-            });
-            // Recarregar lista
-            loadLocations();
-          } else {
-            showDialog({
-              title: 'Erro',
-              message: error?.message || 'Não foi possível excluir o local',
-              type: 'error',
-            });
-          }
-        } catch (err) {
-          showDialog({
-            title: 'Erro',
-            message: 'Ocorreu um erro ao excluir o local',
-            type: 'error',
-          });
-        }
+      onConfirm: () => {
+        // Simular exclusão (remover do estado local)
+        setLocations((prev) => prev.filter((loc) => loc.id !== location.id));
+        showDialog({ title: 'Sucesso', message: 'Local excluído (simulado).', type: 'success' });
       },
     });
   };
 
-  // Navegar para a tela de edição
   const navigateToEdit = (location: Location) => {
-    router.push({
-      pathname: '/locations/edit',
-      params: { id: location.id },
+    showDialog({
+      title: 'Em desenvolvimento',
+      message: `Editar local "${location.name}" em breve!`,
+      type: 'info',
     });
+    // router.push({ pathname: '/locations/edit', params: { id: location.id } });
   };
 
-  // Navegar para a tela de adição
   const navigateToAdd = () => {
-    router.push('/locations/add');
+    showDialog({ title: 'Em desenvolvimento', message: 'Adicionar local em breve!', type: 'info' });
+    // router.push('/locations/add');
   };
 
-  // Renderizar item da lista
   const renderLocationItem = ({ item }: { item: Location }) => (
-    <TouchableOpacity
-      className="mb-3 flex-row rounded-xl bg-white p-4 shadow-sm"
-      onPress={() => navigateToEdit(item)}>
-      <View
-        className="mr-3 w-2 rounded-full"
-        style={{ backgroundColor: item.color || '#0077B6' }}
-      />
-      <View className="flex-1">
-        <Text className="mb-1 text-base font-bold text-gray-800">{item.name}</Text>
-        <Text className="mb-1 text-sm text-gray-600">{item.address}</Text>
-        {item.phone && <Text className="text-sm text-gray-600">{item.phone}</Text>}
+    <TouchableOpacity style={styles.card} onPress={() => navigateToEdit(item)}>
+      <View style={[styles.colorStripe, { backgroundColor: item.color || '#0077B6' }]} />
+      <View style={styles.cardContent}>
+        <Text style={styles.cardTitle}>{item.name}</Text>
+        {item.address && <Text style={styles.cardSubtitle}>{item.address}</Text>}
+        {item.phone && <Text style={styles.cardSubtitle}>{item.phone}</Text>}
       </View>
-      <View className="justify-center">
-        <TouchableOpacity className="p-2" onPress={() => confirmDelete(item)}>
-          <Ionicons name="trash-outline" size={20} color="#EF4444" />
-        </TouchableOpacity>
-      </View>
+      <TouchableOpacity style={styles.deleteButton} onPress={() => confirmDelete(item)}>
+        <Ionicons name="trash-outline" size={20} color="#EF4444" />
+      </TouchableOpacity>
     </TouchableOpacity>
   );
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
+    <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
-
-      <View className="flex-row items-center justify-between border-b border-gray-200 px-4 py-3">
-        <Text className="text-xl font-bold text-gray-800">Locais</Text>
-        <TouchableOpacity className="p-2" onPress={loadLocations}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Locais</Text>
+        <TouchableOpacity style={styles.refreshButton} onPress={loadLocations}>
           <Ionicons name="refresh-outline" size={24} color="#2B2D42" />
         </TouchableOpacity>
       </View>
 
-      {loading && !refreshing ? (
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#0077B6" />
-        </View>
-      ) : locations.length > 0 ? (
-        <View className="flex-1 px-4">
-          <FlashList
-            data={locations}
-            renderItem={renderLocationItem}
-            keyExtractor={(item: Location) => item.id}
-            estimatedItemSize={80}
-            refreshing={refreshing}
-            onRefresh={loadLocations}
-          />
-        </View>
+      {locations.length > 0 ? (
+        <FlatList
+          data={locations}
+          renderItem={renderLocationItem}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContent}
+          refreshing={refreshing}
+          onRefresh={loadLocations}
+        />
       ) : (
-        <View className="flex-1 items-center justify-center p-6">
+        <View style={styles.emptyStateContainer}>
           <Ionicons name="location-outline" size={64} color="#8D99AE" />
-          <Text className="mb-4 mt-4 text-center text-base text-gray-500">
-            Nenhum local disponível
-          </Text>
-          <TouchableOpacity
-            className="flex-row items-center rounded-md bg-blue-600 px-4 py-2"
-            onPress={navigateToAdd}>
+          <Text style={styles.emptyText}>Nenhum local cadastrado.</Text>
+          <TouchableOpacity style={styles.addButtonEmpty} onPress={navigateToAdd}>
             <Ionicons name="add" size={20} color="#FFFFFF" />
-            <Text className="ml-2 font-medium text-white">Adicionar Local</Text>
+            <Text style={styles.addButtonText}>Adicionar Local</Text>
           </TouchableOpacity>
         </View>
       )}
 
-      <TouchableOpacity
-        className="absolute bottom-6 right-6 h-14 w-14 items-center justify-center rounded-full bg-blue-600 shadow-md"
-        onPress={navigateToAdd}>
+      <TouchableOpacity style={styles.fab} onPress={navigateToAdd}>
         <Ionicons name="add" size={24} color="#FFFFFF" />
       </TouchableOpacity>
     </SafeAreaView>
   );
 }
+
+// Estilos
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#F8F9FA' },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  headerTitle: { fontSize: 20, fontWeight: 'bold', color: '#1F2937' },
+  refreshButton: { padding: 8 },
+  listContent: { padding: 16 },
+  card: {
+    flexDirection: 'row',
+    backgroundColor: 'white',
+    borderRadius: 12,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+    overflow: 'hidden',
+  },
+  colorStripe: { width: 8 },
+  cardContent: { flex: 1, padding: 16 },
+  cardTitle: { fontSize: 16, fontWeight: 'bold', color: '#1F2937', marginBottom: 4 },
+  cardSubtitle: { fontSize: 14, color: '#6B7280', marginBottom: 2 },
+  deleteButton: { justifyContent: 'center', paddingHorizontal: 16 },
+  emptyStateContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
+  emptyText: {
+    marginTop: 16,
+    marginBottom: 16,
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
+  },
+  addButtonEmpty: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0077B6',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  addButtonText: { color: 'white', marginLeft: 8, fontWeight: '500' },
+  fab: {
+    position: 'absolute',
+    bottom: 24,
+    right: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#0077B6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+});
