@@ -13,12 +13,13 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useSignIn } from '@clerk/clerk-expo';
+import { useSignIn, useAuth } from '@clerk/clerk-expo';
 // Assumindo que Button, Input e useToast existem e funcionam
 // Se der erro, precisaremos ajustar ou usar componentes padrão
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { useToast } from '@/components/ui/Toast';
+import apiClient from '@/lib/axios'; // Importar apiClient
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -26,6 +27,7 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
 
   const { isLoaded, signIn, setActive } = useSignIn();
+  const { getToken } = useAuth(); // Obter getToken de useAuth
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { showToast } = useToast(); // Assumindo que useToast está configurado no layout
@@ -54,17 +56,47 @@ export default function LoginScreen() {
 
     setIsLoading(true);
     try {
+      // 1. Tentar login com Clerk
       const signInAttempt = await signIn.create({
         identifier: email.trim(),
         password: password.trim(),
       });
 
       if (signInAttempt.status === 'complete') {
+        // 2. Ativar a sessão no Clerk
         await setActive({ session: signInAttempt.createdSessionId });
+
+        // 3. Obter o token JWT da sessão ativa
+        const token = await getToken();
+        if (!token) {
+          throw new Error('Não foi possível obter o token de autenticação.');
+        }
+
+        // 4. Chamar o endpoint de sincronização no backend com o token
+        try {
+          console.log('🔄 Sincronizando usuário com o backend...');
+          await apiClient.post(
+            '/users/sync', // Endpoint de sincronização
+            {}, // Corpo vazio, o backend usa o token para identificar o usuário
+            {
+              headers: {
+                Authorization: `Bearer ${token}`, // Adicionar o token ao cabeçalho
+              },
+            }
+          );
+          console.log('✅ Usuário sincronizado com sucesso!');
+        } catch (syncError) {
+          console.error('❌ Erro ao sincronizar usuário:', syncError);
+          // Decidir como lidar com erro de sincronização (ex: mostrar toast, mas continuar?)
+          // Por ora, vamos mostrar um erro mas permitir o redirecionamento
+          showToast('Erro ao sincronizar seus dados. Tente novamente mais tarde.', 'error');
+        }
+
+        // 5. Redirecionar se tudo correu bem (ou se erro de sync for ignorado)
         showToast('Login realizado com sucesso!', 'success');
         router.replace('/(root)/profile'); // Redireciona para o perfil após login
       } else {
-        // Status inesperado (ex: 'needs_second_factor') - Tratar se necessário
+        // Status inesperado (ex: 'needs_second_factor')
         console.error(
           'Status inesperado do Clerk Sign In:',
           JSON.stringify(signInAttempt, null, 2)
@@ -72,11 +104,14 @@ export default function LoginScreen() {
         showToast('Status de login inesperado.', 'error');
       }
     } catch (err: any) {
-      // Erro durante a tentativa de login
-      console.error('Erro de Login Clerk:', JSON.stringify(err, null, 2));
+      // Erro durante a tentativa de login ou obtenção de token
+      console.error('Erro de Login Clerk ou Token:', JSON.stringify(err, null, 2));
       const firstError = err.errors?.[0];
       const errorMessage =
-        firstError?.longMessage || firstError?.message || 'Email ou senha inválidos.';
+        firstError?.longMessage ||
+        firstError?.message ||
+        err.message || // Capturar erro de getToken
+        'Email ou senha inválidos.';
       showToast(errorMessage, 'error');
     } finally {
       setIsLoading(false);
@@ -118,8 +153,7 @@ export default function LoginScreen() {
             </View>
 
             <View style={styles.inputGroup}>
-              {' '}
-              // Input de Senha com ícone
+              {/* Input de Senha com ícone */}
               <Text style={styles.label}>Senha</Text>
               <View style={styles.passwordInputContainer}>
                 <Ionicons name="lock-closed-outline" size={20} color="#666" style={styles.icon} />

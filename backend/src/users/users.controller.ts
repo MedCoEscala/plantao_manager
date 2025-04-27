@@ -15,52 +15,123 @@ import {
   UsePipes,
   ValidationPipe,
   ForbiddenException,
+  ParseFilePipe,
+  NotFoundException,
+  Logger,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { ClerkAuthGuard } from '../auth/guards/clerk-auth.guard';
 import { Request } from 'express';
 import { User } from '@prisma/client';
 
+// Adicionar tipo para request com userContext
+interface RequestWithUserContext extends Request {
+  userContext: Record<string, any>; // Payload do token
+}
+
+// --- DTO para atualização do perfil ---
+// (Idealmente, mover para src/users/dto/update-profile.dto.ts)
+import { IsString, IsOptional, IsDateString, IsIn } from 'class-validator';
+
+export class UpdateProfileDto {
+  @IsString()
+  @IsOptional()
+  firstName?: string;
+
+  @IsString()
+  @IsOptional()
+  lastName?: string;
+
+  @IsString() // Receber como string YYYY-MM-DD
+  @IsOptional()
+  @IsDateString()
+  birthDate?: string;
+
+  @IsString()
+  @IsOptional()
+  @IsIn(['Masculino', 'Feminino', 'Outro', 'Não informado', ''])
+  gender?: string;
+
+  @IsString()
+  @IsOptional()
+  // Adicionar validação mais específica de telefone se necessário
+  phoneNumber?: string;
+
+  @IsString()
+  @IsOptional()
+  imageUrl?: string;
+}
+// --- Fim DTO ---
+
 @Controller('users')
 export class UsersController {
+  private readonly logger = new Logger(UsersController.name);
   constructor(private readonly usersService: UsersService) {}
 
   /**
-   * Endpoint para sincronizar (criar/atualizar) o usuário logado no DB local.
-   * Chamado pelo frontend após o login bem-sucedido.
+   * Endpoint para sincronizar (criar/atualizar básico) o usuário logado no DB local.
+   * Chamado após login ou verificação de email.
+   * Garante que o usuário com clerkId e email exista no DB.
    */
   @Post('sync')
   @UseGuards(ClerkAuthGuard)
   @HttpCode(HttpStatus.OK)
-  async syncUser(
-    @Req() req: Request & { auth: { userId: string } },
-  ): Promise<User> {
+  // Não precisa mais de @Body()
+  async syncUser(@Req() req: RequestWithUserContext): Promise<User> {
     console.log(
-      `UsersController: syncUser chamado por Clerk ID: ${req.auth.userId}`,
+      `UsersController: syncUser (básico) chamado por Clerk ID: ${req.userContext.sub}`,
     );
-    return this.usersService.syncUserWithClerk(req.auth);
+    // Passa apenas o payload do token para o serviço simplificado
+    return this.usersService.syncUserWithClerk(req.userContext);
   }
 
   /**
-   * Retorna o perfil do usuário atualmente autenticado.
+   * Retorna o perfil completo do usuário atualmente autenticado.
    */
   @UseGuards(ClerkAuthGuard)
   @Get('me')
-  async getMyProfile(
-    @Req() req: Request & { auth: { userId: string } },
-  ): Promise<User> {
-    const clerkId = req.auth.userId;
+  async getMyProfile(@Req() req: RequestWithUserContext): Promise<User> {
+    const clerkId = req.userContext.sub;
     console.log(
       `UsersController: getMyProfile chamado para Clerk ID: ${clerkId}`,
     );
-    return this.usersService.findOneByClerkId(clerkId);
+    try {
+      return await this.usersService.findOneByClerkId(clerkId);
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        this.logger.warn(
+          `Perfil não encontrado para Clerk ID ${clerkId}, iniciando sync...`,
+        );
+        // Se o perfil não for encontrado, talvez o sync falhou ou não ocorreu.
+        // Tentar sincronizar novamente pode ser uma opção.
+        return await this.usersService.syncUserWithClerk(req.userContext);
+      }
+      throw error; // Re-lança outros erros
+    }
+  }
+
+  /**
+   * NOVO: Atualiza o perfil do usuário autenticado.
+   */
+  @Patch('me')
+  @UseGuards(ClerkAuthGuard)
+  // Adicionar UsePipes(ValidationPipe) se a validação automática for desejada
+  async updateMyProfile(
+    @Req() req: RequestWithUserContext,
+    @Body() updateProfileDto: UpdateProfileDto, // Usar o DTO
+  ): Promise<User> {
+    const clerkId = req.userContext.sub;
+    console.log(
+      `UsersController: updateMyProfile chamado por Clerk ID: ${clerkId}`,
+    );
+    return this.usersService.updateProfileByClerkId(clerkId, updateProfileDto);
   }
 
   @UseGuards(ClerkAuthGuard)
   @Get()
-  findAll(@Req() req: Request) {
+  findAll(@Req() req: RequestWithUserContext) {
     console.log('UsersController: findAll chamado');
-    console.log('Usuário autenticado (Claims):', (req as any).auth);
+    console.log('Usuário autenticado (Claims):', req.userContext); // Logar userContext
     return this.usersService.findAll();
   }
 
@@ -68,14 +139,15 @@ export class UsersController {
   @Get(':id')
   async findOne(
     @Param('id') id: string,
-    @Req() req: Request & { auth: { userId: string } },
+    @Req() req: RequestWithUserContext,
   ): Promise<User> {
     console.log(`UsersController: findOne chamado para DB ID: ${id}`);
     const user = await this.usersService.findOne(id);
 
-    if (user.clerkId !== req.auth.userId) {
+    // Comparar com o clerkId do usuário encontrado no DB
+    if (user.clerkId !== req.userContext.userId) {
       console.warn(
-        `Permissão negada: Usuário ${req.auth.userId} tentando acessar DB ID ${id} de outro usuário (${user.clerkId})`,
+        `Permissão negada: Usuário ${req.userContext.userId} tentando acessar DB ID ${id} de outro usuário (${user.clerkId})`,
       );
       throw new ForbiddenException(
         'Você não tem permissão para acessar este recurso.',
@@ -83,7 +155,7 @@ export class UsersController {
     }
 
     console.log(
-      `Permissão concedida para ${req.auth.userId} acessar DB ID ${id}`,
+      `Permissão concedida para ${req.userContext.userId} acessar DB ID ${id}`,
     );
     return user;
   }
@@ -92,18 +164,18 @@ export class UsersController {
   @Patch(':id')
   async update(
     @Param('id') id: string,
-    @Body() updateUserDto: any,
-    @Req() req: Request & { auth: { userId: string } },
+    @Body() updateUserDto: any, // Considerar criar um UpdateUserDto real
+    @Req() req: RequestWithUserContext,
   ): Promise<User> {
     console.log(
-      `UsersController: update chamado para DB ID: ${id} por ${req.auth.userId}`,
+      `UsersController: update chamado para DB ID: ${id} por ${req.userContext.userId}`,
     );
 
     const userToUpdate = await this.usersService.findOne(id);
 
-    if (userToUpdate.clerkId !== req.auth.userId) {
+    if (userToUpdate.clerkId !== req.userContext.userId) {
       console.warn(
-        `Permissão negada: Usuário ${req.auth.userId} tentando atualizar DB ID ${id} de outro usuário (${userToUpdate.clerkId})`,
+        `Permissão negada: Usuário ${req.userContext.userId} tentando atualizar DB ID ${id} de outro usuário (${userToUpdate.clerkId})`,
       );
       throw new ForbiddenException(
         'Você não tem permissão para modificar este recurso.',
@@ -111,7 +183,7 @@ export class UsersController {
     }
 
     console.log(
-      `Permissão concedida para ${req.auth.userId} atualizar DB ID ${id}`,
+      `Permissão concedida para ${req.userContext.userId} atualizar DB ID ${id}`,
     );
     return this.usersService.update(id, updateUserDto);
   }
@@ -120,17 +192,17 @@ export class UsersController {
   @Delete(':id')
   async remove(
     @Param('id') id: string,
-    @Req() req: Request & { auth: { userId: string } },
+    @Req() req: RequestWithUserContext,
   ): Promise<User> {
     console.log(
-      `UsersController: remove chamado para DB ID: ${id} por ${req.auth.userId}`,
+      `UsersController: remove chamado para DB ID: ${id} por ${req.userContext.userId}`,
     );
 
     const userToDelete = await this.usersService.findOne(id);
 
-    if (userToDelete.clerkId !== req.auth.userId) {
+    if (userToDelete.clerkId !== req.userContext.userId) {
       console.warn(
-        `Permissão negada: Usuário ${req.auth.userId} tentando deletar DB ID ${id} de outro usuário (${userToDelete.clerkId})`,
+        `Permissão negada: Usuário ${req.userContext.userId} tentando deletar DB ID ${id} de outro usuário (${userToDelete.clerkId})`,
       );
       throw new ForbiddenException(
         'Você não tem permissão para remover este recurso.',
@@ -138,7 +210,7 @@ export class UsersController {
     }
 
     console.log(
-      `Permissão concedida para ${req.auth.userId} remover DB ID ${id}`,
+      `Permissão concedida para ${req.userContext.userId} remover DB ID ${id}`,
     );
     return this.usersService.remove(id);
   }

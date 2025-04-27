@@ -13,10 +13,15 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useSignUp } from '@clerk/clerk-expo';
+import { useSignUp, useAuth } from '@clerk/clerk-expo';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { useToast } from '@/components/ui/Toast';
+import DateTimePickerModal from 'react-native-modal-datetime-picker';
+import apiClient from '@/lib/axios';
+import { format } from 'date-fns';
+
+const GENDER_OPTIONS = ['Masculino', 'Feminino', 'Outro', 'Não informado'];
 
 export default function SignUpScreen() {
   const [email, setEmail] = useState('');
@@ -24,17 +29,28 @@ export default function SignUpScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  // Adicione outros campos se quiser coletá-los aqui (nome, etc.)
-  // const [firstName, setFirstName] = useState('');
-  // const [lastName, setLastName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [birthDate, setBirthDate] = useState<Date | null>(null);
+  const [gender, setGender] = useState<string>('');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
 
   const { isLoaded, signUp, setActive } = useSignUp();
+  const { getToken } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { showToast } = useToast();
 
   const validateForm = () => {
-    // Adicione validações para nome, se coletar
+    if (!firstName.trim()) {
+      showToast('Por favor, informe seu nome', 'error');
+      return false;
+    }
+    if (!lastName.trim()) {
+      showToast('Por favor, informe seu sobrenome', 'error');
+      return false;
+    }
     if (!email.trim()) {
       showToast('Por favor, informe seu email', 'error');
       return false;
@@ -49,7 +65,6 @@ export default function SignUpScreen() {
       return false;
     }
     if (password.length < 8) {
-      // Clerk exige 8 caracteres por padrão
       showToast('A senha deve ter pelo menos 8 caracteres', 'error');
       return false;
     }
@@ -57,30 +72,54 @@ export default function SignUpScreen() {
       showToast('As senhas não conferem', 'error');
       return false;
     }
+    if (phoneNumber.trim() && !/^[\d\s\-\(\)]+$/.test(phoneNumber.trim())) {
+      showToast('Formato de telefone inválido', 'error');
+      return false;
+    }
     return true;
   };
 
-  const handleRegister = async () => {
+  const handleConfirmDate = (date: Date) => {
+    setBirthDate(date);
+    hideDatePicker();
+  };
+
+  const showDatePicker = () => {
+    setDatePickerVisibility(true);
+  };
+
+  const hideDatePicker = () => {
+    setDatePickerVisibility(false);
+  };
+
+  const handleRegisterAndSync = async () => {
     if (!validateForm() || !isLoaded) {
       return;
     }
 
     setIsLoading(true);
     try {
-      // Cria o usuário no Clerk
       await signUp.create({
         emailAddress: email.trim(),
         password: password.trim(),
-        // firstName: firstName.trim(), // Adicione se coletar
-        // lastName: lastName.trim(), // Adicione se coletar
       });
 
-      // Prepara e envia o código de verificação por email
       await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
 
-      // Redireciona para a tela de verificação
       showToast('Código de verificação enviado!', 'info');
-      router.push({ pathname: '/(auth)/verify-code', params: { email: email.trim() } });
+
+      const birthDateString = birthDate ? format(birthDate, 'yyyy-MM-dd') : '';
+      router.push({
+        pathname: '/(auth)/verify-code',
+        params: {
+          email: email.trim(),
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          birthDate: birthDateString,
+          gender: gender || '',
+          phoneNumber: phoneNumber.trim(),
+        },
+      });
     } catch (err: any) {
       console.error('Erro de Registro Clerk:', JSON.stringify(err, null, 2));
       const firstError = err.errors?.[0];
@@ -88,7 +127,6 @@ export default function SignUpScreen() {
         firstError?.longMessage ||
         firstError?.message ||
         'Erro ao criar conta. Verifique os dados e tente novamente.';
-      // Tratar erro de email já existente especificamente se necessário
       if (firstError?.code === 'form_identifier_exists') {
         showToast('Este email já está cadastrado.', 'error');
       } else {
@@ -124,10 +162,76 @@ export default function SignUpScreen() {
               <Text style={styles.subtitle}>Informe seu email e senha para começar</Text>
             </View>
 
-            {/* Adicionar campos de nome aqui se necessário */}
-            {/* <View style={styles.inputGroup}>
-              <Input label="Nome" ... />
-            </View> */}
+            <View style={styles.inputGroup}>
+              <Input
+                label="Nome"
+                placeholder="Seu nome"
+                value={firstName}
+                onChangeText={setFirstName}
+                autoCapitalize="words"
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Input
+                label="Sobrenome"
+                placeholder="Seu sobrenome"
+                value={lastName}
+                onChangeText={setLastName}
+                autoCapitalize="words"
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Data de Nascimento</Text>
+              <TouchableOpacity onPress={showDatePicker} style={styles.datePickerButton}>
+                <Text style={styles.datePickerText}>
+                  {birthDate ? format(birthDate, 'dd/MM/yyyy') : 'Selecione a data'}
+                </Text>
+                <Ionicons name="calendar-outline" size={20} color="#666" />
+              </TouchableOpacity>
+              <DateTimePickerModal
+                isVisible={isDatePickerVisible}
+                mode="date"
+                onConfirm={handleConfirmDate}
+                onCancel={hideDatePicker}
+                locale="pt_BR"
+                maximumDate={new Date()}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Gênero</Text>
+              <View style={styles.genderOptionsContainer}>
+                {GENDER_OPTIONS.map((option) => (
+                  <TouchableOpacity
+                    key={option}
+                    style={[
+                      styles.genderOptionButton,
+                      gender === option && styles.genderOptionButtonSelected,
+                    ]}
+                    onPress={() => setGender(option)}>
+                    <Text
+                      style={[
+                        styles.genderOptionText,
+                        gender === option && styles.genderOptionTextSelected,
+                      ]}>
+                      {option === 'Não informado' ? 'Prefiro não dizer' : option}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Input
+                label="Telefone (Opcional)"
+                placeholder="(XX) XXXXX-XXXX"
+                value={phoneNumber}
+                onChangeText={setPhoneNumber}
+                keyboardType="phone-pad"
+              />
+            </View>
 
             <View style={styles.inputGroup}>
               <Input
@@ -141,7 +245,6 @@ export default function SignUpScreen() {
             </View>
 
             <View style={styles.inputGroup}>
-              {' '}
               <Text style={styles.label}>Senha</Text>
               <View style={styles.passwordInputContainer}>
                 <Ionicons name="lock-closed-outline" size={20} color="#666" style={styles.icon} />
@@ -165,8 +268,6 @@ export default function SignUpScreen() {
             </View>
 
             <View style={styles.inputGroup}>
-              {' '}
-              // Confirmar Senha
               <Text style={styles.label}>Confirmar Senha</Text>
               <View style={styles.passwordInputContainer}>
                 <Ionicons name="lock-closed-outline" size={20} color="#666" style={styles.icon} />
@@ -192,7 +293,7 @@ export default function SignUpScreen() {
             <Button
               variant="primary"
               loading={isLoading}
-              onPress={handleRegister}
+              onPress={handleRegisterAndSync}
               style={styles.actionButton}>
               Criar Conta e Verificar Email
             </Button>
@@ -212,19 +313,18 @@ export default function SignUpScreen() {
   );
 }
 
-// Estilos (similares ao sign-in, ajustar conforme necessidade)
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: 'white' },
   keyboardView: { flex: 1 },
   scrollViewContent: { flexGrow: 1, justifyContent: 'center' },
   container: { paddingHorizontal: 24, paddingVertical: 32 },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  backButton: { marginBottom: 16, alignSelf: 'flex-start' }, // Ajuste para botão voltar
+  backButton: { marginBottom: 16, alignSelf: 'flex-start' },
   header: { marginBottom: 32 },
   title: { fontSize: 30, fontWeight: 'bold', color: '#4F46E5', marginBottom: 8 },
   subtitle: { color: '#6B7280' },
-  inputGroup: { marginBottom: 16 },
-  label: { marginBottom: 4, fontSize: 14, fontWeight: '500', color: '#6B7280' },
+  inputGroup: { marginBottom: 20 },
+  label: { marginBottom: 8, fontSize: 14, fontWeight: '500', color: '#6B7280' },
   passwordInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -237,10 +337,51 @@ const styles = StyleSheet.create({
   textInput: { flex: 1, color: '#1F2937', height: 48 },
   eyeIcon: { padding: 5 },
   actionButton: {
-    marginTop: 8, // Espaço antes do botão
+    marginTop: 8,
     marginBottom: 16,
   },
   linksContainer: { marginTop: 24, flexDirection: 'row', justifyContent: 'center' },
   footerText: { color: '#6B7280' },
   footerLink: { fontWeight: '500', color: '#4F46E5' },
+  datePickerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    paddingHorizontal: 12,
+    height: 48,
+    backgroundColor: 'white',
+  },
+  datePickerText: {
+    color: '#1F2937',
+  },
+  genderOptionsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  genderOptionButton: {
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    marginRight: 10,
+    marginBottom: 10,
+    alignItems: 'center',
+  },
+  genderOptionButtonSelected: {
+    backgroundColor: '#4F46E5',
+    borderColor: '#4F46E5',
+  },
+  genderOptionText: {
+    color: '#374151',
+    fontWeight: '500',
+  },
+  genderOptionTextSelected: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+  },
 });

@@ -10,55 +10,118 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useSignUp } from '@clerk/clerk-expo';
+import { useSignUp, useAuth } from '@clerk/clerk-expo';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 // Assumindo componentes UI
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { useToast } from '@/components/ui/Toast';
+import apiClient from '@/lib/axios';
 
 export default function VerifyCodeScreen() {
   const [code, setCode] = useState('');
   const { isLoaded, signUp, setActive } = useSignUp();
-  const { email } = useLocalSearchParams<{ email: string }>();
+  const { getToken } = useAuth();
+  const params = useLocalSearchParams<{
+    email: string;
+    firstName?: string;
+    lastName?: string;
+    birthDate?: string;
+    gender?: string;
+    phoneNumber?: string;
+  }>();
   const router = useRouter();
   const { showToast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
 
   useEffect(() => {
-    if (!email) {
+    if (!params.email) {
       showToast('Email não fornecido para verificação.', 'error');
       router.replace('/(auth)/sign-up');
     }
-  }, [email]);
+  }, [params.email]);
 
-  const handleVerifyCode = async () => {
+  const handleVerifyCodeAndSync = async () => {
     if (!isLoaded) return;
 
     setIsLoading(true);
-    try {
-      const completeSignUp = await signUp.attemptEmailAddressVerification({
-        code,
-      });
+    let sessionActivated = false; // Flag para controle
+    let token: string | null = null;
 
+    try {
+      // 1. Verificar o código
+      const completeSignUp = await signUp.attemptEmailAddressVerification({ code });
       if (completeSignUp.status !== 'complete') {
-        // Status inesperado (ex: 'missing_requirements') - Tratar se necessário
-        console.error('Status inesperado da verificação:', JSON.stringify(completeSignUp, null, 2));
-        throw new Error('Status inesperado durante a verificação.');
+        throw new Error('Falha na verificação do código.'); // Simplificar erro
       }
 
-      // Verificação bem-sucedida, define a sessão como ativa
+      // 2. Ativar sessão e obter token
       await setActive({ session: completeSignUp.createdSessionId });
+      sessionActivated = true;
+      token = await getToken();
+      if (!token) {
+        throw new Error('Falha ao obter token de autenticação.');
+      }
+
+      // -- Chamadas Backend --
+      const authHeader = { headers: { Authorization: `Bearer ${token}` } };
+
+      // 3. Sincronização Básica (Cria/Atualiza user com email)
+      try {
+        console.log('🔄 [1/2] Sincronização básica do usuário...');
+        await apiClient.post('/users/sync', {}, authHeader);
+        console.log('✅ [1/2] Sincronização básica concluída.');
+      } catch (syncError) {
+        console.error('❌ Erro na sincronização básica:', syncError);
+        // Erro crítico? Talvez não, o usuário pode tentar logar de novo?
+        // Por ora, apenas logamos e mostramos um toast, mas continuamos.
+        showToast('Erro na sincronização inicial. Tente novamente.', 'error');
+        // Poderia lançar um erro aqui para parar o fluxo se necessário
+      }
+
+      // 4. Atualização do Perfil (Envia dados extras)
+      const profileData: { [key: string]: string | undefined } = {};
+      if (params.firstName) profileData.firstName = params.firstName;
+      if (params.lastName) profileData.lastName = params.lastName;
+      if (params.birthDate) profileData.birthDate = params.birthDate;
+      if (params.gender) profileData.gender = params.gender;
+      if (params.phoneNumber) profileData.phoneNumber = params.phoneNumber;
+
+      if (Object.keys(profileData).length > 0) {
+        try {
+          console.log('🔄 [2/2] Atualizando perfil com dados adicionais...', profileData);
+          await apiClient.patch('/users/me', profileData, authHeader);
+          console.log('✅ [2/2] Atualização do perfil concluída.');
+        } catch (updateError) {
+          console.error('❌ Erro ao atualizar perfil:', updateError);
+          // Erro aqui pode ser mais problemático, pois os dados extras não foram salvos.
+          showToast(
+            'Erro ao salvar dados do perfil. Você pode atualizá-los mais tarde.',
+            'warning'
+          );
+          // Continuar mesmo com erro?
+        }
+      } else {
+        console.log('ℹ️ [2/2] Nenhum dado adicional recebido via params.');
+      }
+
+      // 5. Redirecionamento Final
       showToast('Conta verificada com sucesso!', 'success');
-      router.replace('/(root)/profile'); // Vai para a tela principal após verificação
+      router.replace('/(root)/profile');
     } catch (err: any) {
-      console.error('Erro ao verificar código:', JSON.stringify(err, null, 2));
+      // Erro na verificação, ativação ou obtenção de token
+      console.error('Erro no fluxo de verificação/ativação/token:', err);
       const firstError = err.errors?.[0];
       const errorMessage =
-        firstError?.longMessage || firstError?.message || 'Código inválido ou expirado.';
+        firstError?.longMessage || firstError?.message || err.message || 'Ocorreu um erro.';
       showToast(errorMessage, 'error');
+
+      // Se a sessão foi ativada mas algo falhou depois (ex: sync/update),
+      // o usuário pode ficar num estado logado mas inconsistente.
+      // Considerar deslogar? Por ora, deixamos logado.
+      // if (sessionActivated) { ... }
     } finally {
       setIsLoading(false);
     }
@@ -101,7 +164,9 @@ export default function VerifyCodeScreen() {
 
             <View style={styles.header}>
               <Text style={styles.title}>Verificar Email</Text>
-              <Text style={styles.subtitle}>Insira o código de 6 dígitos enviado para {email}</Text>
+              <Text style={styles.subtitle}>
+                Insira o código de 6 dígitos enviado para {params.email}
+              </Text>
             </View>
 
             <View style={styles.inputGroup}>
@@ -112,7 +177,6 @@ export default function VerifyCodeScreen() {
                 keyboardType="numeric"
                 placeholder="_ _ _ _ _ _"
                 maxLength={6}
-                // Adicionar estilo para centralizar texto se Input não fizer
                 style={styles.codeInput}
               />
             </View>
@@ -120,7 +184,7 @@ export default function VerifyCodeScreen() {
             <Button
               variant="primary"
               loading={isLoading}
-              onPress={handleVerifyCode}
+              onPress={handleVerifyCodeAndSync}
               style={styles.actionButton}>
               Verificar Código e Entrar
             </Button>

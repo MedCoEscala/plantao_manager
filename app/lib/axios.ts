@@ -20,7 +20,7 @@ apiClient.interceptors.request.use(
     return config;
   },
   (error) => {
-    console.error('❌ Erro na requisição:', error);
+    console.error('❌ Erro na configuração da requisição:', error);
     return Promise.reject(error);
   }
 );

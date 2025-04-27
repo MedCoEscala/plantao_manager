@@ -5,13 +5,12 @@ import {
   Injectable,
   UnauthorizedException,
   Logger,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import { Request } from 'express';
 
-interface RequestWithUserId extends Request {
-  userContext: {
-    userId: string;
-  };
+interface RequestWithUserContext extends Request {
+  userContext: Record<string, any>;
 }
 
 @Injectable()
@@ -19,7 +18,7 @@ export class ClerkAuthGuard implements CanActivate {
   private readonly logger = new Logger(ClerkAuthGuard.name);
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest<RequestWithUserId>();
+    const request = context.switchToHttp().getRequest<RequestWithUserContext>();
 
     try {
       const authHeader = request.headers.authorization;
@@ -32,19 +31,30 @@ export class ClerkAuthGuard implements CanActivate {
 
       const token = authHeader.split(' ')[1];
 
-      const session = await clerkClient.verifyToken(token);
-      if (!session) {
-        this.logger.warn('Token inválido ou expirado');
+      const payload = await clerkClient.verifyToken(token);
+      if (!payload || typeof payload !== 'object') {
+        this.logger.warn(
+          'Payload do token inválido ou não retornado como objeto',
+        );
         throw new UnauthorizedException('Token inválido ou expirado');
       }
 
-      request.userContext = { userId: session.sub };
-      this.logger.log(`Acesso autorizado para userId: ${session.sub}`);
+      request.userContext = payload;
+      this.logger.log(`Acesso autorizado para userId: ${payload.sub}`);
 
       return true;
     } catch (error) {
       this.logger.error('Erro ao verificar token:', error);
-      throw new UnauthorizedException('Token inválido ou expirado');
+      if (
+        error instanceof Error &&
+        (error.message.includes('invalid token') ||
+          error.message.includes('expired'))
+      ) {
+        throw new UnauthorizedException('Token inválido ou expirado');
+      }
+      throw new InternalServerErrorException(
+        'Erro interno ao verificar autenticação',
+      );
     }
   }
 }

@@ -17,6 +17,7 @@ model User {
   name        String?
   phoneNumber String?      @map("phone_number")
   birthDate   DateTime?    @map("birth_date") @db.Date
+  gender      String?
   createdAt   DateTime     @default(now()) @map("created_at")
   updatedAt   DateTime     @updatedAt @map("updated_at")
   locations   Location[]
