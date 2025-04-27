@@ -13,10 +13,6 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
-// Comentar importações não usadas agora
-// import { SyncUserDto } from './users/dto/sync-user.dto';
-// import { UpdateUserDto } from './users/dto/update-user.dto';
-// Importaremos Guards do Clerk mais tarde
 
 @Controller('users') // Define a rota base /users
 export class UsersController {

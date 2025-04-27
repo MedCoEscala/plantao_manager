@@ -3,10 +3,9 @@ import { ProfileResponse, ProfileService, ProfileUpdateData } from './profileTyp
 import { User } from '../../types/user';
 import { formatUserFromClerk } from '../auth/utils';
 
-// Inicialização do cliente Prisma (singleton)
 let prismaInstance: PrismaClient | null = null;
 
-const getPrismaClient = () => {
+const getPrismaClient = (): PrismaClient => {
   if (!prismaInstance) {
     prismaInstance = new PrismaClient();
   }
@@ -14,12 +13,8 @@ const getPrismaClient = () => {
 };
 
 class ClerkProfileService implements ProfileService {
-  /**
-   * Obtém os dados do perfil do usuário atual
-   */
   async getUserProfile(): Promise<User | null> {
     try {
-      // Verificar se o usuário está logado
       const clerk = globalThis.Clerk;
       if (!clerk || !clerk.session) {
         return null;
@@ -32,13 +27,11 @@ class ClerkProfileService implements ProfileService {
 
       const userId = user.id;
 
-      // Buscar os dados do usuário do banco de dados
       const prisma = getPrismaClient();
       const dbUser = await prisma.user.findUnique({
         where: { id: userId },
       });
 
-      // Se o usuário não existir no banco, vamos criá-lo com os dados do Clerk
       if (!dbUser) {
         const userData = formatUserFromClerk(user, user.primaryEmailAddress?.emailAddress || '');
 
@@ -55,7 +48,6 @@ class ClerkProfileService implements ProfileService {
         return userData;
       }
 
-      // Converter o formato do banco para o formato User
       return {
         id: dbUser.id,
         name: dbUser.name,
@@ -63,7 +55,10 @@ class ClerkProfileService implements ProfileService {
         createdAt: dbUser.createdAt.toISOString(),
         updatedAt: dbUser.updatedAt.toISOString(),
         phoneNumber: dbUser.phoneNumber || '',
-        birthDate: dbUser.birthDate || '',
+        birthDate:
+          dbUser.birthDate instanceof Date
+            ? dbUser.birthDate.toISOString()
+            : dbUser.birthDate || '',
       };
     } catch (error) {
       console.error('Erro ao obter perfil do usuário:', error);
@@ -71,12 +66,8 @@ class ClerkProfileService implements ProfileService {
     }
   }
 
-  /**
-   * Atualiza os dados do perfil do usuário
-   */
   async updateUserProfile(data: ProfileUpdateData): Promise<ProfileResponse> {
     try {
-      // Verificar se o usuário está logado
       const clerk = globalThis.Clerk;
       if (!clerk || !clerk.user) {
         return {
@@ -90,7 +81,6 @@ class ClerkProfileService implements ProfileService {
       const updateData: any = {};
       const publicMetadata: any = {};
 
-      // Preparar dados a serem atualizados no Clerk
       if (data.name) {
         const nameParts = data.name.split(' ');
         updateData.firstName = nameParts[0];
@@ -99,14 +89,11 @@ class ClerkProfileService implements ProfileService {
 
       if (data.phoneNumber) {
         try {
-          // Verificar se já tem um telefone cadastrado
           const existingPhones = user.phoneNumbers || [];
 
           if (existingPhones.length === 0) {
-            // Criar novo telefone
             await user.createPhoneNumber({ phoneNumber: data.phoneNumber });
           } else {
-            // Atualizar telefone existente
             await user.updatePhoneNumber({
               phoneNumberId: existingPhones[0].id,
               phoneNumber: data.phoneNumber,
@@ -121,17 +108,14 @@ class ClerkProfileService implements ProfileService {
         publicMetadata.birthDate = data.birthDate;
       }
 
-      // Se houver metadados, atualizar
       if (Object.keys(publicMetadata).length > 0) {
         updateData.publicMetadata = publicMetadata;
       }
 
-      // Atualizar dados no Clerk
       if (Object.keys(updateData).length > 0) {
         await user.update(updateData);
       }
 
-      // Atualizar dados no banco de dados
       const prisma = getPrismaClient();
       await prisma.user.update({
         where: { id: userId },
@@ -143,7 +127,6 @@ class ClerkProfileService implements ProfileService {
         },
       });
 
-      // Obter dados atualizados
       const updatedUser = await this.getUserProfile();
       if (!updatedUser) {
         return {

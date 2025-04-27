@@ -19,7 +19,6 @@ export class UsersService {
 
   constructor(private prisma: PrismaService) {} // Injetar PrismaService
 
-  // O tipo real das claims vem do guard, aqui usamos um tipo genérico
   async syncUserWithClerk(claims: Record<string, any>): Promise<User> {
     const clerkId = claims?.sub;
     if (!clerkId) {
@@ -30,8 +29,7 @@ export class UsersService {
       throw new InternalServerErrorException('ID do usuário Clerk ausente.');
     }
 
-    // Extrair outros dados - ajuste os nomes se necessário (ex: email vs primaryEmail)
-    const email = claims?.email_address || claims?.email; // Tentar diferentes nomes comuns
+    const email = claims?.email_address || claims?.email;
     const firstName = claims?.first_name || claims?.firstName;
     const lastName = claims?.last_name || claims?.lastName;
     const imageUrl =
@@ -46,7 +44,7 @@ export class UsersService {
 
     try {
       const user = await this.prisma.user.upsert({
-        where: { clerkId: clerkId }, // Assumindo que clerkId existe e é @unique no schema
+        where: { clerkId: clerkId },
         update: {
           email: email,
           firstName: firstName,
@@ -59,8 +57,6 @@ export class UsersService {
           firstName: firstName,
           lastName: lastName,
           imageUrl: imageUrl,
-          // Adicione outros campos obrigatórios do seu schema com valores padrão se necessário
-          // Ex: name: `${firstName || ''} ${lastName || ''}`.trim()
         },
       });
       this.logger.log(
@@ -69,9 +65,7 @@ export class UsersService {
       return user;
     } catch (error) {
       this.logger.error(`Falha ao sincronizar usuário ${clerkId}:`, error);
-      // Adicionar tratamento para erros específicos do Prisma, se necessário
       if (error.code === 'P2002') {
-        // Unique constraint violation
         throw new InternalServerErrorException(
           `Erro de constraint único ao sincronizar usuário: ${error.meta?.target}`,
         );
@@ -82,13 +76,11 @@ export class UsersService {
     }
   }
 
-  // Métodos antigos (removendo placeholders)
   async create(createUserDto: any): Promise<User> {
     this.logger.warn(
       'Método create direto não recomendado, use a sincronização.',
     );
     try {
-      // Adapte createUserDto aos campos do seu schema
       return await this.prisma.user.create({ data: createUserDto });
     } catch (error) {
       this.logger.error('Falha ao criar usuário diretamente:', error);
@@ -107,7 +99,6 @@ export class UsersService {
   }
 
   async findOne(id: string): Promise<User> {
-    // Retorna User ou lança erro
     this.logger.log(`Buscando usuário com ID (DB): ${id}`);
     try {
       const user = await this.prisma.user.findUnique({ where: { id } });
@@ -149,7 +140,6 @@ export class UsersService {
   async update(id: string, updateUserDto: any): Promise<User> {
     this.logger.log(`Atualizando usuário com ID (DB): ${id}`);
     try {
-      // Verificar se o usuário existe primeiro
       await this.findOne(id);
       return await this.prisma.user.update({
         where: { id },
@@ -158,7 +148,6 @@ export class UsersService {
     } catch (error) {
       if (error instanceof NotFoundException) throw error;
       this.logger.error(`Falha ao atualizar usuário ${id}:`, error);
-      // Prisma P2025 (Record to update not found) é coberto pelo findOne
       throw new InternalServerErrorException('Falha ao atualizar usuário.');
     }
   }
@@ -166,14 +155,11 @@ export class UsersService {
   async remove(id: string): Promise<User> {
     this.logger.log(`Removendo usuário com ID (DB): ${id}`);
     try {
-      // Verificar se o usuário existe primeiro
       await this.findOne(id);
-      // Cuidado com a deleção em cascata se houver relações
       return await this.prisma.user.delete({ where: { id } });
     } catch (error) {
       if (error instanceof NotFoundException) throw error;
       this.logger.error(`Falha ao remover usuário ${id}:`, error);
-      // Prisma P2025 (Record to delete not found) é coberto pelo findOne
       throw new InternalServerErrorException('Falha ao remover usuário.');
     }
   }

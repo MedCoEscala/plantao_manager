@@ -1,3 +1,4 @@
+import clerkClient from '@clerk/clerk-sdk-node';
 import {
   CanActivate,
   ExecutionContext,
@@ -7,30 +8,43 @@ import {
 } from '@nestjs/common';
 import { Request } from 'express';
 
-/**
- * Guarda de autenticação simples que verifica se req.auth.userId existe.
- * Pressupõe que um middleware anterior (como ClerkExpressRequireAuth ou similar)
- * já validou o token e populou req.auth.
- */
+interface RequestWithUserId extends Request {
+  userContext: {
+    userId: string;
+  };
+}
+
 @Injectable()
 export class ClerkAuthGuard implements CanActivate {
   private readonly logger = new Logger(ClerkAuthGuard.name);
 
-  canActivate(context: ExecutionContext): boolean {
-    const request = context
-      .switchToHttp()
-      .getRequest<Request & { auth?: { userId?: string } }>();
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const request = context.switchToHttp().getRequest<RequestWithUserId>();
 
-    const userId = request.auth?.userId;
+    try {
+      const authHeader = request.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        this.logger.warn('Token de autorização ausente ou malformatado');
+        throw new UnauthorizedException(
+          'Token de autorização ausente ou malformatado',
+        );
+      }
 
-    if (!userId) {
-      this.logger.warn(
-        'Tentativa de acesso não autorizado: req.auth.userId ausente. O middleware de autenticação falhou ou não foi executado antes deste guard?',
-      );
-      throw new UnauthorizedException('Usuário não autenticado.');
+      const token = authHeader.split(' ')[1];
+
+      const session = await clerkClient.verifyToken(token);
+      if (!session) {
+        this.logger.warn('Token inválido ou expirado');
+        throw new UnauthorizedException('Token inválido ou expirado');
+      }
+
+      request.userContext = { userId: session.sub };
+      this.logger.log(`Acesso autorizado para userId: ${session.sub}`);
+
+      return true;
+    } catch (error) {
+      this.logger.error('Erro ao verificar token:', error);
+      throw new UnauthorizedException('Token inválido ou expirado');
     }
-
-    this.logger.log(`ClerkAuthGuard: Acesso autorizado para userId: ${userId}`);
-    return true;
   }
 }

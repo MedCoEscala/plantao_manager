@@ -4,7 +4,6 @@ import { SyncResponse, SyncService } from './syncTypes';
 import { User } from '../../types/user';
 import clerkProfileService from '../profile/clerkProfileService';
 
-// Constantes para armazenamento seguro
 const CLERK_USER_KEY = 'clerk_user';
 const LAST_SYNC_KEY = 'last_user_sync';
 

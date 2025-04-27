@@ -7,12 +7,10 @@ async function bootstrap() {
     bodyParser: true,
   });
 
-  // Adicionar prefixo global /api
   app.setGlobalPrefix('api');
 
-  // Habilitar CORS
   app.enableCors({
-    origin: true, // Permite qualquer origem (ajustar para produção)
+    origin: true,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     allowedHeaders: 'Content-Type, Accept, Authorization',
     credentials: true,
@@ -29,8 +27,8 @@ async function bootstrap() {
     }),
   );
 
-  await app.listen(process.env.PORT!);
-
-  console.log(`Server is running on port ${process.env.PORT}`);
+  const port = process.env.PORT || 3000;
+  await app.listen(port);
+  console.log(`Servidor rodando na porta ${port}`);
 }
 bootstrap();

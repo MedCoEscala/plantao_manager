@@ -5,6 +5,9 @@ declare global {
   namespace Express {
     export interface Request {
       auth: AuthObject;
+      auth?: {
+        userId: string;
+      };
     }
   }
 }

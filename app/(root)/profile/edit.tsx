@@ -20,7 +20,7 @@ import Button from '@app/components/ui/Button';
 import Input from '@app/components/ui/Input';
 import { useToast } from '@app/components/ui/Toast';
 import { useDialog } from '@app/contexts/DialogContext';
-import { authenticatedFetch } from '@app/utils/api-client';
+import { fetchWithAuth } from '@app/utils/api-client';
 
 interface UserData {
   id: string;
@@ -32,7 +32,7 @@ interface UserData {
 
 export default function EditProfileScreen() {
   const { user, isLoaded: isUserLoaded } = useUser();
-  const { getToken } = useAuth();
+  const { getToken, signOut } = useAuth();
   const { showToast } = useToast();
   const { showDialog } = useDialog();
 
@@ -48,7 +48,7 @@ export default function EditProfileScreen() {
     if (!user || !getToken) return;
     setIsFetchingData(true);
     try {
-      const data = await authenticatedFetch<UserData>(
+      const data = await fetchWithAuth<UserData>(
         `/api/users/${user.id}`,
         { method: 'GET' },
         getToken
@@ -118,7 +118,7 @@ export default function EditProfileScreen() {
         payload.birthDate = birthDateString;
       }
 
-      await authenticatedFetch(
+      await fetchWithAuth(
         `/api/users/${user.id}`,
         {
           method: 'PUT',
@@ -140,6 +140,22 @@ export default function EditProfileScreen() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Function to handle logout
+  const handleLogout = async () => {
+    console.log('[handleLogout] Iniciando logout...'); // Log inicial
+    try {
+      await signOut();
+      console.log('[handleLogout] signOut() chamado com sucesso.'); // Log após signOut
+      // Typically, Clerk handles the redirect/state change automatically after signOut.
+      // No need to manually navigate unless you have specific logic after logout.
+      // router.replace('/(auth)/sign-in'); // Example manual redirect if needed
+    } catch (error) {
+      console.error('[handleLogout] Erro durante o signOut:', error); // Log de erro
+      showToast('Erro ao fazer logout. Tente novamente.', 'error');
+    }
+    console.log('[handleLogout] Finalizado.'); // Log final
   };
 
   if (!isUserLoaded || isFetchingData) {
@@ -217,6 +233,13 @@ export default function EditProfileScreen() {
           <TouchableOpacity onPress={() => router.back()}>
             <Text className="text-center text-primary">Cancelar</Text>
           </TouchableOpacity>
+        </View>
+
+        {/* Logout Button */}
+        <View className="mb-4 mt-8 border-t border-gray-200 pt-4">
+          <Button variant="outline" onPress={handleLogout} fullWidth>
+            Sair (Logout)
+          </Button>
         </View>
       </ScrollView>
     </SafeAreaView>
