@@ -1,12 +1,9 @@
-import { useAuth } from '@clerk/clerk-expo';
 import { Redirect } from 'expo-router';
 
-const Home = () => {
-  const { isSignedIn } = useAuth();
-
-  if (isSignedIn) return <Redirect href="/(root)/(tabs)" />;
-
-  return <Redirect href="/(auth)/sign-in" />;
+// Este arquivo apenas redireciona para o grupo raiz.
+// A lógica de autenticação e redirecionamento está em app/_layout.tsx
+const StartPage = () => {
+  return <Redirect href="/(root)" />;
 };
 
-export default Home;
+export default StartPage;
