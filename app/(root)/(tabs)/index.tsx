@@ -2,11 +2,10 @@ import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
-  ScrollView as RNScrollView,
   TouchableOpacity,
   FlatList,
   ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -14,7 +13,7 @@ import { useUser } from '@clerk/clerk-expo';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useDialog } from '@/contexts/DialogContext';
-import { format, addDays, isSameDay, getDate } from 'date-fns';
+import { format, addDays, isSameDay, getDate, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 // --- MOCK DATA --- (Substituir por chamadas reais depois)
@@ -72,7 +71,7 @@ export default function ShiftsScreen() {
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const { user } = useUser();
-  const { showDialog } = useDialog(); // Necessita DialogProvider no layout
+  const { showDialog } = useDialog();
   const router = useRouter();
 
   const userName = user?.firstName ? `${user.firstName} ${user.lastName || ''}` : 'Usuário';
@@ -91,11 +90,14 @@ export default function ShiftsScreen() {
     setIsRefreshing(true);
     // Simula atualização dos dados (substituir por chamada real)
     setTimeout(() => {
-      // Ex: const newShifts = await fetchShifts(); setUpcomingShifts(newShifts);
-      setUpcomingShifts(MOCK_SHIFTS); // Reset para mock
+      setUpcomingShifts(MOCK_SHIFTS);
       setPastShifts(MOCK_PAST_SHIFTS);
       setIsRefreshing(false);
-      showDialog({ type: 'success', title: 'Atualizado', message: 'Dados recarregados (mock).' });
+      showDialog({
+        type: 'success',
+        title: 'Atualizado',
+        message: 'Dados recarregados com sucesso.',
+      });
     }, 1000);
   }, [showDialog]);
 
@@ -120,22 +122,29 @@ export default function ShiftsScreen() {
 
   const handleSelectDate = useCallback((date: Date) => {
     setSelectedDate(date);
-    // Lógica para filtrar shifts por data ou mostrar info (opcional)
   }, []);
 
   const renderDateItem = ({ item }: { item: Date }) => {
     const isSelected = isSameDay(item, selectedDate);
-    const isToday = isSameDay(item, new Date());
+    const isTodayDate = isToday(item);
+
     return (
       <TouchableOpacity
-        style={[
-          styles.dateItem,
-          isSelected && styles.dateItemSelected,
-          isToday && !isSelected && styles.dateItemToday,
-        ]}
+        className={`mx-1 h-16 w-14 items-center justify-center rounded-2xl ${
+          isSelected
+            ? 'bg-primary shadow-md'
+            : isTodayDate
+              ? 'border border-primary-100 bg-primary-50'
+              : 'border border-background-300 bg-white'
+        }`}
         onPress={() => handleSelectDate(item)}>
-        <Text style={styles.dateWeekday}>{format(item, 'EEE', { locale: ptBR })}</Text>
-        <Text style={[styles.dateDay, isSelected && styles.dateTextSelected]}>{getDate(item)}</Text>
+        <Text
+          className={`text-xs font-medium capitalize ${isSelected ? 'text-white' : 'text-text-light'}`}>
+          {format(item, 'EEE', { locale: ptBR })}
+        </Text>
+        <Text className={`mt-1 text-xl font-bold ${isSelected ? 'text-white' : 'text-text-dark'}`}>
+          {getDate(item)}
+        </Text>
       </TouchableOpacity>
     );
   };
@@ -158,15 +167,15 @@ export default function ShiftsScreen() {
     const getStatusInfo = () => {
       switch (shift.status?.toLowerCase()) {
         case 'agendado':
-          return { label: 'Agendado', color: '#0077B6' };
+          return { label: 'Agendado', color: '#18cb96' }; // primary
         case 'confirmado':
-          return { label: 'Confirmado', color: '#2A9D8F' };
+          return { label: 'Confirmado', color: '#10b981' }; // success
         case 'cancelado':
-          return { label: 'Cancelado', color: '#E63946' };
+          return { label: 'Cancelado', color: '#ef4444' }; // error
         case 'concluído':
-          return { label: 'Concluído', color: '#8D99AE' };
+          return { label: 'Concluído', color: '#64748b' }; // text-light
         default:
-          return { label: shift.status || 'Agendado', color: '#8D99AE' };
+          return { label: shift.status || 'Agendado', color: '#64748b' };
       }
     };
     const statusInfo = getStatusInfo();
@@ -175,202 +184,135 @@ export default function ShiftsScreen() {
     return (
       <TouchableOpacity
         key={shift.id}
-        style={styles.shiftCard}
+        className="mb-3 overflow-hidden rounded-xl bg-white shadow-sm"
         onPress={() => navigateToShiftDetails(shift)}>
-        <View style={styles.shiftContent}>
-          <View style={styles.shiftMainInfo}>
-            <Text style={styles.shiftDate}>{formatShiftDate()}</Text>
-            <Text style={styles.shiftTime}>
-              {shift.startTime || '--:--'} - {shift.endTime || '--:--'}
-            </Text>
-            <Text style={styles.shiftLocation}>{locationName}</Text>
-          </View>
-          <View style={styles.shiftSideInfo}>
-            <View style={[styles.statusBadge, { backgroundColor: statusInfo.color + '20' }]}>
-              <Text style={[styles.statusText, { color: statusInfo.color }]}>
-                {statusInfo.label}
+        <View className="p-4">
+          <View className="flex-row justify-between">
+            <View className="flex-1">
+              <Text className="text-base font-bold text-text-dark">{formatShiftDate()}</Text>
+              <Text className="mt-2 text-sm text-text-light">
+                {shift.startTime || '--:--'} - {shift.endTime || '--:--'}
               </Text>
+              <Text className="mt-1 text-sm text-text-light">{locationName}</Text>
             </View>
-            <Text style={styles.shiftValue}>{formatValue()}</Text>
+            <View className="items-end justify-between">
+              <View
+                className="rounded-full px-3 py-1"
+                style={{ backgroundColor: `${statusInfo.color}20` }} // 20% opacity
+              >
+                <Text style={{ color: statusInfo.color }} className="text-xs font-semibold">
+                  {statusInfo.label}
+                </Text>
+              </View>
+              <Text className="mt-2 text-base font-semibold text-primary">{formatValue()}</Text>
+            </View>
           </View>
         </View>
       </TouchableOpacity>
     );
   };
 
+  const renderEmptyContent = () => (
+    <View className="flex-1 items-center justify-center px-6 py-16">
+      <Ionicons name="calendar-outline" size={80} color="#cbd5e1" />
+      <Text className="mb-2 mt-6 text-center text-xl font-bold text-text-dark">
+        Sem plantões agendados
+      </Text>
+      <Text className="mb-8 text-center text-text-light">
+        Você ainda não tem plantões agendados. Adicione seu primeiro plantão para começar a
+        gerenciar sua agenda.
+      </Text>
+      <TouchableOpacity
+        className="flex-row items-center rounded-xl bg-primary px-6 py-3 shadow-sm"
+        onPress={navigateToAddShift}>
+        <Ionicons name="add-circle-outline" size={20} color="#ffffff" />
+        <Text className="ml-2 font-semibold text-white">Adicionar Plantão</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView className="flex-1 bg-background">
       <StatusBar style="dark" />
-      <View style={styles.header}>
-        <View style={styles.headerContent}>
+      {/* Header Section */}
+      <View className="border-b border-background-300 bg-white px-4 pb-4 pt-2">
+        <View className="flex-row items-center justify-between py-3">
           <View>
-            <Text style={styles.greeting}>Olá, {userName.trim()}</Text>
-            <Text style={styles.subtitle}>Seus plantões</Text>
+            <Text className="text-2xl font-bold text-text-dark">Olá, {userName.trim()}</Text>
+            <Text className="text-base text-text-light">Seus plantões</Text>
           </View>
           <TouchableOpacity
-            style={styles.refreshButton}
+            className="h-10 w-10 items-center justify-center rounded-full bg-background-200"
             onPress={handleRefresh}
             disabled={isRefreshing}>
-            <Ionicons name="refresh-outline" size={20} color="#2B2D42" />
+            {isRefreshing ? (
+              <ActivityIndicator size="small" color="#18cb96" />
+            ) : (
+              <Ionicons name="refresh-outline" size={20} color="#1e293b" />
+            )}
           </TouchableOpacity>
         </View>
-        <View style={styles.calendarContainer}>
+
+        {/* Calendar Section */}
+        <View className="mt-2">
           <FlatList
             data={calendarDates}
             renderItem={renderDateItem}
             keyExtractor={(item) => item.toISOString()}
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.calendarContent}
+            contentContainerClassName="py-2 px-2"
+            initialNumToRender={7}
+            maxToRenderPerBatch={14}
           />
         </View>
       </View>
 
-      <RNScrollView
-        style={styles.scrollContainer}
-        refreshControl={
-          <ActivityIndicator animating={isRefreshing} color="#0077B6" /> // Simples indicador
-        }>
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Próximos Plantões</Text>
-            {/* <TouchableOpacity><Text style={styles.seeAllText}>Ver todos</Text></TouchableOpacity> */}
-          </View>
-          {upcomingShifts.length > 0 ? (
-            <View>{upcomingShifts.map(renderShiftItem)}</View>
-          ) : (
-            <View style={styles.emptyState}>
-              <Ionicons name="calendar-outline" size={48} color="#8D99AE" />
-              <Text style={styles.emptyText}>Você não tem plantões agendados</Text>
-              <TouchableOpacity style={styles.addButton} onPress={navigateToAddShift}>
-                <Ionicons name="add" size={20} color="#FFFFFF" />
-                <Text style={styles.addButtonText}>Adicionar Plantão</Text>
-              </TouchableOpacity>
+      {/* Main Content */}
+      {upcomingShifts.length === 0 && !isRefreshing ? (
+        renderEmptyContent()
+      ) : (
+        <FlatList
+          className="flex-1 px-4"
+          data={upcomingShifts}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => renderShiftItem(item)}
+          ListHeaderComponent={() => (
+            <View className="mb-3 mt-4">
+              <Text className="text-lg font-bold text-text-dark">Próximos Plantões</Text>
             </View>
           )}
-        </View>
-
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Histórico</Text>
-            {/* <TouchableOpacity><Text style={styles.seeAllText}>Ver todos</Text></TouchableOpacity> */}
-          </View>
-          {pastShifts.length > 0 ? (
-            <View>{pastShifts.map(renderShiftItem)}</View>
-          ) : (
-            <View style={styles.emptyStateMinimal}>
-              <Text style={styles.emptyText}>Nenhum plantão no histórico.</Text>
-            </View>
+          ListFooterComponent={() => (
+            <>
+              {pastShifts.length > 0 && (
+                <View className="mb-3 mt-6">
+                  <Text className="mb-3 text-lg font-bold text-text-dark">Histórico</Text>
+                  {pastShifts.map(renderShiftItem)}
+                </View>
+              )}
+              {/* Espaço para o FAB não cobrir conteúdo */}
+              <View className="h-32" />
+            </>
           )}
-        </View>
-        <View style={styles.fabSpacer} />
-      </RNScrollView>
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={handleRefresh}
+              tintColor="#18cb96"
+              colors={['#18cb96']}
+            />
+          }
+        />
+      )}
 
-      <TouchableOpacity style={styles.fab} onPress={navigateToAddShift}>
-        <Ionicons name="add" size={24} color="#FFFFFF" />
-      </TouchableOpacity>
+      {/* Floating Action Button */}
+      <View className="absolute bottom-8 right-4 items-end">
+        <TouchableOpacity
+          className="h-16 w-16 items-center justify-center rounded-full bg-primary shadow-lg"
+          onPress={navigateToAddShift}>
+          <Ionicons name="add" size={32} color="#FFFFFF" />
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 }
-
-// Estilos baseados no código anterior, mas simplificados
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8F9FA' },
-  header: { paddingHorizontal: 16, paddingTop: 24, paddingBottom: 8, backgroundColor: '#F8F9FA' },
-  headerContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  greeting: { fontSize: 24, fontWeight: 'bold', color: '#2B2D42' },
-  subtitle: { fontSize: 16, color: '#8D99AE' },
-  refreshButton: { padding: 8, borderRadius: 20, backgroundColor: '#E9ECEF' },
-  calendarContainer: { marginBottom: 8 },
-  calendarContent: { paddingRight: 8, paddingVertical: 4 },
-  dateItem: {
-    marginRight: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 8,
-    borderRadius: 12,
-    backgroundColor: 'white',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 56,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  dateItemSelected: { backgroundColor: '#0077B6' },
-  dateItemToday: { backgroundColor: '#E6F3FF' },
-  dateWeekday: { fontSize: 12, color: '#8D99AE', textTransform: 'capitalize' },
-  dateDay: { fontSize: 16, fontWeight: 'bold', color: '#2B2D42' },
-  dateTextSelected: { color: 'white' },
-  scrollContainer: { flex: 1, paddingHorizontal: 16 },
-  section: { marginBottom: 24 },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  sectionTitle: { fontSize: 18, fontWeight: 'bold', color: '#2B2D42' },
-  seeAllText: { fontSize: 14, color: '#0077B6' },
-  shiftCard: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  shiftContent: { flexDirection: 'row', justifyContent: 'space-between' },
-  shiftMainInfo: { flex: 1 },
-  shiftDate: { fontSize: 16, fontWeight: 'bold', color: '#2B2D42', marginBottom: 4 },
-  shiftTime: { fontSize: 14, color: '#8D99AE', marginBottom: 4 },
-  shiftLocation: { fontSize: 14, color: '#8D99AE' },
-  shiftSideInfo: { alignItems: 'flex-end', justifyContent: 'space-between' },
-  statusBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 },
-  statusText: { fontSize: 12, fontWeight: '500' },
-  shiftValue: { fontSize: 16, fontWeight: '600', color: '#0077B6', marginTop: 8 },
-  emptyState: { backgroundColor: 'white', borderRadius: 12, padding: 24, alignItems: 'center' },
-  emptyStateMinimal: { alignItems: 'center', paddingVertical: 16 },
-  emptyText: {
-    fontSize: 16,
-    color: '#8D99AE',
-    textAlign: 'center',
-    marginTop: 16,
-    marginBottom: 16,
-  },
-  addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#0077B6',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  addButtonText: { fontSize: 14, fontWeight: '500', color: 'white', marginLeft: 8 },
-  fab: {
-    position: 'absolute',
-    bottom: 24,
-    right: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#0077B6',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  fabSpacer: { height: 80 },
-});

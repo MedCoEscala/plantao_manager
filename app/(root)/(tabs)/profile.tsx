@@ -1,21 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  ActivityIndicator,
-  Button,
-  Alert,
-  StyleSheet,
-} from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth, useUser } from '@clerk/clerk-expo';
 import * as Clipboard from 'expo-clipboard';
 import { router } from 'expo-router';
-import { Toast, useToast } from '@/components/ui/Toast';
+import { useToast } from '@/components/ui/Toast';
 import { useDialog } from '@/contexts/DialogContext';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -115,237 +106,99 @@ export default function ProfileScreen() {
 
   if (!isUserLoaded) {
     return (
-      <SafeAreaView style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#0077B6" />
-      </SafeAreaView>
+      <View className="flex-1 items-center justify-center bg-background">
+        <ActivityIndicator size="large" color="#18cb96" />
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView className="flex-1 bg-background">
       <StatusBar style="dark" />
-      <ScrollView style={styles.scrollViewContainer}>
-        <View style={styles.profileHeader}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{getInitials(displayName)}</Text>
-          </View>
-          <Text style={styles.profileName}>{displayName || 'Carregando Nome...'}</Text>
-          <Text style={styles.profileEmail}>{userEmail}</Text>
-        </View>
-
-        <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>Informações Pessoais</Text>
-          <View style={styles.infoCard}>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Telefone</Text>
-              <Text style={styles.infoValue}>{displayPhone}</Text>
+      <ScrollView className="flex-1 px-4">
+        <View className="py-6">
+          <View className="items-center pb-6">
+            <View className="h-24 w-24 items-center justify-center rounded-full bg-primary">
+              <Text className="text-4xl font-bold text-white">{getInitials(displayName)}</Text>
             </View>
-            <View style={styles.divider} />
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Data de Nascimento</Text>
-              <Text style={styles.infoValue}>{formatDate(displayBirthDate)}</Text>
+            <Text className="mt-4 text-xl font-bold text-text-dark">{displayName}</Text>
+            <Text className="text-base text-text-light">{userEmail}</Text>
+          </View>
+
+          <View className="mb-6">
+            <Text className="mb-2 text-base font-medium text-text-dark">Informações Pessoais</Text>
+            <View className="overflow-hidden rounded-xl bg-white shadow-sm">
+              <View className="border-b border-background-300 p-4">
+                <Text className="text-sm font-medium text-text-light">Telefone</Text>
+                <Text className="text-base text-text-dark">{displayPhone}</Text>
+              </View>
+              <View className="p-4">
+                <Text className="text-sm font-medium text-text-light">Data de Nascimento</Text>
+                <Text className="text-base text-text-dark">{formatDate(displayBirthDate)}</Text>
+              </View>
             </View>
           </View>
-        </View>
 
-        <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>Opções</Text>
-          <View style={styles.optionsCard}>
-            <TouchableOpacity style={styles.optionRow}>
-              <View style={[styles.optionIconContainer, { backgroundColor: '#E0F2FE' }]}>
-                <Ionicons name="person-outline" size={20} color="#0EA5E9" />
-              </View>
-              <Text style={styles.optionText}>Editar Perfil</Text>
-              <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-            </TouchableOpacity>
-            <View style={styles.divider} />
-            <TouchableOpacity style={styles.optionRow} onPress={copyUserId}>
-              <View style={[styles.optionIconContainer, { backgroundColor: '#E0F2FE' }]}>
-                <Ionicons name="copy-outline" size={20} color="#0EA5E9" />
-              </View>
-              <Text style={styles.optionText}>Copiar ID</Text>
-              <Text style={styles.optionValue}>{user?.id.substring(0, 8) + '...'}</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>Teste Backend</Text>
-          <View style={styles.infoCard}>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Buscar Dados (Deve dar 404)</Text>
-              <Button title="Buscar" onPress={fetchUserData} disabled={loading} color="#4F46E5" />
+          <View className="mb-6">
+            <Text className="mb-2 text-base font-medium text-text-dark">Opções</Text>
+            <View className="overflow-hidden rounded-xl bg-white shadow-sm">
+              <TouchableOpacity className="flex-row items-center justify-between border-b border-background-300 p-4">
+                <View className="flex-row items-center">
+                  <View className="mr-3 h-8 w-8 items-center justify-center rounded-full bg-primary-100">
+                    <Ionicons name="person-outline" size={18} color="#18cb96" />
+                  </View>
+                  <Text className="text-base text-text-dark">Editar Perfil</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#64748b" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                className="flex-row items-center justify-between p-4"
+                onPress={copyUserId}>
+                <View className="flex-row items-center">
+                  <View className="mr-3 h-8 w-8 items-center justify-center rounded-full bg-primary-100">
+                    <Ionicons name="copy-outline" size={18} color="#18cb96" />
+                  </View>
+                  <Text className="text-base text-text-dark">Copiar ID</Text>
+                </View>
+                <Text className="text-text-light">{user?.id?.substring(0, 8) + '...'}</Text>
+              </TouchableOpacity>
             </View>
-            {loading && (
-              <ActivityIndicator size="small" color="#4F46E5" style={{ marginTop: 10 }} />
-            )}
-            {error && <Text style={styles.errorText}>{error}</Text>}
-            {userData && (
-              <View style={styles.dataContainer}>
-                <Text style={styles.dataTitle}>Dados Recebidos:</Text>
-                <Text style={{ fontFamily: 'monospace' }}>{JSON.stringify(userData, null, 2)}</Text>
-              </View>
-            )}
           </View>
-        </View>
 
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Ionicons name="log-out-outline" size={20} color="#EF4444" />
-          <Text style={styles.logoutText}>Sair do aplicativo</Text>
-        </TouchableOpacity>
+          <View className="mb-6">
+            <Text className="mb-2 text-base font-medium text-text-dark">Teste Backend</Text>
+            <View className="rounded-xl bg-white p-4 shadow-sm">
+              <TouchableOpacity
+                className="rounded-lg bg-primary px-4 py-2"
+                onPress={fetchUserData}
+                disabled={loading}>
+                <Text className="text-center font-medium text-white">
+                  {loading ? 'Buscando...' : 'Buscar Dados (Deve dar 404)'}
+                </Text>
+              </TouchableOpacity>
+              {loading && <ActivityIndicator size="small" color="#18cb96" className="my-4" />}
+              {error && <Text className="mt-2 text-sm text-error">{error}</Text>}
+              {userData && (
+                <View className="mt-4 rounded-lg bg-background-100 p-3">
+                  <Text className="mb-2 font-medium text-text-dark">Dados Recebidos:</Text>
+                  <Text className="font-mono text-xs">{JSON.stringify(userData, null, 2)}</Text>
+                </View>
+              )}
+            </View>
+          </View>
 
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>Versão 1.0.0</Text>
+          <TouchableOpacity
+            className="mb-6 flex-row items-center justify-center rounded-xl border border-error bg-white p-4"
+            onPress={handleLogout}>
+            <Ionicons name="log-out-outline" size={20} color="#ef4444" />
+            <Text className="ml-2 font-medium text-error">Sair do aplicativo</Text>
+          </TouchableOpacity>
+
+          <View className="mb-8 items-center">
+            <Text className="text-sm text-text-light">Versão 1.0.0</Text>
+          </View>
         </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F9FAFB' },
-  scrollViewContainer: { flex: 1, padding: 16 },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#F9FAFB',
-  },
-  profileHeader: {
-    marginVertical: 24,
-    alignItems: 'center',
-  },
-  avatar: {
-    marginBottom: 16,
-    height: 80,
-    width: 80,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 40,
-    backgroundColor: '#3B82F6',
-  },
-  avatarText: {
-    fontSize: 30,
-    fontWeight: 'bold',
-    color: 'white',
-  },
-  profileName: {
-    marginBottom: 4,
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1F2937',
-  },
-  profileEmail: {
-    fontSize: 16,
-    color: '#6B7280',
-  },
-  sectionContainer: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    marginBottom: 12,
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1F2937',
-  },
-  infoCard: {
-    borderRadius: 12,
-    backgroundColor: 'white',
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-  },
-  infoLabel: {
-    fontSize: 16,
-    color: '#1F2937',
-  },
-  infoValue: {
-    fontSize: 16,
-    color: '#6B7280',
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#E5E7EB',
-  },
-  optionsCard: {
-    borderRadius: 12,
-    backgroundColor: 'white',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  optionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-  },
-  optionIconContainer: {
-    marginRight: 16,
-    height: 32,
-    width: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 16,
-  },
-  optionText: {
-    flex: 1,
-    fontSize: 16,
-    color: '#1F2937',
-  },
-  optionValue: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
-  logoutButton: {
-    marginVertical: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#EF4444',
-    backgroundColor: 'white',
-    padding: 16,
-  },
-  logoutText: {
-    marginLeft: 8,
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#EF4444',
-  },
-  footer: {
-    marginBottom: 24,
-    alignItems: 'center',
-  },
-  footerText: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
-  errorText: {
-    color: 'red',
-    marginTop: 10,
-    textAlign: 'center',
-  },
-  dataContainer: {
-    marginTop: 10,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-  },
-  dataTitle: {
-    fontWeight: 'bold',
-    marginBottom: 5,
-    color: '#1F2937',
-  },
-});

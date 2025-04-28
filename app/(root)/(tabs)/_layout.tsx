@@ -1,72 +1,113 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-// SyncStatus foi comentado, então esta importação não causará erro,
-// mas o headerRight precisará ser ajustado ou removido.
-// import SyncStatus from '@/components/SyncStatus';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Platform, View } from 'react-native';
 
 export default function TabsLayout() {
+  const insets = useSafeAreaInsets();
+  const bottomInset = Math.max(insets.bottom, 8);
+
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#0077B6',
-        tabBarInactiveTintColor: '#8D99AE',
+        tabBarActiveTintColor: '#18cb96', // Primary color
+        tabBarInactiveTintColor: '#64748b', // text-light color
         tabBarStyle: {
-          backgroundColor: '#FFFFFF',
-          borderTopColor: '#E9ECEF',
-          height: 60,
-          paddingBottom: 5,
-          paddingTop: 5,
+          backgroundColor: '#ffffff',
+          borderTopColor: '#e2e8f0', // border color
+          height: Platform.OS === 'ios' ? 50 + bottomInset : 60,
+          paddingBottom: Platform.OS === 'ios' ? bottomInset : 8,
+          paddingTop: 8,
+          elevation: 5, // Shadow on Android
+          shadowColor: '#94a3b8', // Subtle shadow
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 3,
+          borderTopWidth: 1,
         },
         headerStyle: {
-          backgroundColor: '#FFFFFF',
+          backgroundColor: '#ffffff',
+          elevation: 2, // Subtle shadow on Android
+          shadowColor: '#94a3b8',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 3,
+          borderBottomWidth: 1,
+          borderBottomColor: '#e2e8f0', // border color
+          height: Platform.OS === 'ios' ? 44 + insets.top : 60,
         },
-        headerTintColor: '#2B2D42',
-        // Remover headerRight por enquanto, pois SyncStatus está comentado
-        // headerRight: () => <SyncStatus />,
+        headerTitleStyle: {
+          fontWeight: '600',
+          color: '#1e293b', // text-dark
+          fontSize: 18,
+        },
+        headerShadowVisible: false, // Hide the default shadow
+        headerTintColor: '#18cb96', // primary color
+        headerTitleAlign: 'center',
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: '500',
+          marginBottom: Platform.OS === 'ios' ? 0 : 4,
+        },
+        tabBarIconStyle: {
+          marginTop: Platform.OS === 'ios' ? 4 : 0,
+        },
         headerRightContainerStyle: {
           paddingRight: 16,
+        },
+        headerLeftContainerStyle: {
+          paddingLeft: 16,
         },
       }}>
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Plantões', // Renomear para algo como "Home" ou "Dashboard"?
-          tabBarIcon: ({ color, size }) => <Ionicons name="calendar" size={size} color={color} />,
+          title: 'Plantões',
+          headerTitle: 'Meus Plantões',
+          tabBarIcon: ({ color, size }) => (
+            <View className="items-center justify-center">
+              <Ionicons name="calendar-outline" size={size} color={color} />
+            </View>
+          ),
         }}
       />
       <Tabs.Screen
         name="locations"
         options={{
           title: 'Locais',
-          tabBarIcon: ({ color, size }) => <Ionicons name="location" size={size} color={color} />,
+          headerTitle: 'Meus Locais',
+          tabBarIcon: ({ color, size }) => (
+            <View className="items-center justify-center">
+              <Ionicons name="location-outline" size={size} color={color} />
+            </View>
+          ),
         }}
       />
       <Tabs.Screen
         name="payments"
         options={{
           title: 'Pagamentos',
-          tabBarIcon: ({ color, size }) => <Ionicons name="cash" size={size} color={color} />,
+          headerTitle: 'Meus Pagamentos',
+          tabBarIcon: ({ color, size }) => (
+            <View className="items-center justify-center">
+              <Ionicons name="cash-outline" size={size} color={color} />
+            </View>
+          ),
         }}
       />
       <Tabs.Screen
-        name="profile" // Esta é a tela de perfil que causava duplicidade
+        name="profile"
         options={{
           title: 'Perfil',
-          tabBarIcon: ({ color, size }) => <Ionicons name="person" size={size} color={color} />,
+          headerTitle: 'Meu Perfil',
+          tabBarIcon: ({ color, size }) => (
+            <View className="items-center justify-center">
+              <Ionicons name="person-outline" size={size} color={color} />
+            </View>
+          ),
         }}
       />
     </Tabs>
   );
 }
-
-// Remover o Slot que adicionamos temporariamente
-/*
-import React from 'react';
-import { Slot } from 'expo-router';
-
-export default function RootTabLayout() {
-  // Simplesmente renderiza as rotas filhas sem o layout de Tabs
-  return <Slot />;
-}
-*/

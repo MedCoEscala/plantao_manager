@@ -1,73 +1,67 @@
-import React from "react";
-import {
-  TouchableOpacity,
-  Text,
-  ActivityIndicator,
-  TouchableOpacityProps,
-} from "react-native";
-import { useColorScheme } from "nativewind";
+import React from 'react';
+import { TouchableOpacity, Text, ActivityIndicator, TouchableOpacityProps } from 'react-native';
 
 interface ButtonProps extends TouchableOpacityProps {
-  variant?: "primary" | "secondary" | "outline" | "ghost" | "default";
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'default';
   loading?: boolean;
-  size?: "sm" | "md" | "lg";
+  size?: 'sm' | 'md' | 'lg';
   fullWidth?: boolean;
   title?: string;
   children?: React.ReactNode;
 }
 
 export const Button: React.FC<ButtonProps> = ({
-  variant = "primary",
+  variant = 'primary',
   loading = false,
-  size = "md",
+  size = 'md',
   fullWidth = false,
   children,
   title,
-  className = "",
+  className = '',
   disabled,
   ...props
 }) => {
   // Função para gerar as classes CSS com base nas props
   const getButtonClasses = () => {
-    let classes = "rounded-lg items-center justify-center ";
+    let classes = 'rounded-lg items-center justify-center ';
 
     // Variantes
     switch (variant) {
-      case "primary":
-        classes += "bg-primary ";
+      case 'primary':
+        classes += 'bg-primary ';
         break;
-      case "secondary":
-        classes += "bg-secondary ";
+      case 'secondary':
+        classes += 'bg-secondary ';
         break;
-      case "outline":
-        classes += "bg-transparent border border-primary ";
+      case 'outline':
+        classes += 'bg-transparent border border-primary ';
         break;
-      case "ghost":
-        classes += "bg-transparent ";
+      case 'ghost':
+        classes += 'bg-transparent ';
         break;
     }
 
     // Tamanhos
     switch (size) {
-      case "sm":
-        classes += "py-1 px-3 ";
+      case 'sm':
+        classes += 'py-1 px-3 ';
         break;
-      case "md":
-        classes += "py-2 px-4 ";
+      case 'md':
+        classes += 'py-2 px-4 ';
         break;
-      case "lg":
-        classes += "py-3 px-6 ";
+      case 'lg':
+        classes += 'py-3 px-6 ';
         break;
     }
 
     // Largura total
     if (fullWidth) {
-      classes += "w-full ";
+      classes += 'w-full ';
     }
 
     // Estado desabilitado
     if (disabled || loading) {
-      classes += "opacity-60 ";
+      classes += 'opacity-60 ';
     }
 
     return classes + className;
@@ -75,32 +69,32 @@ export const Button: React.FC<ButtonProps> = ({
 
   // Função para gerar as classes do texto com base nas props
   const getTextClasses = () => {
-    let classes = "font-medium ";
+    let classes = 'font-medium ';
 
     // Tamanho do texto
     switch (size) {
-      case "sm":
-        classes += "text-sm ";
+      case 'sm':
+        classes += 'text-sm ';
         break;
-      case "md":
-        classes += "text-base ";
+      case 'md':
+        classes += 'text-base ';
         break;
-      case "lg":
-        classes += "text-lg ";
+      case 'lg':
+        classes += 'text-lg ';
         break;
     }
 
     // Cor do texto
     switch (variant) {
-      case "primary":
-        classes += "text-white ";
+      case 'primary':
+        classes += 'text-white ';
         break;
-      case "secondary":
-        classes += "text-text-dark ";
+      case 'secondary':
+        classes += 'text-text-dark ';
         break;
-      case "outline":
-      case "ghost":
-        classes += "text-primary ";
+      case 'outline':
+      case 'ghost':
+        classes += 'text-primary ';
         break;
     }
 
@@ -108,16 +102,9 @@ export const Button: React.FC<ButtonProps> = ({
   };
 
   return (
-    <TouchableOpacity
-      className={getButtonClasses()}
-      disabled={disabled || loading}
-      {...props}
-    >
+    <TouchableOpacity className={getButtonClasses()} disabled={disabled || loading} {...props}>
       {loading ? (
-        <ActivityIndicator
-          size="small"
-          color={variant === "primary" ? "#ffffff" : "#0077B6"}
-        />
+        <ActivityIndicator size="small" color={variant === 'primary' ? '#ffffff' : '#18cb96'} />
       ) : (
         <Text className={getTextClasses()}>{title || children}</Text>
       )}
