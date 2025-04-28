@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   FlatList,
   ActivityIndicator,
   RefreshControl,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -13,8 +14,9 @@ import { useUser } from '@clerk/clerk-expo';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useDialog } from '@/contexts/DialogContext';
-import { format, addDays, isSameDay, getDate, isToday } from 'date-fns';
+import { format, isSameDay, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import CalendarComponent from '@/components/CalendarComponent';
 
 // --- MOCK DATA --- (Substituir por chamadas reais depois)
 const MOCK_LOCATIONS: Record<string, string> = {
@@ -67,24 +69,26 @@ export default function ShiftsScreen() {
   const [upcomingShifts, setUpcomingShifts] = useState(MOCK_SHIFTS);
   const [pastShifts, setPastShifts] = useState(MOCK_PAST_SHIFTS);
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [calendarDates, setCalendarDates] = useState<Date[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const { user } = useUser();
   const { showDialog } = useDialog();
   const router = useRouter();
 
-  const userName = user?.firstName ? `${user.firstName} ${user.lastName || ''}` : 'Usuário';
+  // Extrair o nome real do usuário ou usar "Usuário" como fallback
+  const firstName = user?.firstName || '';
+  const lastName = user?.lastName || '';
+  const userName = firstName ? `${firstName}${lastName ? ' ' + lastName : ''}` : 'Usuário';
 
-  // Gera próximos 14 dias para o calendário
-  React.useEffect(() => {
-    const dates = [];
-    const today = new Date();
-    for (let i = 0; i < 14; i++) {
-      dates.push(addDays(today, i));
-    }
-    setCalendarDates(dates);
-  }, []);
+  // Combina todos os plantões (futuros e passados)
+  const allShifts = useMemo(() => {
+    return [...upcomingShifts, ...pastShifts];
+  }, [upcomingShifts, pastShifts]);
+
+  // Filtra os plantões para a data selecionada
+  const shiftsForSelectedDate = useMemo(() => {
+    return allShifts.filter((shift) => isSameDay(parseISO(shift.date), selectedDate));
+  }, [allShifts, selectedDate]);
 
   const handleRefresh = useCallback(() => {
     setIsRefreshing(true);
@@ -109,6 +113,14 @@ export default function ShiftsScreen() {
     });
   }, [showDialog]);
 
+  const navigateToAddShiftOnDate = useCallback(() => {
+    showDialog({
+      title: 'Novo Plantão',
+      message: `Adicionar plantão para ${format(selectedDate, 'dd/MM/yyyy')}`,
+      type: 'info',
+    });
+  }, [selectedDate, showDialog]);
+
   const navigateToShiftDetails = useCallback(
     (shift: any) => {
       showDialog({
@@ -124,176 +136,170 @@ export default function ShiftsScreen() {
     setSelectedDate(date);
   }, []);
 
-  const renderDateItem = ({ item }: { item: Date }) => {
-    const isSelected = isSameDay(item, selectedDate);
-    const isTodayDate = isToday(item);
+  const renderShiftItem = useCallback(
+    ({ item }: { item: (typeof MOCK_SHIFTS)[0] }) => {
+      const formatShiftDate = () => {
+        try {
+          return format(new Date(item.date), "dd 'de' MMMM", { locale: ptBR });
+        } catch {
+          return 'Data inválida';
+        }
+      };
 
-    return (
-      <TouchableOpacity
-        className={`mx-1 h-16 w-14 items-center justify-center rounded-2xl ${
-          isSelected
-            ? 'bg-primary shadow-md'
-            : isTodayDate
-              ? 'border border-primary-100 bg-primary-50'
-              : 'border border-background-300 bg-white'
-        }`}
-        onPress={() => handleSelectDate(item)}>
-        <Text
-          className={`text-xs font-medium capitalize ${isSelected ? 'text-white' : 'text-text-light'}`}>
-          {format(item, 'EEE', { locale: ptBR })}
-        </Text>
-        <Text className={`mt-1 text-xl font-bold ${isSelected ? 'text-white' : 'text-text-dark'}`}>
-          {getDate(item)}
-        </Text>
-      </TouchableOpacity>
-    );
-  };
+      const formatValue = () => {
+        try {
+          return `R$ ${Number(item.value).toFixed(2).replace('.', ',')}`;
+        } catch {
+          return 'R$ --';
+        }
+      };
 
-  const renderShiftItem = (shift: (typeof MOCK_SHIFTS)[0] | (typeof MOCK_PAST_SHIFTS)[0]) => {
-    const formatShiftDate = () => {
-      try {
-        return format(new Date(shift.date), "dd 'de' MMMM", { locale: ptBR });
-      } catch {
-        return 'Data inválida';
-      }
-    };
-    const formatValue = () => {
-      try {
-        return `R$ ${Number(shift.value).toFixed(2).replace('.', ',')}`;
-      } catch {
-        return 'R$ --';
-      }
-    };
-    const getStatusInfo = () => {
-      switch (shift.status?.toLowerCase()) {
-        case 'agendado':
-          return { label: 'Agendado', color: '#18cb96' }; // primary
-        case 'confirmado':
-          return { label: 'Confirmado', color: '#10b981' }; // success
-        case 'cancelado':
-          return { label: 'Cancelado', color: '#ef4444' }; // error
-        case 'concluído':
-          return { label: 'Concluído', color: '#64748b' }; // text-light
-        default:
-          return { label: shift.status || 'Agendado', color: '#64748b' };
-      }
-    };
-    const statusInfo = getStatusInfo();
-    const locationName = MOCK_LOCATIONS[shift.locationId] || 'Local desconhecido';
+      const getStatusInfo = () => {
+        switch (item.status?.toLowerCase()) {
+          case 'agendado':
+            return { label: 'Agendado', color: '#18cb96' }; // primary
+          case 'confirmado':
+            return { label: 'Confirmado', color: '#10b981' }; // success
+          case 'cancelado':
+            return { label: 'Cancelado', color: '#ef4444' }; // error
+          case 'concluído':
+            return { label: 'Concluído', color: '#64748b' }; // text-light
+          default:
+            return { label: item.status || 'Agendado', color: '#64748b' };
+        }
+      };
 
-    return (
-      <TouchableOpacity
-        key={shift.id}
-        className="mb-3 overflow-hidden rounded-xl bg-white shadow-sm"
-        onPress={() => navigateToShiftDetails(shift)}>
-        <View className="p-4">
-          <View className="flex-row justify-between">
-            <View className="flex-1">
-              <Text className="text-base font-bold text-text-dark">{formatShiftDate()}</Text>
-              <Text className="mt-2 text-sm text-text-light">
-                {shift.startTime || '--:--'} - {shift.endTime || '--:--'}
-              </Text>
-              <Text className="mt-1 text-sm text-text-light">{locationName}</Text>
-            </View>
-            <View className="items-end justify-between">
-              <View
-                className="rounded-full px-3 py-1"
-                style={{ backgroundColor: `${statusInfo.color}20` }} // 20% opacity
-              >
-                <Text style={{ color: statusInfo.color }} className="text-xs font-semibold">
-                  {statusInfo.label}
+      const statusInfo = getStatusInfo();
+      const locationName = MOCK_LOCATIONS[item.locationId] || 'Local desconhecido';
+
+      return (
+        <TouchableOpacity
+          className="mb-3 overflow-hidden rounded-xl bg-white shadow-sm"
+          activeOpacity={0.7}
+          onPress={() => navigateToShiftDetails(item)}>
+          <View className="p-4">
+            <View className="flex-row justify-between">
+              <View className="flex-1">
+                <Text className="text-base font-bold text-text-dark">{formatShiftDate()}</Text>
+                <Text className="mt-2 text-sm text-text-light">
+                  {item.startTime || '--:--'} - {item.endTime || '--:--'}
                 </Text>
+                <Text className="mt-1 text-sm text-text-light">{locationName}</Text>
               </View>
-              <Text className="mt-2 text-base font-semibold text-primary">{formatValue()}</Text>
+              <View className="items-end justify-between">
+                <View
+                  className="rounded-full px-3 py-1"
+                  style={{ backgroundColor: `${statusInfo.color}20` }} // 20% opacity
+                >
+                  <Text className="text-xs font-semibold" style={{ color: statusInfo.color }}>
+                    {statusInfo.label}
+                  </Text>
+                </View>
+                <Text className="mt-2 text-base font-semibold text-primary">{formatValue()}</Text>
+              </View>
             </View>
           </View>
-        </View>
-      </TouchableOpacity>
-    );
-  };
+        </TouchableOpacity>
+      );
+    },
+    [navigateToShiftDetails]
+  );
 
-  const renderEmptyContent = () => (
-    <View className="flex-1 items-center justify-center px-6 py-16">
-      <Ionicons name="calendar-outline" size={80} color="#cbd5e1" />
-      <Text className="mb-2 mt-6 text-center text-xl font-bold text-text-dark">
-        Sem plantões agendados
-      </Text>
-      <Text className="mb-8 text-center text-text-light">
-        Você ainda não tem plantões agendados. Adicione seu primeiro plantão para começar a
-        gerenciar sua agenda.
-      </Text>
-      <TouchableOpacity
-        className="flex-row items-center rounded-xl bg-primary px-6 py-3 shadow-sm"
-        onPress={navigateToAddShift}>
-        <Ionicons name="add-circle-outline" size={20} color="#ffffff" />
-        <Text className="ml-2 font-semibold text-white">Adicionar Plantão</Text>
-      </TouchableOpacity>
-    </View>
+  const renderEmptyShiftsForDate = useCallback(
+    () => (
+      <View className="mt-4 items-center justify-center rounded-xl bg-white p-5 shadow-sm">
+        <Ionicons name="calendar-outline" size={40} color="#cbd5e1" />
+        <Text className="mt-2 text-center text-sm font-medium text-text-dark">
+          Nenhum plantão para esta data
+        </Text>
+        <Text className="mb-3 text-center text-xs text-text-light">
+          Você não tem plantões agendados para{' '}
+          {format(selectedDate, "dd 'de' MMMM", { locale: ptBR })}.
+        </Text>
+        <TouchableOpacity
+          className="flex-row items-center rounded-lg bg-primary px-3 py-1.5"
+          activeOpacity={0.8}
+          onPress={navigateToAddShiftOnDate}>
+          <Ionicons name="add-circle-outline" size={16} color="#ffffff" />
+          <Text className="ml-1 text-xs font-semibold text-white">Adicionar Plantão</Text>
+        </TouchableOpacity>
+      </View>
+    ),
+    [selectedDate, navigateToAddShiftOnDate]
+  );
+
+  const renderEmptyContent = useCallback(
+    () => (
+      <View className="flex-1 items-center justify-center px-6">
+        <Ionicons name="calendar-outline" size={70} color="#cbd5e1" />
+        <Text className="mb-2 mt-4 text-center text-lg font-bold text-text-dark">
+          Sem plantões agendados
+        </Text>
+        <Text className="mb-6 text-center text-sm text-text-light">
+          Você ainda não tem plantões agendados. Adicione seu primeiro plantão para começar a
+          gerenciar sua agenda.
+        </Text>
+        <TouchableOpacity
+          className="flex-row items-center rounded-xl bg-primary px-5 py-2.5 shadow-sm"
+          activeOpacity={0.8}
+          onPress={navigateToAddShift}>
+          <Ionicons name="add-circle-outline" size={18} color="#ffffff" />
+          <Text className="ml-2 font-semibold text-white">Adicionar Plantão</Text>
+        </TouchableOpacity>
+      </View>
+    ),
+    [navigateToAddShift]
   );
 
   return (
-    <SafeAreaView className="flex-1 bg-background">
+    <SafeAreaView className="flex-1 bg-background" edges={['top']}>
       <StatusBar style="dark" />
-      {/* Header Section */}
-      <View className="border-b border-background-300 bg-white px-4 pb-4 pt-2">
-        <View className="flex-row items-center justify-between py-3">
+
+      {/* Header Section - Reduzido em altura */}
+      <View className="border-b border-background-300 bg-white">
+        <View className="flex-row items-center justify-between px-4 py-2">
           <View>
-            <Text className="text-2xl font-bold text-text-dark">Olá, {userName.trim()}</Text>
-            <Text className="text-base text-text-light">Seus plantões</Text>
+            <Text className="text-xl font-bold text-text-dark">{userName}</Text>
+            <Text className="text-sm text-text-light">Seus plantões</Text>
           </View>
           <TouchableOpacity
-            className="h-10 w-10 items-center justify-center rounded-full bg-background-200"
+            className="h-9 w-9 items-center justify-center rounded-full bg-background-100"
             onPress={handleRefresh}
             disabled={isRefreshing}>
             {isRefreshing ? (
               <ActivityIndicator size="small" color="#18cb96" />
             ) : (
-              <Ionicons name="refresh-outline" size={20} color="#1e293b" />
+              <Ionicons name="refresh-outline" size={18} color="#1e293b" />
             )}
           </TouchableOpacity>
         </View>
-
-        {/* Calendar Section */}
-        <View className="mt-2">
-          <FlatList
-            data={calendarDates}
-            renderItem={renderDateItem}
-            keyExtractor={(item) => item.toISOString()}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerClassName="py-2 px-2"
-            initialNumToRender={7}
-            maxToRenderPerBatch={14}
-          />
-        </View>
       </View>
 
+      {/* Componente de Calendário */}
+      <CalendarComponent
+        shifts={allShifts}
+        selectedDate={selectedDate}
+        onSelectDate={handleSelectDate}
+      />
+
       {/* Main Content */}
-      {upcomingShifts.length === 0 && !isRefreshing ? (
+      {allShifts.length === 0 && !isRefreshing ? (
         renderEmptyContent()
       ) : (
         <FlatList
-          className="flex-1 px-4"
-          data={upcomingShifts}
+          className="flex-1"
+          contentContainerClassName="px-4 pb-16"
+          data={shiftsForSelectedDate}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => renderShiftItem(item)}
+          renderItem={renderShiftItem}
           ListHeaderComponent={() => (
-            <View className="mb-3 mt-4">
-              <Text className="text-lg font-bold text-text-dark">Próximos Plantões</Text>
+            <View className="mb-2 mt-3">
+              <Text className="text-base font-bold text-text-dark">
+                Plantões em {format(selectedDate, "dd 'de' MMMM", { locale: ptBR })}
+              </Text>
             </View>
           )}
-          ListFooterComponent={() => (
-            <>
-              {pastShifts.length > 0 && (
-                <View className="mb-3 mt-6">
-                  <Text className="mb-3 text-lg font-bold text-text-dark">Histórico</Text>
-                  {pastShifts.map(renderShiftItem)}
-                </View>
-              )}
-              {/* Espaço para o FAB não cobrir conteúdo */}
-              <View className="h-32" />
-            </>
-          )}
+          ListEmptyComponent={renderEmptyShiftsForDate}
           refreshControl={
             <RefreshControl
               refreshing={isRefreshing}
@@ -306,13 +312,12 @@ export default function ShiftsScreen() {
       )}
 
       {/* Floating Action Button */}
-      <View className="absolute bottom-8 right-4 items-end">
-        <TouchableOpacity
-          className="h-16 w-16 items-center justify-center rounded-full bg-primary shadow-lg"
-          onPress={navigateToAddShift}>
-          <Ionicons name="add" size={32} color="#FFFFFF" />
-        </TouchableOpacity>
-      </View>
+      <TouchableOpacity
+        className="absolute bottom-4 right-4 h-14 w-14 items-center justify-center rounded-full bg-primary shadow-lg shadow-primary/30"
+        activeOpacity={0.9}
+        onPress={navigateToAddShift}>
+        <Ionicons name="add" size={28} color="#FFFFFF" />
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }
