@@ -65,6 +65,7 @@ export default function TabsLayout() {
         options={{
           title: 'Plantões',
           headerTitle: 'Meus Plantões',
+          headerShown: false,
           tabBarIcon: ({ color, size }) => (
             <View className="items-center justify-center">
               <Ionicons name="calendar-outline" size={size} color={color} />
