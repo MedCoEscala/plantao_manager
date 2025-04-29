@@ -1,70 +1,27 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuth, useUser } from '@clerk/clerk-expo';
+import { useAuth } from '@clerk/clerk-expo';
 import * as Clipboard from 'expo-clipboard';
 import { router } from 'expo-router';
 import { useToast } from '@/components/ui/Toast';
 import { useDialog } from '@/contexts/DialogContext';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import apiClient from '@/lib/axios';
+import { useProfile } from '@/hooks/useProfile'; // Novo hook!
 
 export default function ProfileScreen() {
-  const { signOut, getToken } = useAuth();
-  const { user, isLoaded: isUserLoaded } = useUser();
+  const { signOut } = useAuth();
   const { showDialog } = useDialog();
   const { showToast } = useToast();
-
+  const { profile, isLoading, error, fetchProfile } = useProfile(); // Usando o novo hook
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error2, setError] = useState<string | null>(null);
 
-  const fetchUserData = async () => {
-    if (!user || !getToken) return;
-    setLoading(true);
-    setError(null);
-    setUserData(null);
-
-    try {
-      const token = await getToken();
-      if (!token) {
-        showToast('Erro: Não foi possível obter o token de autenticação.', 'error');
-        throw new Error('Token não disponível');
-      }
-
-      console.log(
-        `Buscando dados para usuário: ${user.id} com token: ${token.substring(0, 10)}...`
-      );
-      const response = await apiClient.get(`/users/${user.id}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      console.log('Resposta da API:', response.data);
-      setUserData(response.data);
-      showToast('Dados buscados com sucesso (placeholder)!', 'success');
-    } catch (err: any) {
-      console.error('Erro ao buscar dados do usuário:', err);
-      let errorMessage = 'Erro desconhecido';
-      if (err.response) {
-        errorMessage = `Erro ${err.response.status}: ${err.response.data?.message || err.message}`;
-      } else if (err.request) {
-        errorMessage =
-          'Erro de rede. Verifique sua conexão e se o backend está rodando no IP/porta corretos.';
-      } else {
-        errorMessage = err.message;
-      }
-      setError(`Erro ao buscar dados: ${errorMessage}`);
-      Alert.alert('Erro', `Não foi possível buscar os dados do usuário: ${errorMessage}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // Função para obter iniciais do nome
   const getInitials = (name?: string | null) => {
     if (!name) return '?';
     const parts = name.trim().split(' ');
@@ -72,10 +29,12 @@ export default function ProfileScreen() {
     return parts[0].charAt(0).toUpperCase() + parts[parts.length - 1].charAt(0).toUpperCase();
   };
 
+  // Função para formatar a data
   const formatDate = (dateString?: string | null) => {
     if (!dateString) return 'Não informado';
     try {
-      const date = new Date(dateString + 'T00:00:00Z');
+      // Considerando que o formato da data pode ser YYYY-MM-DD ou um ISO string
+      const date = new Date(dateString);
       return format(date, "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
     } catch (error) {
       console.error('Erro ao formatar data:', error);
@@ -83,13 +42,15 @@ export default function ProfileScreen() {
     }
   };
 
+  // Função para copiar ID do usuário
   const copyUserId = async () => {
-    if (user?.id) {
-      await Clipboard.setStringAsync(user.id);
+    if (profile?.id) {
+      await Clipboard.setStringAsync(profile.id);
       showToast('ID do usuário copiado', 'success');
     }
   };
 
+  // Função para logout
   const handleLogout = async () => {
     try {
       await signOut();
@@ -99,12 +60,46 @@ export default function ProfileScreen() {
     }
   };
 
-  const displayName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : 'Usuário';
-  const displayPhone = user?.phoneNumbers?.[0]?.phoneNumber || 'Não informado';
-  const displayBirthDate = (user?.unsafeMetadata?.birthDate as string) || null;
-  const userEmail = user?.primaryEmailAddress?.emailAddress || 'email@exemplo.com';
+  // Função para buscar dados de teste (mantido do código original)
+  const fetchUserData = async () => {
+    if (!profile) return;
+    setLoading(true);
+    setError(null);
+    setUserData(null);
 
-  if (!isUserLoaded) {
+    try {
+      // Simular uma resposta de API para teste
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      setUserData({
+        id: profile.id,
+        name:
+          profile.firstName && profile.lastName
+            ? `${profile.firstName} ${profile.lastName}`
+            : profile.name,
+        email: profile.email,
+      });
+      showToast('Dados buscados com sucesso (placeholder)!', 'success');
+    } catch (err: any) {
+      console.error('Erro ao buscar dados do usuário:', err);
+      setError(`Erro ao buscar dados: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Gerar nome de exibição a partir do firstName e lastName ou do campo name
+  const displayName = profile
+    ? ((profile.firstName || '') + ' ' + (profile.lastName || '')).trim() ||
+      profile.name ||
+      'Usuário'
+    : 'Usuário';
+
+  const displayPhone = profile?.phoneNumber || 'Não informado';
+  const displayBirthDate = profile?.birthDate || null;
+  const userEmail = profile?.email || 'email@exemplo.com';
+
+  // Mostrar loading enquanto carrega o perfil
+  if (isLoading) {
     return (
       <View className="flex-1 items-center justify-center bg-background">
         <ActivityIndicator size="large" color="#18cb96" />
@@ -142,7 +137,9 @@ export default function ProfileScreen() {
           <View className="mb-6">
             <Text className="mb-2 text-base font-medium text-text-dark">Opções</Text>
             <View className="overflow-hidden rounded-xl bg-white shadow-sm">
-              <TouchableOpacity className="flex-row items-center justify-between border-b border-background-300 p-4">
+              <TouchableOpacity
+                className="flex-row items-center justify-between border-b border-background-300 p-4"
+                onPress={() => router.push('/profile/edit')}>
                 <View className="flex-row items-center">
                   <View className="mr-3 h-8 w-8 items-center justify-center rounded-full bg-primary-100">
                     <Ionicons name="person-outline" size={18} color="#18cb96" />
@@ -160,7 +157,7 @@ export default function ProfileScreen() {
                   </View>
                   <Text className="text-base text-text-dark">Copiar ID</Text>
                 </View>
-                <Text className="text-text-light">{user?.id?.substring(0, 8) + '...'}</Text>
+                <Text className="text-text-light">{profile?.id?.substring(0, 8) + '...'}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -173,11 +170,11 @@ export default function ProfileScreen() {
                 onPress={fetchUserData}
                 disabled={loading}>
                 <Text className="text-center font-medium text-white">
-                  {loading ? 'Buscando...' : 'Buscar Dados (Deve dar 404)'}
+                  {loading ? 'Buscando...' : 'Buscar Dados (Teste)'}
                 </Text>
               </TouchableOpacity>
               {loading && <ActivityIndicator size="small" color="#18cb96" className="my-4" />}
-              {error && <Text className="mt-2 text-sm text-error">{error}</Text>}
+              {error2 && <Text className="mt-2 text-sm text-error">{error2}</Text>}
               {userData && (
                 <View className="mt-4 rounded-lg bg-background-100 p-3">
                   <Text className="mb-2 font-medium text-text-dark">Dados Recebidos:</Text>

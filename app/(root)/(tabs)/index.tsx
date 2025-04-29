@@ -10,13 +10,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { useUser } from '@clerk/clerk-expo';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useDialog } from '@/contexts/DialogContext';
 import { format, isSameDay, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import CalendarComponent from '@/components/CalendarComponent';
+import { useProfile } from '@/hooks/useProfile'; // Novo hook!
 
 // --- MOCK DATA --- (Substituir por chamadas reais depois)
 const MOCK_LOCATIONS: Record<string, string> = {
@@ -71,14 +71,26 @@ export default function ShiftsScreen() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const { user } = useUser();
+  const { profile, isLoading: isProfileLoading } = useProfile(); // Novo hook
   const { showDialog } = useDialog();
   const router = useRouter();
 
-  // Extrair o nome real do usuário ou usar "Usuário" como fallback
-  const firstName = user?.firstName || '';
-  const lastName = user?.lastName || '';
-  const userName = firstName ? `${firstName}${lastName ? ' ' + lastName : ''}` : 'Usuário';
+  // Extrair o nome do usuário do profile
+  const userName = useMemo(() => {
+    if (isProfileLoading || !profile) return 'Usuário';
+
+    // Tenta combinar firstName e lastName
+    if (profile.firstName || profile.lastName) {
+      return ((profile.firstName || '') + ' ' + (profile.lastName || '')).trim();
+    }
+
+    // Ou usa o campo name, se estiver disponível
+    if (profile.name) {
+      return profile.name;
+    }
+
+    return 'Usuário';
+  }, [profile, isProfileLoading]);
 
   // Combina todos os plantões (futuros e passados)
   const allShifts = useMemo(() => {
@@ -250,6 +262,15 @@ export default function ShiftsScreen() {
     ),
     [navigateToAddShift]
   );
+
+  // Mostrar indicator enquanto carrega o perfil
+  if (isProfileLoading) {
+    return (
+      <View className="flex-1 items-center justify-center bg-background">
+        <ActivityIndicator size="large" color="#18cb96" />
+      </View>
+    );
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
