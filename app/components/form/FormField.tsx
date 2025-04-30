@@ -1,5 +1,6 @@
-import React from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity } from 'react-native';
+// app/components/form/FormField.tsx
+import React, { useState } from 'react';
+import { View, TextInput, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import { format } from 'date-fns';
@@ -98,40 +99,87 @@ export type FormFieldProps =
   | CheckboxFieldProps;
 
 const FormField: React.FC<FormFieldProps> = (props) => {
-  const [isDatePickerVisible, setDatePickerVisible] = React.useState(false);
+  const [isDatePickerVisible, setDatePickerVisible] = useState(false);
+  const [isSelectModalVisible, setSelectModalVisible] = useState(false);
 
+  // Render field label
   const renderLabel = () => {
     if (!props.label) return null;
 
     return (
-      <View className="mb-1.5 flex-row items-center">
-        <Text className="text-sm font-medium text-gray-700">
+      <View style={styles.labelContainer}>
+        <Text style={styles.label}>
           {props.label}
-          {props.required && <Text className="text-error"> *</Text>}
+          {props.required && <Text style={styles.requiredMark}> *</Text>}
         </Text>
       </View>
     );
   };
 
+  // Render helper text or error message
   const renderHelper = () => {
     if (!props.helperText && !props.error) return null;
 
     return (
-      <Text className={`mt-1 text-xs ${props.error ? 'text-error' : 'text-gray-500'}`}>
+      <Text style={[styles.helperText, props.error ? styles.errorText : null]}>
         {props.error || props.helperText}
       </Text>
     );
   };
 
+  // Format date and time
+  const formatDateTime = (date: Date | null, type: 'date' | 'time'): string => {
+    if (!date) return '';
+
+    try {
+      if (type === 'date') {
+        return format(date, 'dd/MM/yyyy', { locale: ptBR });
+      } else {
+        return format(date, 'HH:mm', { locale: ptBR });
+      }
+    } catch (e) {
+      console.error('Error formatting date/time:', e);
+      return '';
+    }
+  };
+
+  // Format value for currency display
+  const formatCurrencyValue = (value: string | number): string => {
+    if (typeof value === 'string' && value.trim() === '') return '';
+
+    try {
+      const numValue =
+        typeof value === 'string' ? parseFloat(value.replace(',', '.').replace(/\./g, '')) : value;
+
+      if (isNaN(numValue)) return '';
+
+      return `R$ ${numValue.toLocaleString('pt-BR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })}`;
+    } catch (e) {
+      return typeof value === 'string' ? value : String(value);
+    }
+  };
+
+  // Handle SelectField options rendering (simplified)
+  const renderSelectOptions = (options: SelectOption[], selectedValue: string | number | null) => {
+    const selectedOption = options.find((opt) => opt.value === selectedValue);
+    return selectedOption?.label || props.placeholder || 'Selecione uma opção';
+  };
+
   switch (props.type) {
     case 'text':
       return (
-        <View className="mb-4">
+        <View style={styles.fieldContainer}>
           {renderLabel()}
           <TextInput
-            className={`h-12 w-full rounded-lg px-4 ${
-              props.error ? 'border-2 border-error' : 'border border-gray-300'
-            } bg-white ${props.disabled ? 'bg-gray-100' : ''}`}
+            style={[
+              styles.textInput,
+              props.error ? styles.inputError : null,
+              props.disabled ? styles.inputDisabled : null,
+              props.multiline ? styles.textAreaInput : null,
+            ]}
             placeholder={props.placeholder}
             value={props.value}
             onChangeText={props.onChangeText}
@@ -142,33 +190,52 @@ const FormField: React.FC<FormFieldProps> = (props) => {
             multiline={props.multiline}
             numberOfLines={props.multiline ? 4 : 1}
             textAlignVertical={props.multiline ? 'top' : 'center'}
-            style={props.multiline ? { height: 100, paddingTop: 12 } : {}}
+            placeholderTextColor="#A0AEC0"
           />
           {renderHelper()}
         </View>
       );
 
     case 'number':
+      return (
+        <View style={styles.fieldContainer}>
+          {renderLabel()}
+          <TextInput
+            style={[
+              styles.textInput,
+              props.error ? styles.inputError : null,
+              props.disabled ? styles.inputDisabled : null,
+            ]}
+            placeholder={props.placeholder}
+            value={typeof props.value === 'number' ? props.value.toString() : props.value}
+            onChangeText={props.onChangeText}
+            keyboardType="numeric"
+            editable={!props.disabled}
+            placeholderTextColor="#A0AEC0"
+          />
+          {renderHelper()}
+        </View>
+      );
+
     case 'currency':
       return (
-        <View className="mb-4">
+        <View style={styles.fieldContainer}>
           {renderLabel()}
           <View
-            className={`w-full flex-row items-center rounded-lg ${
-              props.error ? 'border-2 border-error' : 'border border-gray-300'
-            } bg-white ${props.disabled ? 'bg-gray-100' : ''}`}>
-            {props.type === 'currency' && (
-              <View className="pl-4">
-                <Text className="text-gray-500">R$</Text>
-              </View>
-            )}
+            style={[
+              styles.currencyInputContainer,
+              props.error ? styles.inputError : null,
+              props.disabled ? styles.inputDisabled : null,
+            ]}>
+            <Text style={styles.currencySymbol}>R$</Text>
             <TextInput
-              className="h-12 flex-1 px-4"
-              placeholder={props.placeholder}
+              style={styles.currencyInput}
+              placeholder={props.placeholder || '0,00'}
               value={typeof props.value === 'number' ? props.value.toString() : props.value}
               onChangeText={props.onChangeText}
               keyboardType="numeric"
               editable={!props.disabled}
+              placeholderTextColor="#A0AEC0"
             />
           </View>
           {renderHelper()}
@@ -177,17 +244,19 @@ const FormField: React.FC<FormFieldProps> = (props) => {
 
     case 'date':
       return (
-        <View className="mb-4">
+        <View style={styles.fieldContainer}>
           {renderLabel()}
           <TouchableOpacity
-            className={`h-12 w-full flex-row items-center justify-between rounded-lg px-4 ${
-              props.error ? 'border-2 border-error' : 'border border-gray-300'
-            } bg-white ${props.disabled ? 'bg-gray-100' : ''}`}
+            style={[
+              styles.dateTimeButton,
+              props.error ? styles.inputError : null,
+              props.disabled ? styles.inputDisabled : null,
+            ]}
             onPress={() => !props.disabled && setDatePickerVisible(true)}
             disabled={props.disabled}>
-            <Text className={`${props.value ? 'text-gray-800' : 'text-gray-400'}`}>
+            <Text style={[styles.dateTimeText, !props.value ? styles.placeholderText : null]}>
               {props.value
-                ? format(props.value, props.format || 'dd/MM/yyyy', { locale: ptBR })
+                ? formatDateTime(props.value, 'date')
                 : props.placeholder || 'Selecione uma data'}
             </Text>
             <Ionicons name="calendar-outline" size={20} color="#666" />
@@ -211,17 +280,19 @@ const FormField: React.FC<FormFieldProps> = (props) => {
 
     case 'time':
       return (
-        <View className="mb-4">
+        <View style={styles.fieldContainer}>
           {renderLabel()}
           <TouchableOpacity
-            className={`h-12 w-full flex-row items-center justify-between rounded-lg px-4 ${
-              props.error ? 'border-2 border-error' : 'border border-gray-300'
-            } bg-white ${props.disabled ? 'bg-gray-100' : ''}`}
+            style={[
+              styles.dateTimeButton,
+              props.error ? styles.inputError : null,
+              props.disabled ? styles.inputDisabled : null,
+            ]}
             onPress={() => !props.disabled && setDatePickerVisible(true)}
             disabled={props.disabled}>
-            <Text className={`${props.value ? 'text-gray-800' : 'text-gray-400'}`}>
+            <Text style={[styles.dateTimeText, !props.value ? styles.placeholderText : null]}>
               {props.value
-                ? format(props.value, props.format || 'HH:mm', { locale: ptBR })
+                ? formatDateTime(props.value, 'time')
                 : props.placeholder || 'Selecione um horário'}
             </Text>
             <Ionicons name="time-outline" size={20} color="#666" />
@@ -243,17 +314,26 @@ const FormField: React.FC<FormFieldProps> = (props) => {
 
     case 'select':
       return (
-        <View className="mb-4">
+        <View style={styles.fieldContainer}>
           {renderLabel()}
           <TouchableOpacity
-            className={`h-12 w-full flex-row items-center justify-between rounded-lg px-4 ${
-              props.error ? 'border-2 border-error' : 'border border-gray-300'
-            } bg-white ${props.disabled ? 'bg-gray-100' : ''}`}
+            style={[
+              styles.selectButton,
+              props.error ? styles.inputError : null,
+              props.disabled ? styles.inputDisabled : null,
+            ]}
+            onPress={() => {
+              // Simplified - in a real app, this would open a modal or dropdown
+              if (!props.disabled) {
+                // Just cycle through options for demo
+                const currentIndex = props.options.findIndex((opt) => opt.value === props.value);
+                const nextIndex = (currentIndex + 1) % props.options.length;
+                props.onChange(props.options[nextIndex].value);
+              }
+            }}
             disabled={props.disabled}>
-            <Text className={`${props.value !== null ? 'text-gray-800' : 'text-gray-400'}`}>
-              {props.value !== null
-                ? props.options.find((opt) => opt.value === props.value)?.label || 'Selecione'
-                : props.placeholder || 'Selecione uma opção'}
+            <Text style={[styles.selectText, props.value === null ? styles.placeholderText : null]}>
+              {renderSelectOptions(props.options, props.value)}
             </Text>
             <Ionicons name="chevron-down" size={20} color="#666" />
           </TouchableOpacity>
@@ -263,20 +343,25 @@ const FormField: React.FC<FormFieldProps> = (props) => {
 
     case 'toggle':
       return (
-        <View className="mb-4">
+        <View style={styles.fieldContainer}>
           {renderLabel()}
-          <View className="flex-row items-center">
+          <View style={styles.toggleContainer}>
             <TouchableOpacity
-              className={`h-8 w-14 rounded-full ${props.value ? 'bg-primary' : 'bg-gray-300'} 
-                ${props.disabled ? 'opacity-50' : ''}`}
+              style={[
+                styles.toggleButton,
+                props.value ? styles.toggleButtonActive : styles.toggleButtonInactive,
+                props.disabled ? styles.toggleDisabled : null,
+              ]}
               onPress={() => !props.disabled && props.onChange(!props.value)}
               disabled={props.disabled}>
               <View
-                className={`absolute top-1 h-6 w-6 rounded-full bg-white 
-                  ${props.value ? 'right-1' : 'left-1'}`}
+                style={[
+                  styles.toggleKnob,
+                  props.value ? styles.toggleKnobActive : styles.toggleKnobInactive,
+                ]}
               />
             </TouchableOpacity>
-            <Text className="ml-2 text-sm text-gray-700">
+            <Text style={styles.toggleLabel}>
               {props.value ? props.trueLabel || 'Ativado' : props.falseLabel || 'Desativado'}
             </Text>
           </View>
@@ -286,19 +371,23 @@ const FormField: React.FC<FormFieldProps> = (props) => {
 
     case 'checkbox':
       return (
-        <View className="mb-4">
+        <View style={styles.fieldContainer}>
           <TouchableOpacity
-            className="flex-row items-center"
+            style={styles.checkboxContainer}
             onPress={() => !props.disabled && props.onChange(!props.value)}
             disabled={props.disabled}>
             <View
-              className={`h-6 w-6 items-center justify-center rounded border 
-                ${props.value ? 'border-primary bg-primary' : 'border-gray-400'} 
-                ${props.disabled ? 'opacity-50' : ''}`}>
+              style={[
+                styles.checkbox,
+                props.value ? styles.checkboxChecked : styles.checkboxUnchecked,
+                props.disabled ? styles.checkboxDisabled : null,
+              ]}>
               {props.value && <Ionicons name="checkmark" size={18} color="#fff" />}
             </View>
-            <Text className="ml-2 text-sm text-gray-700">{props.label}</Text>
-            {props.required && <Text className="text-error"> *</Text>}
+            <Text style={styles.checkboxLabel}>
+              {props.label}
+              {props.required && <Text style={styles.requiredMark}> *</Text>}
+            </Text>
           </TouchableOpacity>
           {renderHelper()}
         </View>
@@ -308,5 +397,178 @@ const FormField: React.FC<FormFieldProps> = (props) => {
       return null;
   }
 };
+
+const styles = StyleSheet.create({
+  fieldContainer: {
+    marginBottom: 16,
+  },
+  labelContainer: {
+    marginBottom: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#64748b', // text-gray-500
+  },
+  requiredMark: {
+    color: '#ef4444', // text-red-500
+  },
+  textInput: {
+    height: 48,
+    borderWidth: 1,
+    borderColor: '#d1d5db', // border-gray-300
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    fontSize: 16,
+    color: '#1f2937', // text-gray-800
+    backgroundColor: '#ffffff',
+  },
+  textAreaInput: {
+    height: 100,
+    textAlignVertical: 'top',
+    paddingTop: 12,
+  },
+  inputError: {
+    borderColor: '#ef4444', // border-red-500
+    borderWidth: 2,
+  },
+  inputDisabled: {
+    backgroundColor: '#f3f4f6', // bg-gray-100
+    opacity: 0.7,
+  },
+  helperText: {
+    marginTop: 4,
+    fontSize: 12,
+    color: '#64748b', // text-gray-500
+  },
+  errorText: {
+    color: '#ef4444', // text-red-500
+  },
+  // Date and Time Picker styles
+  dateTimeButton: {
+    height: 48,
+    borderWidth: 1,
+    borderColor: '#d1d5db', // border-gray-300
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#ffffff',
+  },
+  dateTimeText: {
+    fontSize: 16,
+    color: '#1f2937', // text-gray-800
+  },
+  // Select styles
+  selectButton: {
+    height: 48,
+    borderWidth: 1,
+    borderColor: '#d1d5db', // border-gray-300
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#ffffff',
+  },
+  selectText: {
+    fontSize: 16,
+    color: '#1f2937', // text-gray-800
+  },
+  placeholderText: {
+    color: '#a0aec0', // text-gray-400
+  },
+  // Currency input styles
+  currencyInputContainer: {
+    height: 48,
+    borderWidth: 1,
+    borderColor: '#d1d5db', // border-gray-300
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    backgroundColor: '#ffffff',
+  },
+  currencySymbol: {
+    marginRight: 8,
+    fontSize: 16,
+    color: '#64748b', // text-gray-500
+  },
+  currencyInput: {
+    flex: 1,
+    height: '100%',
+    fontSize: 16,
+    color: '#1f2937', // text-gray-800
+  },
+  // Toggle styles
+  toggleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  toggleButton: {
+    width: 50,
+    height: 26,
+    borderRadius: 13,
+    padding: 2,
+  },
+  toggleButtonActive: {
+    backgroundColor: '#18cb96', // bg-primary
+  },
+  toggleButtonInactive: {
+    backgroundColor: '#cbd5e1', // bg-gray-300
+  },
+  toggleDisabled: {
+    opacity: 0.5,
+  },
+  toggleKnob: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#ffffff',
+  },
+  toggleKnobActive: {
+    alignSelf: 'flex-end',
+  },
+  toggleKnobInactive: {
+    alignSelf: 'flex-start',
+  },
+  toggleLabel: {
+    marginLeft: 10,
+    fontSize: 14,
+    color: '#64748b', // text-gray-500
+  },
+  // Checkbox styles
+  checkboxContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 4,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+  },
+  checkboxChecked: {
+    backgroundColor: '#18cb96', // bg-primary
+    borderColor: '#18cb96', // border-primary
+  },
+  checkboxUnchecked: {
+    backgroundColor: '#ffffff',
+    borderColor: '#d1d5db', // border-gray-300
+  },
+  checkboxDisabled: {
+    opacity: 0.5,
+  },
+  checkboxLabel: {
+    fontSize: 14,
+    color: '#1f2937', // text-gray-800
+  },
+});
 
 export default FormField;

@@ -4,13 +4,13 @@ import {
   Modal,
   View,
   Text,
-  Pressable,
+  TouchableOpacity,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
   Animated,
   Dimensions,
-  StyleSheet,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
@@ -26,6 +26,7 @@ interface ShiftFormModalProps {
 }
 
 const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window');
+const MODAL_HEIGHT = SCREEN_HEIGHT * 0.85; // 85% da altura da tela
 
 const ShiftFormModal: React.FC<ShiftFormModalProps> = ({
   visible,
@@ -63,8 +64,9 @@ const ShiftFormModal: React.FC<ShiftFormModalProps> = ({
     outputRange: [0, 0.5],
   });
 
-  // Handle success (save plantão)
+  // Handle success (close modal and call onSuccess)
   const handleSuccess = () => {
+    console.log('ShiftFormModal: handleSuccess chamado');
     if (onSuccess) {
       onSuccess();
     }
@@ -72,6 +74,7 @@ const ShiftFormModal: React.FC<ShiftFormModalProps> = ({
 
   // Handle closing the modal
   const handleClose = () => {
+    console.log('ShiftFormModal: handleClose chamado');
     Animated.timing(animatedValue, {
       toValue: 0,
       duration: 300,
@@ -91,41 +94,53 @@ const ShiftFormModal: React.FC<ShiftFormModalProps> = ({
       statusBarTranslucent
       onRequestClose={handleClose}>
       {/* Backdrop */}
-      <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]} />
-
-      {/* Modal Content */}
-      <View style={[styles.container, { paddingBottom: insets.bottom }]}>
+      <TouchableWithoutFeedback onPress={handleClose}>
         <Animated.View
           style={[
-            styles.modalContainer,
             {
-              transform: [{ translateY }],
+              position: 'absolute',
+              top: 0,
+              bottom: 0,
+              left: 0,
+              right: 0,
+              backgroundColor: '#000',
+              opacity: backdropOpacity,
             },
-          ]}>
+          ]}
+        />
+      </TouchableWithoutFeedback>
+
+      {/* Modal Content */}
+      <View className="flex-1 justify-end" style={{ paddingBottom: insets.bottom }}>
+        <Animated.View
+          className="w-full overflow-hidden rounded-t-3xl bg-white"
+          style={{
+            transform: [{ translateY }],
+            height: MODAL_HEIGHT, // Definir altura explicitamente
+            maxHeight: SCREEN_HEIGHT * 0.9,
+          }}>
           {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.headerTitle}>
+          <View className="flex-row items-center justify-between border-b border-gray-100 px-5 py-4">
+            <Text className="text-lg font-semibold text-text-dark">
               {initialDate
                 ? `Novo Plantão: ${format(initialDate, "dd 'de' MMMM", { locale: ptBR })}`
                 : 'Novo Plantão'}
             </Text>
-            <Pressable onPress={handleClose} style={styles.closeButton}>
+            <TouchableOpacity className="p-2" onPress={handleClose}>
               <Ionicons name="close" size={24} color="#64748b" />
-            </Pressable>
+            </TouchableOpacity>
           </View>
 
           {/* Content */}
           <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            style={styles.formContainer}
+            className="flex-1"
             keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}>
             <ScrollView
-              contentContainerStyle={styles.formScrollContent}
+              className="flex-1"
+              contentContainerClassName="p-5"
               showsVerticalScrollIndicator={true}>
-              {/* Making sure the form is rendered properly */}
-              <View style={styles.formWrapper}>
-                <ShiftForm initialDate={initialDate} onSuccess={handleSuccess} isModal={true} />
-              </View>
+              <ShiftForm initialDate={initialDate} onSuccess={handleSuccess} isModal={true} />
             </ScrollView>
           </KeyboardAvoidingView>
         </Animated.View>
@@ -133,60 +148,5 @@ const ShiftFormModal: React.FC<ShiftFormModalProps> = ({
     </Modal>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#000',
-  },
-  modalContainer: {
-    backgroundColor: 'white',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: SCREEN_HEIGHT * 0.85,
-    width: SCREEN_WIDTH,
-    overflow: 'hidden',
-    // Shadow for iOS
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: -3,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    // Shadow for Android
-    elevation: 5,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1e293b',
-  },
-  closeButton: {
-    padding: 8,
-  },
-  formContainer: {
-    flex: 1,
-  },
-  formScrollContent: {
-    paddingBottom: 20,
-  },
-  formWrapper: {
-    padding: 16,
-  },
-});
 
 export default ShiftFormModal;

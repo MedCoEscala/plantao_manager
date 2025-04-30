@@ -201,14 +201,16 @@ export default function ShiftsScreen() {
 
   // Show modal to add a shift
   const navigateToAddShift = useCallback(() => {
-    setModalInitialDate(null);
-    setIsAddModalVisible(true);
+    console.log('Abrindo modal para adicionar plantão sem data específica');
+    setModalInitialDate(null); // Limpa a data inicial
+    setIsAddModalVisible(true); // Abre o modal
   }, []);
 
   // Show modal to add a shift on the selected date
   const navigateToAddShiftOnDate = useCallback(() => {
-    setModalInitialDate(selectedDate);
-    setIsAddModalVisible(true);
+    console.log(`Abrindo modal para adicionar plantão em ${selectedDate.toISOString()}`);
+    setModalInitialDate(selectedDate); // Define a data inicial como a data selecionada
+    setIsAddModalVisible(true); // Abre o modal
   }, [selectedDate]);
 
   // Navigate to shift details
@@ -227,10 +229,19 @@ export default function ShiftsScreen() {
 
   // Success handler for modal
   const handleAddSuccess = useCallback(() => {
+    console.log('Plantão adicionado com sucesso, fechando modal');
     showToast('Plantão adicionado com sucesso!', 'success');
     setIsAddModalVisible(false);
-    // Optionally refresh data here
-  }, [showToast]);
+
+    // Atualizar dados (simulação)
+    handleRefresh();
+  }, [showToast, handleRefresh]);
+
+  // Fechar o modal
+  const handleCloseModal = useCallback(() => {
+    console.log('Fechando modal');
+    setIsAddModalVisible(false);
+  }, []);
 
   // Get color and name info for a location with handling for undefined
   const getLocationInfo = (locationId: string) => {
@@ -448,7 +459,7 @@ export default function ShiftsScreen() {
       {/* Add Shift Modal */}
       <ShiftFormModal
         visible={isAddModalVisible}
-        onClose={() => setIsAddModalVisible(false)}
+        onClose={handleCloseModal}
         initialDate={modalInitialDate}
         onSuccess={handleAddSuccess}
       />

@@ -1,12 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text } from 'react-native';
-import { format } from 'date-fns';
+import React, { useState, useEffect, useMemo } from 'react';
+import { View, Text, TouchableOpacity } from 'react-native';
+import { format, parseISO } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import { useRouter } from 'expo-router';
-import FormBuilder from '../form/FormBuilder';
-import { FormFieldProps } from '../form/FormField';
+import { Ionicons } from '@expo/vector-icons';
 import { useToast } from '@/components/ui/Toast';
 import { useDialog } from '@/contexts/DialogContext';
+import Input from '@/components/ui/Input';
+import Button from '@/components/ui/Button';
+import DateTimePicker from 'react-native-modal-datetime-picker';
 
+// Mock data que viria da API
 const MOCK_LOCATIONS = [
   { id: 'loc1', name: 'Hospital Central', color: '#0077B6', address: 'Av. Paulista, 1500' },
   { id: 'loc2', name: 'Clínica Sul', color: '#EF476F', address: 'Rua Augusta, 500' },
@@ -50,45 +54,47 @@ const ShiftForm: React.FC<ShiftFormProps> = ({
   onSuccess,
   isModal = false,
 }) => {
-  const [isLoading, setIsLoading] = useState(false);
-  const [initialValues, setInitialValues] = useState<Partial<ShiftFormData>>({
-    date: initialDate || new Date(),
-    startTime: new Date(new Date().setHours(8, 0, 0, 0)), // 8:00 AM
-    endTime: new Date(new Date().setHours(14, 0, 0, 0)), // 2:00 PM
-    value: '',
-    paymentType: 'PF',
-    isFixed: false,
-  });
-
   const router = useRouter();
   const { showToast } = useToast();
   const { showDialog } = useDialog();
 
+  const [date, setDate] = useState<Date>(initialDate || new Date());
+  const [startTime, setStartTime] = useState<Date>(() => {
+    const now = new Date();
+    now.setHours(8, 0, 0, 0);
+    return now;
+  });
+  const [endTime, setEndTime] = useState<Date>(() => {
+    const now = new Date();
+    now.setHours(14, 0, 0, 0);
+    return now;
+  });
+  const [locationId, setLocationId] = useState<string>('');
+  const [contractorId, setContractorId] = useState<string>('');
+  const [value, setValue] = useState<string>('');
+  const [paymentType, setPaymentType] = useState<'PF' | 'PJ'>('PF');
+  const [isFixed, setIsFixed] = useState<boolean>(false);
+  const [notes, setNotes] = useState<string>('');
+
+  const [isLoading, setIsLoading] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showStartTimePicker, setShowStartTimePicker] = useState(false);
+  const [showEndTimePicker, setShowEndTimePicker] = useState(false);
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
+  const [showContractorPicker, setShowContractorPicker] = useState(false);
+  const [showPaymentTypePicker, setShowPaymentTypePicker] = useState(false);
+
   useEffect(() => {
     if (initialDate) {
-      const updatedValues = { ...initialValues };
+      setDate(initialDate);
 
-      updatedValues.date = initialDate;
+      const newStartTime = new Date(initialDate);
+      newStartTime.setHours(startTime.getHours(), startTime.getMinutes(), 0, 0);
+      setStartTime(newStartTime);
 
-      if (updatedValues.startTime) {
-        const startHours = updatedValues.startTime.getHours();
-        const startMinutes = updatedValues.startTime.getMinutes();
-
-        const newStartTime = new Date(initialDate);
-        newStartTime.setHours(startHours, startMinutes, 0, 0);
-        updatedValues.startTime = newStartTime;
-      }
-
-      if (updatedValues.endTime) {
-        const endHours = updatedValues.endTime.getHours();
-        const endMinutes = updatedValues.endTime.getMinutes();
-
-        const newEndTime = new Date(initialDate);
-        newEndTime.setHours(endHours, endMinutes, 0, 0);
-        updatedValues.endTime = newEndTime;
-      }
-
-      setInitialValues(updatedValues);
+      const newEndTime = new Date(initialDate);
+      newEndTime.setHours(endTime.getHours(), endTime.getMinutes(), 0, 0);
+      setEndTime(newEndTime);
     }
   }, [initialDate]);
 
@@ -103,28 +109,24 @@ const ShiftForm: React.FC<ShiftFormProps> = ({
     try {
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      const today = new Date();
-      const shiftDate = new Date(today);
-      shiftDate.setDate(today.getDate() + 5);
+      const mockShiftDate = new Date();
+      mockShiftDate.setDate(mockShiftDate.getDate() + 5);
 
-      const startTime = new Date(shiftDate);
-      startTime.setHours(8, 0, 0, 0);
+      const mockStartTime = new Date(mockShiftDate);
+      mockStartTime.setHours(8, 0, 0, 0);
 
-      const endTime = new Date(shiftDate);
-      endTime.setHours(14, 0, 0, 0);
+      const mockEndTime = new Date(mockShiftDate);
+      mockEndTime.setHours(14, 0, 0, 0);
 
-      setInitialValues({
-        id: shiftId,
-        date: shiftDate,
-        startTime: startTime,
-        endTime: endTime,
-        locationId: 'loc1',
-        contractorId: 'cont1',
-        value: '1200',
-        paymentType: 'PF',
-        isFixed: false,
-        notes: 'Plantão de emergência',
-      });
+      setDate(mockShiftDate);
+      setStartTime(mockStartTime);
+      setEndTime(mockEndTime);
+      setLocationId('loc1');
+      setContractorId('cont1');
+      setValue('1200');
+      setPaymentType('PF');
+      setIsFixed(false);
+      setNotes('Plantão de emergência');
     } catch (error) {
       console.error('Erro ao carregar dados do plantão:', error);
       showToast('Erro ao carregar dados do plantão', 'error');
@@ -134,51 +136,55 @@ const ShiftForm: React.FC<ShiftFormProps> = ({
     }
   };
 
-  // Formatador de valor para exibição em R$
-  const formatCurrency = (value: number | string): string => {
-    if (typeof value === 'string') {
-      // Remove caracteres não numéricos, exceto pontos e vírgulas
-      value = value.replace(/[^\d.,]/g, '');
+  const formatCurrency = (value: string): string => {
+    const cleanValue = value.replace(/[^\d.,]/g, '');
 
-      // Substitui vírgula por ponto para conversão
-      value = value.replace(',', '.');
+    if (!cleanValue) return '';
 
-      // Converte para número
-      const numValue = parseFloat(value);
+    const numericValue = cleanValue.replace(',', '.');
 
-      // Se não for um número válido, retorna string vazia
-      if (isNaN(numValue)) return '';
+    const number = parseFloat(numericValue);
 
-      // Formata como moeda brasileira
-      return numValue.toLocaleString('pt-BR', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      });
-    }
+    if (isNaN(number)) return cleanValue;
 
-    // Se já for um número, apenas formata
-    return Number(value).toLocaleString('pt-BR', {
+    return number.toLocaleString('pt-BR', {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     });
   };
 
-  // Função para salvar o plantão
-  const handleSubmit = async (values: Record<string, any>) => {
+  const handleSubmit = async () => {
+    if (!locationId) {
+      showToast('Por favor, selecione o local do plantão', 'error');
+      return;
+    }
+
+    if (!value) {
+      showToast('Por favor, informe o valor do plantão', 'error');
+      return;
+    }
+
+    if (endTime <= startTime) {
+      showToast('O horário de término deve ser depois do horário de início', 'error');
+      return;
+    }
+
     setIsLoading(true);
     try {
-      // Formatar os dados antes de enviar (exemplo)
-      const formattedValue = values.value
-        .replace(/\./g, '') // Remove pontos
-        .replace(',', '.'); // Substitui vírgula por ponto
+      const formattedValue = value.replace(/\./g, '').replace(',', '.');
 
-      // Construir objeto a ser enviado para API
       const shiftData = {
-        ...values,
-        value: parseFloat(formattedValue), // Converte para número
+        date: date.toISOString(),
+        startTime: startTime.toISOString(),
+        endTime: endTime.toISOString(),
+        locationId,
+        contractorId: contractorId || undefined,
+        value: parseFloat(formattedValue),
+        paymentType,
+        isFixed,
+        notes: notes || undefined,
       };
 
-      // Aqui você faria uma chamada API real
       console.log('Salvando plantão:', shiftData);
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
@@ -200,7 +206,6 @@ const ShiftForm: React.FC<ShiftFormProps> = ({
     }
   };
 
-  // Função para cancelar a operação
   const handleCancel = () => {
     showDialog({
       title: 'Cancelar',
@@ -210,123 +215,255 @@ const ShiftForm: React.FC<ShiftFormProps> = ({
     });
   };
 
-  // Configuração dos campos do formulário
-  const formFields: FormFieldProps[] = [
-    {
-      id: 'date',
-      label: 'Data do Plantão',
-      type: 'date',
-      value: initialValues.date || null,
-      onChange: () => {}, // Será substituído pelo FormBuilder
-      required: true,
-    },
-    {
-      id: 'startTime',
-      label: 'Horário de Início',
-      type: 'time',
-      value: initialValues.startTime || null,
-      onChange: () => {}, // Será substituído pelo FormBuilder
-      required: true,
-    },
-    {
-      id: 'endTime',
-      label: 'Horário de Término',
-      type: 'time',
-      value: initialValues.endTime || null,
-      onChange: () => {}, // Será substituído pelo FormBuilder
-      required: true,
-    },
-    {
-      id: 'locationId',
-      label: 'Local',
-      type: 'select',
-      placeholder: 'Selecione o local',
-      value: initialValues.locationId || null,
-      onChange: () => {}, // Será substituído pelo FormBuilder
-      options: MOCK_LOCATIONS.map((location) => ({
-        label: location.name,
-        value: location.id,
-        color: location.color,
-      })),
-      required: true,
-    },
-    {
-      id: 'contractorId',
-      label: 'Contratante',
-      type: 'select',
-      placeholder: 'Selecione o contratante (opcional)',
-      value: initialValues.contractorId || null,
-      onChange: () => {}, // Será substituído pelo FormBuilder
-      options: MOCK_CONTRACTORS.map((contractor) => ({
-        label: contractor.name,
-        value: contractor.id,
-      })),
-    },
-    {
-      id: 'value',
-      label: 'Valor do Plantão',
-      type: 'currency',
-      placeholder: '0,00',
-      value: initialValues.value || '',
-      onChangeText: () => {}, // Será substituído pelo FormBuilder
-      required: true,
-      helperText: 'Informe o valor bruto do plantão',
-    },
-    {
-      id: 'paymentType',
-      label: 'Tipo de Pagamento',
-      type: 'select',
-      value: initialValues.paymentType || null,
-      onChange: () => {}, // Será substituído pelo FormBuilder
-      options: [
-        { label: 'Pessoa Física (PF)', value: 'PF' },
-        { label: 'Pessoa Jurídica (PJ)', value: 'PJ' },
-      ],
-      required: true,
-    },
-    {
-      id: 'isFixed',
-      label: 'Plantão Fixo',
-      type: 'toggle',
-      value: initialValues.isFixed || false,
-      onChange: () => {}, // Será substituído pelo FormBuilder
-      helperText: 'Ative para plantões que se repetem regularmente',
-      trueLabel: 'Sim',
-      falseLabel: 'Não',
-    },
-    {
-      id: 'notes',
-      label: 'Observações',
-      type: 'text',
-      placeholder: 'Observações adicionais (opcional)',
-      value: initialValues.notes || '',
-      onChangeText: () => {}, // Será substituído pelo FormBuilder
-      multiline: true,
-    },
-  ];
+  const formatDate = (date: Date): string => {
+    return format(date, "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
+  };
 
-  // Determine the submit button label based on context
-  const submitLabel = isModal ? 'Salvar Plantão' : shiftId ? 'Atualizar' : 'Salvar';
+  const formatTime = (date: Date): string => {
+    return format(date, 'HH:mm', { locale: ptBR });
+  };
+
+  const getLocationName = (id: string): string => {
+    const location = MOCK_LOCATIONS.find((loc) => loc.id === id);
+    return location ? location.name : 'Selecione o local';
+  };
+
+  const getContractorName = (id: string): string => {
+    const contractor = MOCK_CONTRACTORS.find((cont) => cont.id === id);
+    return contractor ? contractor.name : 'Selecione o contratante (opcional)';
+  };
 
   return (
-    <View style={{ width: '100%' }}>
-      <FormBuilder
-        fields={formFields}
-        initialValues={initialValues}
-        onSubmit={handleSubmit}
-        onCancel={handleCancel}
-        loading={isLoading}
-        submitLabel={isModal ? 'Salvar Plantão' : shiftId ? 'Atualizar' : 'Salvar'}
-        formTitle={isModal ? undefined : shiftId ? 'Editar Plantão' : 'Novo Plantão'}
-        formDescription={
-          isModal
-            ? undefined
-            : shiftId
-              ? `Editando plantão de ${initialValues.date ? format(initialValues.date, 'dd/MM/yyyy') : ''}`
-              : 'Preencha os dados para adicionar um novo plantão'
-        }
-        scrollable={false} // Don't use ScrollView within FormBuilder when in modal
-      />
+    <View className="w-full">
+      {/* Formulário com campos estilizados usando NativeWind */}
+      <View className="space-y-4">
+        {/* Data do Plantão */}
+        <View className="space-y-1">
+          <Text className="text-sm font-medium text-text-light">Data do Plantão *</Text>
+          <TouchableOpacity
+            className="flex-row items-center justify-between rounded-lg border border-gray-300 bg-white p-3"
+            onPress={() => setShowDatePicker(true)}>
+            <Text className="text-text-dark">{formatDate(date)}</Text>
+            <Ionicons name="calendar-outline" size={20} color="#64748b" />
+          </TouchableOpacity>
+          <DateTimePicker
+            isVisible={showDatePicker}
+            mode="date"
+            onConfirm={(selectedDate) => {
+              setDate(selectedDate);
+              setShowDatePicker(false);
+            }}
+            onCancel={() => setShowDatePicker(false)}
+            date={date}
+          />
+        </View>
+
+        {/* Horário de Início */}
+        <View className="space-y-1">
+          <Text className="text-sm font-medium text-text-light">Horário de Início *</Text>
+          <TouchableOpacity
+            className="flex-row items-center justify-between rounded-lg border border-gray-300 bg-white p-3"
+            onPress={() => setShowStartTimePicker(true)}>
+            <Text className="text-text-dark">{formatTime(startTime)}</Text>
+            <Ionicons name="time-outline" size={20} color="#64748b" />
+          </TouchableOpacity>
+          <DateTimePicker
+            isVisible={showStartTimePicker}
+            mode="time"
+            onConfirm={(selectedTime) => {
+              setStartTime(selectedTime);
+              setShowStartTimePicker(false);
+            }}
+            onCancel={() => setShowStartTimePicker(false)}
+            date={startTime}
+          />
+        </View>
+
+        {/* Horário de Término */}
+        <View className="space-y-1">
+          <Text className="text-sm font-medium text-text-light">Horário de Término *</Text>
+          <TouchableOpacity
+            className="flex-row items-center justify-between rounded-lg border border-gray-300 bg-white p-3"
+            onPress={() => setShowEndTimePicker(true)}>
+            <Text className="text-text-dark">{formatTime(endTime)}</Text>
+            <Ionicons name="time-outline" size={20} color="#64748b" />
+          </TouchableOpacity>
+          <DateTimePicker
+            isVisible={showEndTimePicker}
+            mode="time"
+            onConfirm={(selectedTime) => {
+              setEndTime(selectedTime);
+              setShowEndTimePicker(false);
+            }}
+            onCancel={() => setShowEndTimePicker(false)}
+            date={endTime}
+          />
+        </View>
+
+        {/* Local */}
+        <View className="space-y-1">
+          <Text className="text-sm font-medium text-text-light">Local *</Text>
+          <TouchableOpacity
+            className="flex-row items-center justify-between rounded-lg border border-gray-300 bg-white p-3"
+            onPress={() => setShowLocationPicker(!showLocationPicker)}>
+            <Text className={locationId ? 'text-text-dark' : 'text-gray-400'}>
+              {locationId ? getLocationName(locationId) : 'Selecione o local'}
+            </Text>
+            <Ionicons name="chevron-down" size={20} color="#64748b" />
+          </TouchableOpacity>
+
+          {/* Dropdown simples para locais */}
+          {showLocationPicker && (
+            <View className="mt-1 rounded-lg border border-gray-200 bg-white shadow-sm">
+              {MOCK_LOCATIONS.map((location) => (
+                <TouchableOpacity
+                  key={location.id}
+                  className={`flex-row items-center p-3 ${locationId === location.id ? 'bg-gray-100' : ''}`}
+                  onPress={() => {
+                    setLocationId(location.id);
+                    setShowLocationPicker(false);
+                  }}>
+                  <View
+                    className="mr-2 h-4 w-4 rounded-full"
+                    style={{ backgroundColor: location.color }}
+                  />
+                  <Text className="text-text-dark">{location.name}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        </View>
+
+        {/* Contratante */}
+        <View className="space-y-1">
+          <Text className="text-sm font-medium text-text-light">Contratante</Text>
+          <TouchableOpacity
+            className="flex-row items-center justify-between rounded-lg border border-gray-300 bg-white p-3"
+            onPress={() => setShowContractorPicker(!showContractorPicker)}>
+            <Text className={contractorId ? 'text-text-dark' : 'text-gray-400'}>
+              {contractorId
+                ? getContractorName(contractorId)
+                : 'Selecione o contratante (opcional)'}
+            </Text>
+            <Ionicons name="chevron-down" size={20} color="#64748b" />
+          </TouchableOpacity>
+
+          {/* Dropdown simples para contratantes */}
+          {showContractorPicker && (
+            <View className="mt-1 rounded-lg border border-gray-200 bg-white shadow-sm">
+              {MOCK_CONTRACTORS.map((contractor) => (
+                <TouchableOpacity
+                  key={contractor.id}
+                  className={`p-3 ${contractorId === contractor.id ? 'bg-gray-100' : ''}`}
+                  onPress={() => {
+                    setContractorId(contractor.id);
+                    setShowContractorPicker(false);
+                  }}>
+                  <Text className="text-text-dark">{contractor.name}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        </View>
+
+        {/* Valor do Plantão */}
+        <View className="space-y-1">
+          <Text className="text-sm font-medium text-text-light">Valor do Plantão *</Text>
+          <View className="flex-row rounded-lg border border-gray-300 bg-white p-3">
+            <Text className="mr-2 text-gray-500">R$</Text>
+            <Input
+              value={value}
+              onChangeText={(text) => setValue(formatCurrency(text))}
+              placeholder="0,00"
+              keyboardType="numeric"
+              className="m-0 h-6 flex-1 p-0"
+            />
+          </View>
+          <Text className="text-xs text-gray-500">Informe o valor bruto do plantão</Text>
+        </View>
+
+        {/* Tipo de Pagamento */}
+        <View className="space-y-1">
+          <Text className="text-sm font-medium text-text-light">Tipo de Pagamento *</Text>
+          <TouchableOpacity
+            className="flex-row items-center justify-between rounded-lg border border-gray-300 bg-white p-3"
+            onPress={() => setShowPaymentTypePicker(!showPaymentTypePicker)}>
+            <Text className="text-text-dark">
+              {paymentType === 'PF' ? 'Pessoa Física (PF)' : 'Pessoa Jurídica (PJ)'}
+            </Text>
+            <Ionicons name="chevron-down" size={20} color="#64748b" />
+          </TouchableOpacity>
+
+          {/* Dropdown simples para tipo de pagamento */}
+          {showPaymentTypePicker && (
+            <View className="mt-1 rounded-lg border border-gray-200 bg-white shadow-sm">
+              <TouchableOpacity
+                className={`p-3 ${paymentType === 'PF' ? 'bg-gray-100' : ''}`}
+                onPress={() => {
+                  setPaymentType('PF');
+                  setShowPaymentTypePicker(false);
+                }}>
+                <Text className="text-text-dark">Pessoa Física (PF)</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                className={`p-3 ${paymentType === 'PJ' ? 'bg-gray-100' : ''}`}
+                onPress={() => {
+                  setPaymentType('PJ');
+                  setShowPaymentTypePicker(false);
+                }}>
+                <Text className="text-text-dark">Pessoa Jurídica (PJ)</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+
+        {/* Plantão Fixo */}
+        <View className="space-y-1">
+          <Text className="text-sm font-medium text-text-light">Plantão Fixo</Text>
+          <View className="flex-row items-center">
+            <TouchableOpacity
+              className={`h-6 w-12 rounded-full ${isFixed ? 'bg-primary' : 'bg-gray-300'} justify-center`}
+              onPress={() => setIsFixed(!isFixed)}>
+              <View className={`h-5 w-5 rounded-full bg-white ${isFixed ? 'ml-6' : 'ml-1'}`} />
+            </TouchableOpacity>
+            <Text className="ml-2 text-text-dark">{isFixed ? 'Sim' : 'Não'}</Text>
+          </View>
+          <Text className="text-xs text-gray-500">
+            Ative para plantões que se repetem regularmente
+          </Text>
+        </View>
+
+        {/* Observações */}
+        <View className="space-y-1">
+          <Text className="text-sm font-medium text-text-light">Observações</Text>
+          <Input
+            value={notes}
+            onChangeText={setNotes}
+            placeholder="Observações adicionais (opcional)"
+            multiline
+            numberOfLines={4}
+            className="textAlignVertical-top h-24 rounded-lg border border-gray-300 bg-white p-3"
+          />
+        </View>
+
+        {/* Botões de ação */}
+        <View className="mt-4 flex-row justify-between">
+          <Button
+            variant="outline"
+            onPress={handleCancel}
+            disabled={isLoading}
+            className="mr-2 flex-1">
+            Cancelar
+          </Button>
+          <Button
+            variant="primary"
+            onPress={handleSubmit}
+            loading={isLoading}
+            className="ml-2 flex-1">
+            {isModal ? 'Salvar Plantão' : shiftId ? 'Atualizar' : 'Salvar'}
+          </Button>
+        </View>
+      </View>
     </View>
   );
 };
