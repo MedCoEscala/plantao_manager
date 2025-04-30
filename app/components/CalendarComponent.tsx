@@ -1,5 +1,6 @@
+// app/components/CalendarComponent.tsx
 import React, { useState, useCallback, useMemo } from 'react';
-import { View, Text, TouchableOpacity, FlatList, Dimensions } from 'react-native';
+import { View, Text, TouchableOpacity, FlatList, Dimensions, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import {
   format,
@@ -36,10 +37,25 @@ interface CalendarProps {
   onSelectDate: (date: Date) => void;
 }
 
-const WEEKDAYS = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S']; // Iniciais dos dias da semana
+const WEEKDAYS = ['D', 'S', 'T', 'Q', 'Qi', 'S', 'S']; // Iniciais dos dias da semana
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DAY_WIDTH = Math.floor((SCREEN_WIDTH - 32) / 7); // 32 = padding horizontal total
 const WEEK_ITEM_WIDTH = Math.floor((SCREEN_WIDTH - 48) / 5); // 5 dias visíveis por vez, com padding
+
+// Constantes para cores
+const COLORS = {
+  primary: '#18cb96',
+  white: '#FFFFFF',
+  light: '#f8f9fa',
+  selected: '#18cb96',
+  today: '#18cb96',
+  textDark: '#1e293b',
+  textLight: '#64748b',
+  hasShifts: {
+    bg: '#18cb9620', // Cor de fundo para dias com plantões (com 20% de opacidade)
+    dot: '#18cb96', // Cor do marcador/indicador de plantões
+  },
+};
 
 const CalendarComponent: React.FC<CalendarProps> = ({ shifts, selectedDate, onSelectDate }) => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -107,16 +123,17 @@ const CalendarComponent: React.FC<CalendarProps> = ({ shifts, selectedDate, onSe
       const weekdayLetter = format(item, 'EEEEE', { locale: ptBR }).toUpperCase();
 
       return (
-        <TouchableOpacity
+        <Pressable
           className={`mx-1 overflow-hidden rounded-2xl ${
             isSelected
               ? 'bg-primary shadow-sm shadow-primary/30'
               : isTodayDate
                 ? 'border-[1.5px] border-primary'
-                : ''
+                : hasShift
+                  ? 'bg-[#18cb9620]' // Fundo verde claro para dias com plantões
+                  : ''
           }`}
           style={{ width: WEEK_ITEM_WIDTH }}
-          activeOpacity={0.7}
           onPress={() => onSelectDate(item)}>
           <View className={`items-center justify-center py-2 ${isSelected ? 'bg-primary' : ''}`}>
             {/* Dia da semana (iniciais) */}
@@ -147,7 +164,7 @@ const CalendarComponent: React.FC<CalendarProps> = ({ shifts, selectedDate, onSe
               </View>
             )}
           </View>
-        </TouchableOpacity>
+        </Pressable>
       );
     },
     [selectedDate, countShifts, onSelectDate]
@@ -164,14 +181,18 @@ const CalendarComponent: React.FC<CalendarProps> = ({ shifts, selectedDate, onSe
       return (
         <TouchableOpacity
           key={index}
-          className={`m-0.5 h-8 items-center justify-center rounded-md ${
+          className={`m-0.5 items-center justify-center rounded-md ${
             isSelected
               ? 'bg-primary'
               : isTodayDate && !isSelected
                 ? 'border-[1.5px] border-primary'
                 : ''
           } ${!isCurrentMonth ? 'opacity-40' : ''}`}
-          style={{ width: DAY_WIDTH }}
+          style={{
+            width: DAY_WIDTH,
+            height: DAY_WIDTH,
+            backgroundColor: hasShift && !isSelected ? COLORS.hasShifts.bg : undefined,
+          }}
           activeOpacity={0.7}
           onPress={() => onSelectDate(date)}>
           <Text
@@ -187,6 +208,7 @@ const CalendarComponent: React.FC<CalendarProps> = ({ shifts, selectedDate, onSe
             {getDate(date)}
           </Text>
 
+          {/* Indicador de plantão (ponto abaixo do dia) */}
           {hasShift && (
             <View
               className={`absolute bottom-1 h-1 w-1 rounded-full ${
@@ -256,7 +278,6 @@ const CalendarComponent: React.FC<CalendarProps> = ({ shifts, selectedDate, onSe
             decelerationRate="fast"
             contentContainerClassName="px-2"
             keyExtractor={(item) => item.toISOString()}
-            initialScrollIndex={3} // Começar mostrando o dia de hoje
             getItemLayout={(data, index) => ({
               length: WEEK_ITEM_WIDTH,
               offset: WEEK_ITEM_WIDTH * index,
@@ -271,8 +292,11 @@ const CalendarComponent: React.FC<CalendarProps> = ({ shifts, selectedDate, onSe
         <View className="px-1 pb-1.5">
           {/* Dias da semana */}
           <View className="mb-1 flex-row">
-            {WEEKDAYS.map((day) => (
-              <View key={day} className="items-center py-1.5" style={{ width: DAY_WIDTH }}>
+            {WEEKDAYS.map((day, index) => (
+              <View
+                key={`weekday-${index}`}
+                className="items-center py-1.5"
+                style={{ width: DAY_WIDTH }}>
                 <Text className="text-xs font-medium text-text-light">{day}</Text>
               </View>
             ))}

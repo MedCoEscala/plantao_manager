@@ -1,3 +1,4 @@
+// app/(root)/(tabs)/index.tsx
 import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
@@ -13,20 +14,58 @@ import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useDialog } from '@/contexts/DialogContext';
-import { format, isSameDay, parseISO } from 'date-fns';
+import { format, isSameDay, parseISO, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import CalendarComponent from '@/components/CalendarComponent';
 import { useProfile } from '@/hooks/useProfile'; // Novo hook!
 
-// --- MOCK DATA --- (Substituir por chamadas reais depois)
-const MOCK_LOCATIONS: Record<string, string> = {
-  loc1: 'Hospital Central',
-  loc2: 'Clínica Sul',
+// Definindo tipo para as localizações
+type LocationType = {
+  id: string;
+  name: string;
+  address: string;
+  color: string;
 };
+
+// Definindo tipo para o objeto de localizações com assinatura de índice
+type LocationsType = {
+  [key: string]: LocationType;
+};
+
+// --- MOCK DATA MELHORADA --- (Substituir por chamadas reais depois)
+// Cria um objeto de localidades para uso no formulário e exibição
+const MOCK_LOCATIONS: LocationsType = {
+  loc1: {
+    id: 'loc1',
+    name: 'Hospital Central',
+    address: 'Av. Paulista, 1500',
+    color: '#0077B6',
+  },
+  loc2: {
+    id: 'loc2',
+    name: 'Clínica Sul',
+    address: 'Rua Augusta, 500',
+    color: '#EF476F',
+  },
+  loc3: {
+    id: 'loc3',
+    name: 'Posto de Saúde Norte',
+    address: 'Av. Brigadeiro Faria Lima, 1200',
+    color: '#06D6A0',
+  },
+};
+
+// Função auxiliar para gerar datas em relação a hoje
+const createDate = (daysOffset: number) => {
+  const date = addDays(new Date(), daysOffset);
+  return date.toISOString();
+};
+
+// Plantões futuros (próximos 30 dias)
 const MOCK_SHIFTS = [
   {
     id: '1',
-    date: '2024-08-15T10:00:00Z',
+    date: createDate(2), // Daqui 2 dias
     locationId: 'loc1',
     startTime: '08:00',
     endTime: '14:00',
@@ -35,7 +74,7 @@ const MOCK_SHIFTS = [
   },
   {
     id: '2',
-    date: '2024-08-17T14:00:00Z',
+    date: createDate(4), // Daqui 4 dias
     locationId: 'loc2',
     startTime: '13:00',
     endTime: '19:00',
@@ -44,23 +83,61 @@ const MOCK_SHIFTS = [
   },
   {
     id: '3',
-    date: '2024-08-20T09:00:00Z',
+    date: createDate(7), // Daqui 7 dias
     locationId: 'loc1',
     startTime: '07:00',
     endTime: '13:00',
     value: 1100,
     status: 'Agendado',
   },
+  {
+    id: '4',
+    date: createDate(7), // Mesmo dia do anterior (para testar múltiplos plantões)
+    locationId: 'loc3',
+    startTime: '14:00',
+    endTime: '22:00',
+    value: 1400,
+    status: 'Agendado',
+  },
+  {
+    id: '5',
+    date: createDate(10), // Daqui 10 dias
+    locationId: 'loc2',
+    startTime: '09:00',
+    endTime: '17:00',
+    value: 1250,
+    status: 'Agendado',
+  },
 ];
+
+// Plantões passados (últimos 30 dias)
 const MOCK_PAST_SHIFTS = [
   {
     id: 'p1',
-    date: '2024-08-10T10:00:00Z',
+    date: createDate(-3), // 3 dias atrás
     locationId: 'loc2',
     startTime: '08:00',
     endTime: '14:00',
     value: 1150,
     status: 'Concluído',
+  },
+  {
+    id: 'p2',
+    date: createDate(-7), // 7 dias atrás
+    locationId: 'loc1',
+    startTime: '07:00',
+    endTime: '19:00',
+    value: 1800,
+    status: 'Concluído',
+  },
+  {
+    id: 'p3',
+    date: createDate(-14), // 14 dias atrás
+    locationId: 'loc3',
+    startTime: '13:00',
+    endTime: '19:00',
+    value: 950,
+    status: 'Cancelado',
   },
 ];
 // --- FIM MOCK DATA ---
@@ -71,7 +148,7 @@ export default function ShiftsScreen() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const { profile, isLoading: isProfileLoading } = useProfile(); // Novo hook
+  const { profile, isLoading: isProfileLoading } = useProfile();
   const { showDialog } = useDialog();
   const router = useRouter();
 
@@ -117,36 +194,49 @@ export default function ShiftsScreen() {
     }, 1000);
   }, [showDialog]);
 
+  // Função modificada para navegar para a tela de adicionar plantão
   const navigateToAddShift = useCallback(() => {
-    showDialog({
-      title: 'Em desenvolvimento',
-      message: 'Adicionar plantão em breve!',
-      type: 'info',
-    });
-  }, [showDialog]);
+    // Em vez de mostrar um diálogo, navegamos para a tela de adição de plantão
+    router.push('/shifts/add');
+  }, [router]);
 
+  // Função para adicionar plantão na data selecionada
   const navigateToAddShiftOnDate = useCallback(() => {
-    showDialog({
-      title: 'Novo Plantão',
-      message: `Adicionar plantão para ${format(selectedDate, 'dd/MM/yyyy')}`,
-      type: 'info',
+    // Navega para a tela de adicionar plantão passando a data selecionada como parâmetro
+    router.push({
+      pathname: '/shifts/add',
+      params: { date: format(selectedDate, 'yyyy-MM-dd') },
     });
-  }, [selectedDate, showDialog]);
+  }, [selectedDate, router]);
 
+  // Função para navegar para os detalhes de um plantão
   const navigateToShiftDetails = useCallback(
     (shift: any) => {
-      showDialog({
-        title: 'Em desenvolvimento',
-        message: 'Detalhes do plantão em breve!',
-        type: 'info',
+      router.push({
+        pathname: `/shifts/${shift.id}`,
       });
     },
-    [showDialog]
+    [router]
   );
 
   const handleSelectDate = useCallback((date: Date) => {
     setSelectedDate(date);
   }, []);
+
+  // Obter informações de cor e nome do local com tratamento para undefined
+  const getLocationInfo = (locationId: string) => {
+    // Se não temos o locationId ou não existe nos mock locations, retornamos valores padrão
+    if (!locationId || !MOCK_LOCATIONS[locationId]) {
+      return {
+        name: 'Local desconhecido',
+        color: '#64748b', // cor padrão
+      };
+    }
+    return {
+      name: MOCK_LOCATIONS[locationId].name,
+      color: MOCK_LOCATIONS[locationId].color,
+    };
+  };
 
   const renderShiftItem = useCallback(
     ({ item }: { item: (typeof MOCK_SHIFTS)[0] }) => {
@@ -182,7 +272,7 @@ export default function ShiftsScreen() {
       };
 
       const statusInfo = getStatusInfo();
-      const locationName = MOCK_LOCATIONS[item.locationId] || 'Local desconhecido';
+      const locationInfo = getLocationInfo(item.locationId);
 
       return (
         <TouchableOpacity
@@ -196,7 +286,13 @@ export default function ShiftsScreen() {
                 <Text className="mt-2 text-sm text-text-light">
                   {item.startTime || '--:--'} - {item.endTime || '--:--'}
                 </Text>
-                <Text className="mt-1 text-sm text-text-light">{locationName}</Text>
+                <View className="mt-1 flex-row items-center">
+                  <View
+                    className="mr-2 h-3 w-3 rounded-full"
+                    style={{ backgroundColor: locationInfo.color }}
+                  />
+                  <Text className="text-sm text-text-light">{locationInfo.name}</Text>
+                </View>
               </View>
               <View className="items-end justify-between">
                 <View
