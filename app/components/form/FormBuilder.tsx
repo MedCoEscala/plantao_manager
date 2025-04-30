@@ -1,6 +1,7 @@
+// app/components/form/FormBuilder.tsx (update)
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
-import { FormFieldProps, BaseFieldProps } from './FormField';
+import { FormFieldProps } from './FormField';
 import FormField from './FormField';
 import Button from '../ui/Button';
 
@@ -41,9 +42,6 @@ const FormBuilder: React.FC<FormConfig> = ({
     if (field.required && (value === undefined || value === null || value === '')) {
       return `${field.label} é obrigatório`;
     }
-
-    // Aqui poderia haver mais validações específicas para cada tipo de campo
-
     return '';
   };
 
@@ -118,19 +116,34 @@ const FormBuilder: React.FC<FormConfig> = ({
   };
 
   const Content = (
-    <>
+    <View style={{ width: '100%' }}>
       {formTitle && (
-        <View className="mb-4">
-          <Text className="text-xl font-bold text-gray-800">{formTitle}</Text>
-          {formDescription && <Text className="mt-1 text-sm text-gray-600">{formDescription}</Text>}
+        <View style={{ marginBottom: 16 }}>
+          <Text style={{ fontSize: 18, fontWeight: '700', color: '#1e293b' }}>{formTitle}</Text>
+          {formDescription && (
+            <Text style={{ marginTop: 4, fontSize: 14, color: '#64748b' }}>{formDescription}</Text>
+          )}
         </View>
       )}
 
       {renderFields()}
 
-      <View className="mt-4 flex-row justify-end space-x-4">
+      <View
+        style={{
+          marginTop: 16,
+          flexDirection: 'row',
+          justifyContent: onCancel ? 'space-between' : 'flex-end',
+          width: '100%',
+        }}>
         {onCancel && (
-          <Button variant="outline" onPress={onCancel} disabled={loading} style={{ flex: 1 }}>
+          <Button
+            variant="outline"
+            onPress={onCancel}
+            disabled={loading}
+            style={{
+              flex: onCancel !== undefined ? 1 : 0,
+              marginRight: onCancel !== undefined ? 8 : 0,
+            }}>
             {cancelLabel}
           </Button>
         )}
@@ -142,25 +155,25 @@ const FormBuilder: React.FC<FormConfig> = ({
           {submitLabel}
         </Button>
       </View>
-    </>
+    </View>
   );
 
-  return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      className="flex-1">
-      {scrollable ? (
+  if (scrollable) {
+    return (
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}>
         <ScrollView
-          className="flex-1"
-          contentContainerClassName="p-4"
+          style={{ flex: 1 }}
+          contentContainerStyle={{ padding: 16 }}
           keyboardShouldPersistTaps="handled">
           {Content}
         </ScrollView>
-      ) : (
-        <View className="flex-1 p-4">{Content}</View>
-      )}
-    </KeyboardAvoidingView>
-  );
+      </KeyboardAvoidingView>
+    );
+  }
+
+  return <View style={{ flex: 1, padding: 16 }}>{Content}</View>;
 };
 
 export default FormBuilder;

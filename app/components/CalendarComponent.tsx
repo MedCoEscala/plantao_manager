@@ -1,6 +1,6 @@
 // app/components/CalendarComponent.tsx
 import React, { useState, useCallback, useMemo } from 'react';
-import { View, Text, TouchableOpacity, FlatList, Dimensions, Pressable } from 'react-native';
+import { View, Text, Pressable, FlatList, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import {
   format,
@@ -39,39 +39,20 @@ interface CalendarProps {
 
 const WEEKDAYS = ['D', 'S', 'T', 'Q', 'Qi', 'S', 'S']; // Iniciais dos dias da semana
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const DAY_WIDTH = Math.floor((SCREEN_WIDTH - 32) / 7); // 32 = padding horizontal total
-const WEEK_ITEM_WIDTH = Math.floor((SCREEN_WIDTH - 48) / 5); // 5 dias visíveis por vez, com padding
-
-// Constantes para cores
-const COLORS = {
-  primary: '#18cb96',
-  white: '#FFFFFF',
-  light: '#f8f9fa',
-  selected: '#18cb96',
-  today: '#18cb96',
-  textDark: '#1e293b',
-  textLight: '#64748b',
-  hasShifts: {
-    bg: '#18cb9620', // Cor de fundo para dias com plantões (com 20% de opacidade)
-    dot: '#18cb96', // Cor do marcador/indicador de plantões
-  },
-};
+const DAY_WIDTH = Math.floor((SCREEN_WIDTH - 40) / 7); // 40 = padding horizontal total
+const WEEK_ITEM_WIDTH = Math.floor((SCREEN_WIDTH - 64) / 5); // Increased padding for better display
 
 const CalendarComponent: React.FC<CalendarProps> = ({ shifts, selectedDate, onSelectDate }) => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [calendarView, setCalendarView] = useState<'week' | 'month'>('week');
 
-  // Calcula as datas para a visualização semanal
+  // Calculate dates for week view - create enough dates to enable proper scrolling
   const weekDates = useMemo(() => {
     const today = new Date();
-    const dates = [];
-    for (let i = -3; i < 11; i++) {
-      dates.push(addDays(today, i));
-    }
-    return dates;
+    return Array.from({ length: 21 }, (_, i) => addDays(today, i - 10));
   }, []);
 
-  // Calcula as datas para a visualização mensal
+  // Calculate dates for month view
   const monthDates = useMemo(() => {
     const monthStart = startOfMonth(currentMonth);
     const monthEnd = endOfMonth(currentMonth);
@@ -81,28 +62,15 @@ const CalendarComponent: React.FC<CalendarProps> = ({ shifts, selectedDate, onSe
     return eachDayOfInterval({ start: startDate, end: endDate });
   }, [currentMonth]);
 
-  // Navega para o próximo mês
   const nextMonth = useCallback(() => {
     setCurrentMonth(addMonths(currentMonth, 1));
   }, [currentMonth]);
 
-  // Navega para o mês anterior
   const prevMonth = useCallback(() => {
     setCurrentMonth(subMonths(currentMonth, 1));
   }, [currentMonth]);
 
-  // Verifica se uma data tem plantões
-  const hasShifts = useCallback(
-    (date: Date) => {
-      return shifts.some((shift) => {
-        const shiftDate = parseISO(shift.date);
-        return isSameDay(shiftDate, date);
-      });
-    },
-    [shifts]
-  );
-
-  // Conta o número de plantões em uma data
+  // Count shifts on a specific day
   const countShifts = useCallback(
     (date: Date) => {
       return shifts.filter((shift) => {
@@ -113,205 +81,290 @@ const CalendarComponent: React.FC<CalendarProps> = ({ shifts, selectedDate, onSe
     [shifts]
   );
 
-  // Renderiza um dia na visualização semanal
-  const renderWeekDay = useCallback(
-    ({ item }: { item: Date }) => {
-      const isSelected = isSameDay(item, selectedDate);
-      const isTodayDate = isToday(item);
-      const shiftCount = countShifts(item);
-      const hasShift = shiftCount > 0;
-      const weekdayLetter = format(item, 'EEEEE', { locale: ptBR }).toUpperCase();
+  // Using a plain function component instead of a callback to avoid navigation errors
+  function WeekDay({ item }: { item: Date }) {
+    const isSelected = isSameDay(item, selectedDate);
+    const isTodayDate = isToday(item);
+    const shiftCount = countShifts(item);
+    const hasShift = shiftCount > 0;
+    const weekdayLetter = format(item, 'EEEEE', { locale: ptBR }).toUpperCase();
 
-      return (
-        <Pressable
-          className={`mx-1 overflow-hidden rounded-2xl ${
-            isSelected
-              ? 'bg-primary shadow-sm shadow-primary/30'
-              : isTodayDate
-                ? 'border-[1.5px] border-primary'
-                : hasShift
-                  ? 'bg-[#18cb9620]' // Fundo verde claro para dias com plantões
-                  : ''
-          }`}
-          style={{ width: WEEK_ITEM_WIDTH }}
-          onPress={() => onSelectDate(item)}>
-          <View className={`items-center justify-center py-2 ${isSelected ? 'bg-primary' : ''}`}>
-            {/* Dia da semana (iniciais) */}
+    return (
+      <Pressable
+        onPress={() => onSelectDate(item)}
+        style={{
+          marginHorizontal: 4,
+          width: WEEK_ITEM_WIDTH,
+          height: 80,
+          borderRadius: 16,
+          overflow: 'hidden',
+          backgroundColor: isSelected
+            ? '#18cb96'
+            : isTodayDate
+              ? 'white'
+              : hasShift
+                ? '#18cb9620'
+                : 'white',
+          borderWidth: isTodayDate && !isSelected ? 1.5 : hasShift ? 0 : 1,
+          borderColor: isTodayDate && !isSelected ? '#18cb96' : '#e5e7eb',
+          justifyContent: 'center',
+          alignItems: 'center',
+          shadowColor: isSelected ? '#18cb96' : 'transparent',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.3,
+          shadowRadius: 4,
+          elevation: isSelected ? 3 : 0,
+        }}>
+        {/* Day of week (initials) */}
+        <Text
+          style={{
+            fontSize: 12,
+            fontWeight: '700',
+            marginBottom: 4,
+            color: isSelected ? 'white' : isTodayDate ? '#18cb96' : '#64748b',
+          }}>
+          {weekdayLetter}
+        </Text>
+
+        {/* Day number */}
+        <Text
+          style={{
+            fontSize: 18,
+            fontWeight: '700',
+            color: isSelected ? 'white' : isTodayDate ? '#18cb96' : '#1e293b',
+          }}>
+          {getDate(item)}
+        </Text>
+
+        {/* Shift indicator */}
+        {hasShift && (
+          <View
+            style={{
+              marginTop: 4,
+              minWidth: 18,
+              paddingHorizontal: 6,
+              paddingVertical: 2,
+              borderRadius: 10,
+              backgroundColor: isSelected ? 'white' : '#18cb96',
+              alignItems: 'center',
+            }}>
             <Text
-              className={`mb-1 text-xs font-bold ${
-                isSelected ? 'text-white' : isTodayDate ? 'text-primary' : 'text-text-light'
-              }`}>
-              {weekdayLetter}
+              style={{
+                fontSize: 10,
+                fontWeight: '700',
+                color: isSelected ? '#18cb96' : 'white',
+              }}>
+              {shiftCount}
             </Text>
-
-            {/* Número do dia */}
-            <Text
-              className={`text-lg font-bold ${
-                isSelected ? 'text-white' : isTodayDate ? 'text-primary' : 'text-text-dark'
-              }`}>
-              {getDate(item)}
-            </Text>
-
-            {/* Indicador de plantões */}
-            {hasShift && (
-              <View
-                className={`mt-1 min-w-[18px] items-center rounded-full px-2 py-0.5 ${
-                  isSelected ? 'bg-white' : 'bg-primary'
-                }`}>
-                <Text className={`text-xs font-bold ${isSelected ? 'text-primary' : 'text-white'}`}>
-                  {shiftCount}
-                </Text>
-              </View>
-            )}
           </View>
-        </Pressable>
-      );
-    },
-    [selectedDate, countShifts, onSelectDate]
-  );
+        )}
+      </Pressable>
+    );
+  }
 
-  // Renderiza um dia na visualização mensal
+  // Render month day without any navigation dependencies
   const renderMonthDay = useCallback(
     (date: Date, index: number) => {
       const isSelected = isSameDay(date, selectedDate);
       const isTodayDate = isToday(date);
       const isCurrentMonth = isSameMonth(date, currentMonth);
-      const hasShift = hasShifts(date);
+      const shiftCount = countShifts(date);
+      const hasShift = shiftCount > 0;
 
       return (
-        <TouchableOpacity
+        <Pressable
           key={index}
-          className={`m-0.5 items-center justify-center rounded-md ${
-            isSelected
-              ? 'bg-primary'
-              : isTodayDate && !isSelected
-                ? 'border-[1.5px] border-primary'
-                : ''
-          } ${!isCurrentMonth ? 'opacity-40' : ''}`}
           style={{
+            margin: 2,
             width: DAY_WIDTH,
             height: DAY_WIDTH,
-            backgroundColor: hasShift && !isSelected ? COLORS.hasShifts.bg : undefined,
+            borderRadius: 8,
+            justifyContent: 'center',
+            alignItems: 'center',
+            backgroundColor: isSelected
+              ? '#18cb96'
+              : hasShift && !isSelected
+                ? '#18cb9620'
+                : 'transparent',
+            borderWidth: isTodayDate && !isSelected ? 1.5 : 0,
+            borderColor: isTodayDate && !isSelected ? '#18cb96' : 'transparent',
+            opacity: !isCurrentMonth ? 0.4 : 1,
           }}
-          activeOpacity={0.7}
           onPress={() => onSelectDate(date)}>
           <Text
-            className={`text-xs font-medium ${
-              isSelected
-                ? 'text-white'
+            style={{
+              fontSize: 12,
+              fontWeight: isSelected || (isTodayDate && !isSelected) ? '700' : '500',
+              color: isSelected
+                ? 'white'
                 : !isCurrentMonth
-                  ? 'text-text-light'
+                  ? '#64748b'
                   : isTodayDate && !isSelected
-                    ? 'font-bold text-primary'
-                    : 'text-text-dark'
-            }`}>
+                    ? '#18cb96'
+                    : '#1e293b',
+            }}>
             {getDate(date)}
           </Text>
 
-          {/* Indicador de plantão (ponto abaixo do dia) */}
           {hasShift && (
-            <View
-              className={`absolute bottom-1 h-1 w-1 rounded-full ${
-                isSelected ? 'bg-white' : 'bg-primary'
-              }`}
-            />
+            <View style={{ position: 'absolute', bottom: 4, alignItems: 'center' }}>
+              <View
+                style={{
+                  paddingHorizontal: 5,
+                  borderRadius: 10,
+                  minWidth: 16,
+                  height: 16,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  backgroundColor: isSelected ? 'white' : '#18cb96',
+                }}>
+                <Text
+                  style={{
+                    fontSize: 10,
+                    fontWeight: '700',
+                    textAlign: 'center',
+                    color: isSelected ? '#18cb96' : 'white',
+                  }}>
+                  {shiftCount}
+                </Text>
+              </View>
+            </View>
           )}
-        </TouchableOpacity>
+        </Pressable>
       );
     },
-    [currentMonth, selectedDate, hasShifts, onSelectDate]
+    [currentMonth, selectedDate, countShifts, onSelectDate]
   );
 
-  // Alternância entre visualizações semanal e mensal
   const toggleCalendarView = () => {
     setCalendarView(calendarView === 'week' ? 'month' : 'week');
   };
 
   return (
-    <View className="border-b border-background-300 bg-white">
-      {/* Cabeçalho do calendário */}
-      <View className="flex-row items-center justify-between px-4 py-2">
-        <Text className="text-sm font-semibold text-text-dark">
+    <View style={{ borderBottomWidth: 1, borderBottomColor: '#e2e8f0', backgroundColor: 'white' }}>
+      {/* Header */}
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingHorizontal: 16,
+          paddingVertical: 12,
+          borderBottomWidth: 1,
+          borderBottomColor: '#f1f5f9',
+        }}>
+        <Text style={{ fontSize: 16, fontWeight: '600', color: '#1e293b' }}>
           {calendarView === 'month'
             ? format(currentMonth, 'MMMM yyyy', { locale: ptBR })
             : 'Minha Agenda'}
         </Text>
-        <View className="flex-row items-center">
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           {calendarView === 'month' && (
             <>
-              <TouchableOpacity
-                className="mr-1 h-7 w-7 items-center justify-center rounded-full bg-background-100"
+              <Pressable
+                style={{
+                  marginRight: 8,
+                  height: 32,
+                  width: 32,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: 16,
+                  backgroundColor: '#f8fafc',
+                }}
                 onPress={prevMonth}>
                 <Ionicons name="chevron-back" size={16} color="#1e293b" />
-              </TouchableOpacity>
-              <TouchableOpacity
-                className="mr-1.5 h-7 w-7 items-center justify-center rounded-full bg-background-100"
+              </Pressable>
+              <Pressable
+                style={{
+                  marginRight: 12,
+                  height: 32,
+                  width: 32,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: 16,
+                  backgroundColor: '#f8fafc',
+                }}
                 onPress={nextMonth}>
                 <Ionicons name="chevron-forward" size={16} color="#1e293b" />
-              </TouchableOpacity>
+              </Pressable>
             </>
           )}
-          <TouchableOpacity
-            className="flex-row items-center rounded-xl bg-primary px-2 py-1"
+          <Pressable
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              backgroundColor: '#18cb96',
+              paddingHorizontal: 12,
+              paddingVertical: 6,
+              borderRadius: 12,
+            }}
             onPress={toggleCalendarView}>
             <Ionicons
               name={calendarView === 'week' ? 'calendar-outline' : 'list-outline'}
-              size={14}
+              size={16}
               color="#fff"
             />
-            <Text className="ml-1 text-xs font-medium text-white">
+            <Text style={{ marginLeft: 4, fontSize: 12, fontWeight: '500', color: 'white' }}>
               {calendarView === 'week' ? 'Mês' : 'Semana'}
             </Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </View>
 
-      {/* Visualização semanal */}
+      {/* Week view - completely rewritten to avoid navigation errors */}
       {calendarView === 'week' && (
-        <View className="py-1.5">
+        <View style={{ paddingVertical: 12 }}>
           <FlatList
             data={weekDates}
-            renderItem={renderWeekDay}
+            renderItem={({ item }) => <WeekDay item={item} />}
             horizontal
             showsHorizontalScrollIndicator={false}
-            snapToInterval={WEEK_ITEM_WIDTH}
-            decelerationRate="fast"
-            contentContainerClassName="px-2"
+            contentContainerStyle={{ paddingHorizontal: 12 }}
             keyExtractor={(item) => item.toISOString()}
             getItemLayout={(data, index) => ({
-              length: WEEK_ITEM_WIDTH,
-              offset: WEEK_ITEM_WIDTH * index,
+              length: WEEK_ITEM_WIDTH + 8,
+              offset: (WEEK_ITEM_WIDTH + 8) * index,
               index,
             })}
+            initialScrollIndex={10}
           />
         </View>
       )}
 
-      {/* Visualização mensal */}
+      {/* Month view */}
       {calendarView === 'month' && (
-        <View className="px-1 pb-1.5">
-          {/* Dias da semana */}
-          <View className="mb-1 flex-row">
+        <View style={{ paddingHorizontal: 4, paddingBottom: 8 }}>
+          {/* Days of week */}
+          <View style={{ flexDirection: 'row', marginBottom: 4 }}>
             {WEEKDAYS.map((day, index) => (
               <View
                 key={`weekday-${index}`}
-                className="items-center py-1.5"
-                style={{ width: DAY_WIDTH }}>
-                <Text className="text-xs font-medium text-text-light">{day}</Text>
+                style={{
+                  width: DAY_WIDTH,
+                  alignItems: 'center',
+                  paddingVertical: 8,
+                }}>
+                <Text style={{ fontSize: 12, fontWeight: '500', color: '#64748b' }}>{day}</Text>
               </View>
             ))}
           </View>
 
-          {/* Grid de dias */}
-          <View className="flex-row flex-wrap">
+          {/* Grid of days */}
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
             {monthDates.map((date, index) => renderMonthDay(date, index))}
           </View>
         </View>
       )}
 
-      {/* Data selecionada */}
-      <View className="border-t border-background-100 px-4 py-1.5">
-        <Text className="text-sm font-semibold text-text-dark">
+      {/* Selected date display */}
+      <View
+        style={{
+          borderTopWidth: 1,
+          borderTopColor: '#f1f5f9',
+          paddingHorizontal: 16,
+          paddingVertical: 8,
+        }}>
+        <Text style={{ fontSize: 14, fontWeight: '600', color: '#1e293b' }}>
           {format(selectedDate, "dd 'de' MMMM", { locale: ptBR })}
         </Text>
       </View>

@@ -7,19 +7,20 @@ import {
   FlatList,
   ActivityIndicator,
   RefreshControl,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useDialog } from '@/contexts/DialogContext';
-import { format, isSameDay, parseISO, addDays } from 'date-fns';
+import { format, isSameDay, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import CalendarComponent from '@/components/CalendarComponent';
-import { useProfile } from '@/hooks/useProfile'; // Novo hook!
+import { useProfile } from '@/hooks/useProfile';
+import ShiftFormModal from '@/components/shifts/ShiftFormModal';
+import { useToast } from '@/components';
 
-// Definindo tipo para as localizações
+// Defining types for locations
 type LocationType = {
   id: string;
   name: string;
@@ -27,13 +28,13 @@ type LocationType = {
   color: string;
 };
 
-// Definindo tipo para o objeto de localizações com assinatura de índice
+// Defining type for the locations object with index signature
 type LocationsType = {
   [key: string]: LocationType;
 };
 
-// --- MOCK DATA MELHORADA --- (Substituir por chamadas reais depois)
-// Cria um objeto de localidades para uso no formulário e exibição
+// --- IMPROVED MOCK DATA --- (Replace with real API calls later)
+// Create a locations object for use in the form and display
 const MOCK_LOCATIONS: LocationsType = {
   loc1: {
     id: 'loc1',
@@ -55,17 +56,18 @@ const MOCK_LOCATIONS: LocationsType = {
   },
 };
 
-// Função auxiliar para gerar datas em relação a hoje
+// Helper function to generate dates relative to today
 const createDate = (daysOffset: number) => {
-  const date = addDays(new Date(), daysOffset);
+  const date = new Date();
+  date.setDate(date.getDate() + daysOffset);
   return date.toISOString();
 };
 
-// Plantões futuros (próximos 30 dias)
+// Future shifts (next 30 days)
 const MOCK_SHIFTS = [
   {
     id: '1',
-    date: createDate(2), // Daqui 2 dias
+    date: createDate(2), // 2 days from now
     locationId: 'loc1',
     startTime: '08:00',
     endTime: '14:00',
@@ -74,7 +76,7 @@ const MOCK_SHIFTS = [
   },
   {
     id: '2',
-    date: createDate(4), // Daqui 4 dias
+    date: createDate(4), // 4 days from now
     locationId: 'loc2',
     startTime: '13:00',
     endTime: '19:00',
@@ -83,7 +85,7 @@ const MOCK_SHIFTS = [
   },
   {
     id: '3',
-    date: createDate(7), // Daqui 7 dias
+    date: createDate(7), // 7 days from now
     locationId: 'loc1',
     startTime: '07:00',
     endTime: '13:00',
@@ -92,7 +94,7 @@ const MOCK_SHIFTS = [
   },
   {
     id: '4',
-    date: createDate(7), // Mesmo dia do anterior (para testar múltiplos plantões)
+    date: createDate(7), // Same day as previous one (to test multiple shifts)
     locationId: 'loc3',
     startTime: '14:00',
     endTime: '22:00',
@@ -101,7 +103,7 @@ const MOCK_SHIFTS = [
   },
   {
     id: '5',
-    date: createDate(10), // Daqui 10 dias
+    date: createDate(10), // 10 days from now
     locationId: 'loc2',
     startTime: '09:00',
     endTime: '17:00',
@@ -110,11 +112,11 @@ const MOCK_SHIFTS = [
   },
 ];
 
-// Plantões passados (últimos 30 dias)
+// Past shifts (last 30 days)
 const MOCK_PAST_SHIFTS = [
   {
     id: 'p1',
-    date: createDate(-3), // 3 dias atrás
+    date: createDate(-3), // 3 days ago
     locationId: 'loc2',
     startTime: '08:00',
     endTime: '14:00',
@@ -123,7 +125,7 @@ const MOCK_PAST_SHIFTS = [
   },
   {
     id: 'p2',
-    date: createDate(-7), // 7 dias atrás
+    date: createDate(-7), // 7 days ago
     locationId: 'loc1',
     startTime: '07:00',
     endTime: '19:00',
@@ -132,7 +134,7 @@ const MOCK_PAST_SHIFTS = [
   },
   {
     id: 'p3',
-    date: createDate(-14), // 14 dias atrás
+    date: createDate(-14), // 14 days ago
     locationId: 'loc3',
     startTime: '13:00',
     endTime: '19:00',
@@ -140,28 +142,31 @@ const MOCK_PAST_SHIFTS = [
     status: 'Cancelado',
   },
 ];
-// --- FIM MOCK DATA ---
+// --- END MOCK DATA ---
 
 export default function ShiftsScreen() {
   const [upcomingShifts, setUpcomingShifts] = useState(MOCK_SHIFTS);
   const [pastShifts, setPastShifts] = useState(MOCK_PAST_SHIFTS);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isAddModalVisible, setIsAddModalVisible] = useState(false);
+  const [modalInitialDate, setModalInitialDate] = useState<Date | null>(null);
 
   const { profile, isLoading: isProfileLoading } = useProfile();
   const { showDialog } = useDialog();
+  const { showToast } = useToast();
   const router = useRouter();
 
-  // Extrair o nome do usuário do profile
+  // Extract user name from profile
   const userName = useMemo(() => {
     if (isProfileLoading || !profile) return 'Usuário';
 
-    // Tenta combinar firstName e lastName
+    // Try to combine firstName and lastName
     if (profile.firstName || profile.lastName) {
       return ((profile.firstName || '') + ' ' + (profile.lastName || '')).trim();
     }
 
-    // Ou usa o campo name, se estiver disponível
+    // Or use the name field if available
     if (profile.name) {
       return profile.name;
     }
@@ -169,19 +174,19 @@ export default function ShiftsScreen() {
     return 'Usuário';
   }, [profile, isProfileLoading]);
 
-  // Combina todos os plantões (futuros e passados)
+  // Combine all shifts (future and past)
   const allShifts = useMemo(() => {
     return [...upcomingShifts, ...pastShifts];
   }, [upcomingShifts, pastShifts]);
 
-  // Filtra os plantões para a data selecionada
+  // Filter shifts for the selected date
   const shiftsForSelectedDate = useMemo(() => {
     return allShifts.filter((shift) => isSameDay(parseISO(shift.date), selectedDate));
   }, [allShifts, selectedDate]);
 
   const handleRefresh = useCallback(() => {
     setIsRefreshing(true);
-    // Simula atualização dos dados (substituir por chamada real)
+    // Simulate data refresh (replace with real API call)
     setTimeout(() => {
       setUpcomingShifts(MOCK_SHIFTS);
       setPastShifts(MOCK_PAST_SHIFTS);
@@ -194,22 +199,19 @@ export default function ShiftsScreen() {
     }, 1000);
   }, [showDialog]);
 
-  // Função modificada para navegar para a tela de adicionar plantão
+  // Show modal to add a shift
   const navigateToAddShift = useCallback(() => {
-    // Em vez de mostrar um diálogo, navegamos para a tela de adição de plantão
-    router.push('/shifts/add');
-  }, [router]);
+    setModalInitialDate(null);
+    setIsAddModalVisible(true);
+  }, []);
 
-  // Função para adicionar plantão na data selecionada
+  // Show modal to add a shift on the selected date
   const navigateToAddShiftOnDate = useCallback(() => {
-    // Navega para a tela de adicionar plantão passando a data selecionada como parâmetro
-    router.push({
-      pathname: '/shifts/add',
-      params: { date: format(selectedDate, 'yyyy-MM-dd') },
-    });
-  }, [selectedDate, router]);
+    setModalInitialDate(selectedDate);
+    setIsAddModalVisible(true);
+  }, [selectedDate]);
 
-  // Função para navegar para os detalhes de um plantão
+  // Navigate to shift details
   const navigateToShiftDetails = useCallback(
     (shift: any) => {
       router.push({
@@ -223,13 +225,20 @@ export default function ShiftsScreen() {
     setSelectedDate(date);
   }, []);
 
-  // Obter informações de cor e nome do local com tratamento para undefined
+  // Success handler for modal
+  const handleAddSuccess = useCallback(() => {
+    showToast('Plantão adicionado com sucesso!', 'success');
+    setIsAddModalVisible(false);
+    // Optionally refresh data here
+  }, [showToast]);
+
+  // Get color and name info for a location with handling for undefined
   const getLocationInfo = (locationId: string) => {
-    // Se não temos o locationId ou não existe nos mock locations, retornamos valores padrão
+    // If we don't have the locationId or it doesn't exist in mock locations, return default values
     if (!locationId || !MOCK_LOCATIONS[locationId]) {
       return {
         name: 'Local desconhecido',
-        color: '#64748b', // cor padrão
+        color: '#64748b', // default color
       };
     }
     return {
@@ -359,7 +368,7 @@ export default function ShiftsScreen() {
     [navigateToAddShift]
   );
 
-  // Mostrar indicator enquanto carrega o perfil
+  // Show loader while loading profile
   if (isProfileLoading) {
     return (
       <View className="flex-1 items-center justify-center bg-background">
@@ -372,7 +381,7 @@ export default function ShiftsScreen() {
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
       <StatusBar style="dark" />
 
-      {/* Header Section - Reduzido em altura */}
+      {/* Header Section */}
       <View className="border-b border-background-300 bg-white">
         <View className="flex-row items-center justify-between px-4 py-2">
           <View>
@@ -392,7 +401,7 @@ export default function ShiftsScreen() {
         </View>
       </View>
 
-      {/* Componente de Calendário */}
+      {/* Calendar Component */}
       <CalendarComponent
         shifts={allShifts}
         selectedDate={selectedDate}
@@ -435,6 +444,14 @@ export default function ShiftsScreen() {
         onPress={navigateToAddShift}>
         <Ionicons name="add" size={28} color="#FFFFFF" />
       </TouchableOpacity>
+
+      {/* Add Shift Modal */}
+      <ShiftFormModal
+        visible={isAddModalVisible}
+        onClose={() => setIsAddModalVisible(false)}
+        initialDate={modalInitialDate}
+        onSuccess={handleAddSuccess}
+      />
     </SafeAreaView>
   );
 }

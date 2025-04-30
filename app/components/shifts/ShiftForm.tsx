@@ -1,4 +1,3 @@
-// app/components/shifts/ShiftForm.tsx
 import React, { useState, useEffect } from 'react';
 import { View, Text } from 'react-native';
 import { format } from 'date-fns';
@@ -8,7 +7,6 @@ import { FormFieldProps } from '../form/FormField';
 import { useToast } from '@/components/ui/Toast';
 import { useDialog } from '@/contexts/DialogContext';
 
-// Mock de dados de locais (substituir por dados reais depois)
 const MOCK_LOCATIONS = [
   { id: 'loc1', name: 'Hospital Central', color: '#0077B6', address: 'Av. Paulista, 1500' },
   { id: 'loc2', name: 'Clínica Sul', color: '#EF476F', address: 'Rua Augusta, 500' },
@@ -20,14 +18,12 @@ const MOCK_LOCATIONS = [
   },
 ];
 
-// Mock de dados de contratantes (substituir por dados reais)
 const MOCK_CONTRACTORS = [
   { id: 'cont1', name: 'Hospital Estadual' },
   { id: 'cont2', name: 'Secretaria Municipal de Saúde' },
   { id: 'cont3', name: 'Clínica Particular' },
 ];
 
-// Interface para os dados do plantão
 interface ShiftFormData {
   id?: string;
   date: Date;
@@ -42,12 +38,18 @@ interface ShiftFormData {
 }
 
 interface ShiftFormProps {
-  shiftId?: string; // Se fornecido, estamos editando um plantão existente
-  initialDate?: Date | null; // Data inicial, se selecionada na tela de calendário
+  shiftId?: string;
+  initialDate?: Date | null;
   onSuccess?: () => void;
+  isModal?: boolean;
 }
 
-const ShiftForm: React.FC<ShiftFormProps> = ({ shiftId, initialDate, onSuccess }) => {
+const ShiftForm: React.FC<ShiftFormProps> = ({
+  shiftId,
+  initialDate,
+  onSuccess,
+  isModal = false,
+}) => {
   const [isLoading, setIsLoading] = useState(false);
   const [initialValues, setInitialValues] = useState<Partial<ShiftFormData>>({
     date: initialDate || new Date(),
@@ -62,17 +64,12 @@ const ShiftForm: React.FC<ShiftFormProps> = ({ shiftId, initialDate, onSuccess }
   const { showToast } = useToast();
   const { showDialog } = useDialog();
 
-  // Atualizar a data inicial se recebemos uma data da tela de calendário
   useEffect(() => {
     if (initialDate) {
-      // Criamos um novo objeto para evitar mutações em initialValues
       const updatedValues = { ...initialValues };
 
-      // Atualizar a data
       updatedValues.date = initialDate;
 
-      // Atualizar também os horários mantendo a hora/minuto atuais
-      // mas usando a data selecionada
       if (updatedValues.startTime) {
         const startHours = updatedValues.startTime.getHours();
         const startMinutes = updatedValues.startTime.getMinutes();
@@ -95,25 +92,20 @@ const ShiftForm: React.FC<ShiftFormProps> = ({ shiftId, initialDate, onSuccess }
     }
   }, [initialDate]);
 
-  // Se temos um shiftId, carregamos os dados do plantão
   useEffect(() => {
     if (shiftId) {
       loadShiftData();
     }
   }, [shiftId]);
 
-  // Função para carregar dados de um plantão existente (mock)
   const loadShiftData = async () => {
     setIsLoading(true);
     try {
-      // Aqui você faria uma chamada API real
-      // Por enquanto, simulamos com dados estáticos
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      // Dados simulados
       const today = new Date();
       const shiftDate = new Date(today);
-      shiftDate.setDate(today.getDate() + 5); // 5 dias à frente
+      shiftDate.setDate(today.getDate() + 5);
 
       const startTime = new Date(shiftDate);
       startTime.setHours(8, 0, 0, 0);
@@ -214,7 +206,7 @@ const ShiftForm: React.FC<ShiftFormProps> = ({ shiftId, initialDate, onSuccess }
       title: 'Cancelar',
       message: 'Deseja realmente cancelar? Todas as alterações serão perdidas.',
       type: 'confirm',
-      onConfirm: () => router.back(),
+      onConfirm: () => (isModal ? onSuccess?.() : router.back()),
     });
   };
 
@@ -313,21 +305,29 @@ const ShiftForm: React.FC<ShiftFormProps> = ({ shiftId, initialDate, onSuccess }
     },
   ];
 
+  // Determine the submit button label based on context
+  const submitLabel = isModal ? 'Salvar Plantão' : shiftId ? 'Atualizar' : 'Salvar';
+
   return (
-    <FormBuilder
-      fields={formFields}
-      initialValues={initialValues}
-      onSubmit={handleSubmit}
-      onCancel={handleCancel}
-      loading={isLoading}
-      submitLabel={shiftId ? 'Atualizar' : 'Salvar'}
-      formTitle={shiftId ? 'Editar Plantão' : 'Novo Plantão'}
-      formDescription={
-        shiftId
-          ? `Editando plantão de ${initialValues.date ? format(initialValues.date, 'dd/MM/yyyy') : ''}`
-          : 'Preencha os dados para adicionar um novo plantão'
-      }
-    />
+    <View style={{ width: '100%' }}>
+      <FormBuilder
+        fields={formFields}
+        initialValues={initialValues}
+        onSubmit={handleSubmit}
+        onCancel={handleCancel}
+        loading={isLoading}
+        submitLabel={isModal ? 'Salvar Plantão' : shiftId ? 'Atualizar' : 'Salvar'}
+        formTitle={isModal ? undefined : shiftId ? 'Editar Plantão' : 'Novo Plantão'}
+        formDescription={
+          isModal
+            ? undefined
+            : shiftId
+              ? `Editando plantão de ${initialValues.date ? format(initialValues.date, 'dd/MM/yyyy') : ''}`
+              : 'Preencha os dados para adicionar um novo plantão'
+        }
+        scrollable={false} // Don't use ScrollView within FormBuilder when in modal
+      />
+    </View>
   );
 };
 
