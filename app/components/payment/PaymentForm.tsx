@@ -1,6 +1,5 @@
-// app/components/payments/PaymentForm.tsx
 import React, { useState, useEffect } from 'react';
-import { View, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View } from 'react-native';
 import { format } from 'date-fns';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -146,78 +145,72 @@ export default function PaymentForm({ paymentId, shiftId, onSuccess, onCancel }:
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      className="flex-1 bg-white">
-      <ScrollView className="flex-1 px-4 py-6">
-        <View className="space-y-4">
-          <SelectField
-            label="Plantão"
-            value={selectedShiftId}
-            onValueChange={setSelectedShiftId}
-            options={MOCK_SHIFTS}
-            placeholder="Selecione o plantão"
-            required
-            error={errors.shiftId}
-          />
+    <View className="space-y-4">
+      <SelectField
+        label="Plantão"
+        value={selectedShiftId}
+        onValueChange={setSelectedShiftId}
+        options={MOCK_SHIFTS}
+        placeholder="Selecione o plantão"
+        required
+        error={errors.shiftId}
+      />
 
-          <Input
-            label="Valor"
-            value={amount}
-            onChangeText={(text) => setAmount(formatAmount(text))}
-            placeholder="0,00"
-            keyboardType="numeric"
-            leftIcon="cash-outline"
-            required
-            error={errors.amount}
-          />
+      <Input
+        label="Valor"
+        value={amount}
+        onChangeText={(text) => setAmount(formatAmount(text))}
+        placeholder="0,00"
+        keyboardType="numeric"
+        leftIcon="cash-outline"
+        required
+        error={errors.amount}
+      />
 
-          <DateField
-            label="Data do Pagamento"
-            value={paymentDate}
-            onChange={setPaymentDate}
-            mode="date"
-          />
+      <DateField
+        label="Data do Pagamento"
+        value={paymentDate}
+        onChange={setPaymentDate}
+        mode="date"
+      />
 
-          <SelectField
-            label="Método de Pagamento"
-            value={method}
-            onValueChange={setMethod}
-            options={PAYMENT_METHODS}
-            placeholder="Selecione o método"
-            required
-            error={errors.method}
-          />
+      <SelectField
+        label="Método de Pagamento"
+        value={method}
+        onValueChange={setMethod}
+        options={PAYMENT_METHODS}
+        placeholder="Selecione o método"
+        required
+        error={errors.method}
+      />
 
-          <SwitchField
-            label="Pagamento Recebido"
-            value={isPaid}
-            onValueChange={setIsPaid}
-            helperText="Marque se o pagamento já foi recebido"
-          />
+      <SwitchField
+        label="Pagamento Recebido"
+        value={isPaid}
+        onValueChange={setIsPaid}
+        helperText="Marque se o pagamento já foi recebido"
+      />
 
-          <Input
-            label="Observações"
-            value={notes}
-            onChangeText={setNotes}
-            placeholder="Observações adicionais (opcional)"
-            multiline
-            numberOfLines={3}
-            autoCapitalize="sentences"
-          />
+      <Input
+        label="Observações"
+        value={notes}
+        onChangeText={setNotes}
+        placeholder="Observações adicionais (opcional)"
+        multiline
+        numberOfLines={3}
+        autoCapitalize="sentences"
+      />
 
-          <View className="mt-4 flex-row space-x-3">
-            {onCancel && (
-              <Button variant="outline" onPress={onCancel} disabled={isLoading} className="flex-1">
-                Cancelar
-              </Button>
-            )}
-            <Button variant="primary" onPress={handleSubmit} loading={isLoading} className="flex-1">
-              {paymentId ? 'Atualizar' : 'Registrar Pagamento'}
-            </Button>
-          </View>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      <View className="mt-4 flex-row space-x-3">
+        {onCancel && (
+          <Button variant="outline" onPress={onCancel} disabled={isLoading} className="flex-1">
+            Cancelar
+          </Button>
+        )}
+        <Button variant="primary" onPress={handleSubmit} loading={isLoading} className="flex-1">
+          {paymentId ? 'Atualizar' : 'Registrar Pagamento'}
+        </Button>
+      </View>
+    </View>
   );
 }

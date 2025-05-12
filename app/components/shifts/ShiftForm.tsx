@@ -1,6 +1,5 @@
-// app/components/shifts/ShiftForm.tsx (modificado)
 import React, { useState, useEffect } from 'react';
-import { View, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View } from 'react-native';
 import { format } from 'date-fns';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -9,7 +8,6 @@ import DateField from '@/components/form/DateField';
 import SelectField from '@/components/form/SelectField';
 import SwitchField from '@/components/form/SwitchField';
 
-// Usar suas constantes existentes
 const PAYMENT_TYPE_OPTIONS = [
   { label: 'Pessoa Física (PF)', value: 'PF' },
   { label: 'Pessoa Jurídica (PJ)', value: 'PJ' },
@@ -178,101 +176,95 @@ export default function ShiftForm({
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      className="flex-1 bg-white">
-      <ScrollView className="flex-1 px-4 py-6">
-        <View className="space-y-4">
-          <DateField label="Data do Plantão" value={date} onChange={setDate} mode="date" required />
+    <View className="space-y-4">
+      <DateField label="Data do Plantão" value={date} onChange={setDate} mode="date" required />
 
-          <View className="flex-row space-x-3">
-            <DateField
-              label="Horário de Início"
-              value={startTime}
-              onChange={setStartTime}
-              mode="time"
-              required
-              className="flex-1"
-            />
+      <View className="flex-row space-x-3">
+        <DateField
+          label="Horário de Início"
+          value={startTime}
+          onChange={setStartTime}
+          mode="time"
+          required
+          className="flex-1"
+        />
 
-            <DateField
-              label="Horário de Término"
-              value={endTime}
-              onChange={setEndTime}
-              mode="time"
-              required
-              error={errors.endTime}
-              className="flex-1"
-            />
-          </View>
+        <DateField
+          label="Horário de Término"
+          value={endTime}
+          onChange={setEndTime}
+          mode="time"
+          required
+          error={errors.endTime}
+          className="flex-1"
+        />
+      </View>
 
-          <SelectField
-            label="Local"
-            value={locationId}
-            onValueChange={setLocationId}
-            options={MOCK_LOCATIONS}
-            placeholder="Selecione o local"
-            required
-            error={errors.locationId}
-          />
+      <SelectField
+        label="Local"
+        value={locationId}
+        onValueChange={setLocationId}
+        options={MOCK_LOCATIONS}
+        placeholder="Selecione o local"
+        required
+        error={errors.locationId}
+      />
 
-          <SelectField
-            label="Contratante"
-            value={contractorId}
-            onValueChange={setContractorId}
-            options={MOCK_CONTRACTORS}
-            placeholder="Selecione o contratante (opcional)"
-          />
+      <SelectField
+        label="Contratante"
+        value={contractorId}
+        onValueChange={setContractorId}
+        options={MOCK_CONTRACTORS}
+        placeholder="Selecione o contratante (opcional)"
+      />
 
-          <Input
-            label="Valor do Plantão"
-            value={value}
-            onChangeText={(text) => setValue(formatValue(text))}
-            placeholder="0,00"
-            keyboardType="numeric"
-            leftIcon="cash-outline"
-            required
-            error={errors.value}
-            helperText="Informe o valor bruto do plantão"
-          />
+      <Input
+        label="Valor do Plantão"
+        value={value}
+        onChangeText={(text) => setValue(formatValue(text))}
+        placeholder="0,00"
+        keyboardType="numeric"
+        leftIcon="cash-outline"
+        required
+        error={errors.value}
+        helperText="Informe o valor bruto do plantão"
+      />
 
-          <SelectField
-            label="Tipo de Pagamento"
-            value={paymentType}
-            onValueChange={setPaymentType}
-            options={PAYMENT_TYPE_OPTIONS}
-            required
-          />
+      <SelectField
+        label="Tipo de Pagamento"
+        value={paymentType}
+        onValueChange={setPaymentType}
+        options={PAYMENT_TYPE_OPTIONS}
+        required
+      />
 
-          <SwitchField
-            label="Plantão Fixo"
-            value={isFixed}
-            onValueChange={setIsFixed}
-            helperText="Ative para plantões que se repetem regularmente"
-          />
+      <SwitchField
+        label="Plantão Fixo"
+        value={isFixed}
+        onValueChange={setIsFixed}
+        helperText="Ative para plantões que se repetem regularmente"
+      />
 
-          <Input
-            label="Observações"
-            value={notes}
-            onChangeText={setNotes}
-            placeholder="Observações adicionais (opcional)"
-            multiline
-            numberOfLines={4}
-            autoCapitalize="sentences"
-          />
+      <Input
+        label="Observações"
+        value={notes}
+        onChangeText={setNotes}
+        placeholder="Observações adicionais (opcional)"
+        multiline
+        numberOfLines={4}
+        autoCapitalize="sentences"
+      />
 
-          <View className="mt-4 flex-row space-x-3">
-            {onCancel && (
-              <Button variant="outline" onPress={onCancel} disabled={isLoading} className="flex-1">
-                Cancelar
-              </Button>
-            )}
-            <Button variant="primary" onPress={handleSubmit} loading={isLoading} className="flex-1">
-              {shiftId ? 'Atualizar' : 'Salvar'}
-            </Button>
-          </View>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      <View className="mt-4 flex-row space-x-3">
+        {onCancel && (
+          <Button variant="outline" onPress={onCancel} disabled={isLoading} className="flex-1">
+            Cancelar
+          </Button>
+        )}
+        <Button variant="primary" onPress={handleSubmit} loading={isLoading} className="flex-1">
+          {shiftId ? 'Atualizar' : 'Salvar'}
+        </Button>
+      </View>
+    </View>
   );
 }

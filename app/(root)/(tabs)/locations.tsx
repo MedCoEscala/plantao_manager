@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useDialog } from '@/contexts/DialogContext';
 import { useToast } from '@/components/ui/Toast';
+import { LocationFormModal } from '@/components'; // Importa o LocationFormModal
 
 interface Location {
   id: string;
@@ -76,6 +77,8 @@ export default function LocationsScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   const fadeAnim = useState(new Animated.Value(0))[0];
+  const [isAddModalVisible, setIsAddModalVisible] = useState(false);
+  const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
 
   const { showDialog } = useDialog();
   const { showToast } = useToast();
@@ -136,19 +139,25 @@ export default function LocationsScreen() {
     [showDialog, showToast]
   );
 
-  const navigateToEdit = useCallback(
-    (location: Location) => {
-      router.push({
-        pathname: '/locations/edit',
-        params: { id: location.id },
-      });
-    },
-    [router]
-  );
+  const handleEditLocation = useCallback((location: Location) => {
+    setSelectedLocation(location);
+    setIsAddModalVisible(true);
+  }, []);
 
-  const navigateToAdd = useCallback(() => {
-    router.push('/locations/add');
-  }, [router]);
+  const handleAddLocation = useCallback(() => {
+    setSelectedLocation(null);
+    setIsAddModalVisible(true);
+  }, []);
+
+  const handleModalClose = useCallback(() => {
+    setIsAddModalVisible(false);
+    setSelectedLocation(null);
+  }, []);
+
+  const handleModalSuccess = useCallback(() => {
+    setIsAddModalVisible(false);
+    loadLocations();
+  }, [loadLocations]);
 
   const toggleSearch = useCallback(() => {
     if (showSearch && searchQuery) {
@@ -190,7 +199,7 @@ export default function LocationsScreen() {
               borderLeftColor: item.color,
             }}
             activeOpacity={0.7}
-            onPress={() => navigateToEdit(item)}>
+            onPress={() => handleEditLocation(item)}>
             <View className="flex-row">
               <View className="flex-1 p-4">
                 <View className="mb-1 flex-row items-center">
@@ -234,13 +243,14 @@ export default function LocationsScreen() {
         </Animated.View>
       );
     },
-    [confirmDelete, navigateToEdit]
+    [confirmDelete, handleEditLocation]
   );
 
   return (
-    <SafeAreaView className="flex-1 bg-background">
+    <SafeAreaView className="flex-1 bg-background" edges={['top']}>
       <StatusBar style="dark" />
 
+      {/* Custom Header - Sem Duplicação */}
       <View className="z-10 border-b border-background-300 bg-white px-4 py-3">
         <View className="flex-row items-center justify-between">
           <Text className="text-xl font-bold text-text-dark">Meus Locais</Text>
@@ -329,7 +339,7 @@ export default function LocationsScreen() {
           {!searchQuery && (
             <TouchableOpacity
               className="mt-6 flex-row items-center rounded-lg bg-primary px-4 py-2.5 shadow-sm"
-              onPress={navigateToAdd}>
+              onPress={handleAddLocation}>
               <Ionicons name="add-circle-outline" size={20} color="#FFFFFF" />
               <Text className="ml-2 font-medium text-white">Adicionar Local</Text>
             </TouchableOpacity>
@@ -342,10 +352,18 @@ export default function LocationsScreen() {
           className="absolute bottom-6 right-6 h-14 w-14 items-center justify-center rounded-full bg-primary shadow-lg"
           style={{ elevation: 4 }}
           activeOpacity={0.9}
-          onPress={navigateToAdd}>
+          onPress={handleAddLocation}>
           <Ionicons name="add" size={28} color="#FFFFFF" />
         </TouchableOpacity>
       )}
+
+      {/* Modal de Adicionar/Editar Local */}
+      <LocationFormModal
+        visible={isAddModalVisible}
+        onClose={handleModalClose}
+        locationId={selectedLocation?.id}
+        onSuccess={handleModalSuccess}
+      />
     </SafeAreaView>
   );
 }

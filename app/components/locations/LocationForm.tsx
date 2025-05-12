@@ -1,6 +1,5 @@
-// app/components/locations/LocationForm.tsx (modificado)
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text } from 'react-native';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { useToast } from '@/components/ui/Toast';
@@ -157,66 +156,60 @@ export default function LocationForm({
   );
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      className="flex-1 bg-white">
-      <ScrollView className="flex-1 px-4 py-6">
-        <LocationPreview />
+    <View className="space-y-4">
+      <LocationPreview />
 
-        <View className="space-y-4">
-          <Input
-            label="Nome"
-            value={name}
-            onChangeText={setName}
-            placeholder="Nome do local"
-            required
-            error={errors.name}
-            autoCapitalize="words"
-          />
+      <Input
+        label="Nome"
+        value={name}
+        onChangeText={setName}
+        placeholder="Nome do local"
+        required
+        error={errors.name}
+        autoCapitalize="words"
+      />
 
-          <Input
-            label="Endereço"
-            value={address}
-            onChangeText={setAddress}
-            placeholder="Endereço completo"
-            helperText="Opcional"
-            multiline
-            numberOfLines={2}
-            autoCapitalize="sentences"
-          />
+      <Input
+        label="Endereço"
+        value={address}
+        onChangeText={setAddress}
+        placeholder="Endereço completo"
+        helperText="Opcional"
+        multiline
+        numberOfLines={2}
+        autoCapitalize="sentences"
+      />
 
-          <Input
-            label="Telefone"
-            value={phone}
-            onChangeText={handlePhoneChange}
-            placeholder="(00) 00000-0000"
-            keyboardType="phone-pad"
-            helperText="Opcional"
-            error={errors.phone}
-            leftIcon="call-outline"
-          />
+      <Input
+        label="Telefone"
+        value={phone}
+        onChangeText={handlePhoneChange}
+        placeholder="(00) 00000-0000"
+        keyboardType="phone-pad"
+        helperText="Opcional"
+        error={errors.phone}
+        leftIcon="call-outline"
+      />
 
-          <ColorField
-            label="Cor"
-            value={selectedColor}
-            onValueChange={setSelectedColor}
-            options={COLOR_PALETTE}
-            required
-            error={errors.color}
-          />
+      <ColorField
+        label="Cor"
+        value={selectedColor}
+        onValueChange={setSelectedColor}
+        options={COLOR_PALETTE}
+        required
+        error={errors.color}
+      />
 
-          <View className="mt-4 flex-row space-x-3">
-            {onCancel && (
-              <Button variant="outline" onPress={onCancel} disabled={isLoading} className="flex-1">
-                Cancelar
-              </Button>
-            )}
-            <Button variant="primary" onPress={handleSubmit} loading={isLoading} className="flex-1">
-              {locationId ? 'Atualizar' : 'Salvar'}
-            </Button>
-          </View>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      <View className="mt-4 flex-row space-x-3">
+        {onCancel && (
+          <Button variant="outline" onPress={onCancel} disabled={isLoading} className="flex-1">
+            Cancelar
+          </Button>
+        )}
+        <Button variant="primary" onPress={handleSubmit} loading={isLoading} className="flex-1">
+          {locationId ? 'Atualizar' : 'Salvar'}
+        </Button>
+      </View>
+    </View>
   );
 }
