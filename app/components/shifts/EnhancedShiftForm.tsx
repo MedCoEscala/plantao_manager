@@ -1,18 +1,17 @@
-// app/components/shifts/ShiftForm.tsx (modificado)
+// app/components/shifts/EnhancedShiftForm.tsx
 import React, { useState, useEffect } from 'react';
-import { View, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, Alert } from 'react-native';
 import { format } from 'date-fns';
-import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
+import { ptBR } from 'date-fns/locale';
+import Form from '../ui/Form';
+import Button from '../ui/Button';
+import { TextField, DateField, SelectField, SwitchField, ButtonGroup } from '../ui/FormField';
 import { useToast } from '@/components/ui/Toast';
-import DateField from '@/components/form/DateField';
-import SelectField from '@/components/form/SelectField';
-import SwitchField from '@/components/form/SwitchField';
 
-// Usar suas constantes existentes
+// Constantes e tipos
 const PAYMENT_TYPE_OPTIONS = [
-  { label: 'Pessoa Física (PF)', value: 'PF' },
-  { label: 'Pessoa Jurídica (PJ)', value: 'PJ' },
+  { label: 'Pessoa Física', value: 'PF' },
+  { label: 'Pessoa Jurídica', value: 'PJ' },
 ];
 
 // Dados mockados (substituir por dados reais de API)
@@ -33,16 +32,9 @@ interface ShiftFormProps {
   initialDate?: Date | null;
   onSuccess?: () => void;
   onCancel?: () => void;
-  isModal?: boolean;
 }
 
-export default function ShiftForm({
-  shiftId,
-  initialDate,
-  onSuccess,
-  onCancel,
-  isModal = false,
-}: ShiftFormProps) {
+export function EnhancedShiftForm({ shiftId, initialDate, onSuccess, onCancel }: ShiftFormProps) {
   // Estados do formulário
   const [date, setDate] = useState<Date>(initialDate || new Date());
   const [startTime, setStartTime] = useState<Date>(() => {
@@ -65,6 +57,7 @@ export default function ShiftForm({
   // Estados de validação e UI
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   const { showToast } = useToast();
 
@@ -74,25 +67,32 @@ export default function ShiftForm({
       setIsLoading(true);
       // Simular carregamento de dados (substituir por API real)
       setTimeout(() => {
-        // Carregar dados do shiftId
-        setLocationId('loc1');
-        setContractorId('cont1');
-        setValue('1200');
-        setPaymentType('PF');
-        setIsFixed(false);
-        setNotes('Plantão de emergência na ala de trauma.');
+        const mockShift = {
+          date: new Date(),
+          startTime: new Date(new Date().setHours(8, 0)),
+          endTime: new Date(new Date().setHours(14, 0)),
+          locationId: 'loc1',
+          contractorId: 'cont1',
+          value: '1200',
+          paymentType: 'PF',
+          isFixed: false,
+          notes: 'Plantão de emergência na ala de trauma.',
+        };
+
+        setDate(mockShift.date);
+        setStartTime(mockShift.startTime);
+        setEndTime(mockShift.endTime);
+        setLocationId(mockShift.locationId);
+        setContractorId(mockShift.contractorId);
+        setValue(mockShift.value);
+        setPaymentType(mockShift.paymentType);
+        setIsFixed(mockShift.isFixed);
+        setNotes(mockShift.notes);
 
         setIsLoading(false);
       }, 1000);
     }
   }, [shiftId]);
-
-  // Efeito para atualizar as dates quando mudar initialDate
-  useEffect(() => {
-    if (initialDate) {
-      setDate(initialDate);
-    }
-  }, [initialDate]);
 
   // Formatação do valor monetário
   const formatValue = (text: string) => {
@@ -137,7 +137,7 @@ export default function ShiftForm({
       return;
     }
 
-    setIsLoading(true);
+    setIsSubmitting(true);
 
     try {
       // Formatar valor para envio (string para número)
@@ -173,106 +173,113 @@ export default function ShiftForm({
       console.error('Erro ao salvar plantão:', error);
       showToast('Erro ao salvar plantão', 'error');
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
+  // Componente de rodapé com botões de ação
+  const formFooter = (
+    <View className="flex-row space-x-3">
+      {onCancel && (
+        <Button variant="outline" onPress={onCancel} disabled={isSubmitting} className="flex-1">
+          Cancelar
+        </Button>
+      )}
+      <Button variant="primary" onPress={handleSubmit} loading={isSubmitting} className="flex-1">
+        {shiftId ? 'Atualizar' : 'Salvar'}
+      </Button>
+    </View>
+  );
+
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      className="flex-1 bg-white">
-      <ScrollView className="flex-1 px-4 py-6">
-        <View className="space-y-4">
-          <DateField label="Data do Plantão" value={date} onChange={setDate} mode="date" required />
+    <Form
+      title={shiftId ? 'Editar Plantão' : 'Novo Plantão'}
+      subtitle={
+        shiftId
+          ? 'Atualize as informações do plantão'
+          : 'Preencha os dados para adicionar um novo plantão'
+      }
+      loading={isLoading}
+      footer={formFooter}>
+      <DateField label="Data do Plantão" value={date} onChange={setDate} mode="date" required />
 
-          <View className="flex-row space-x-3">
-            <DateField
-              label="Horário de Início"
-              value={startTime}
-              onChange={setStartTime}
-              mode="time"
-              required
-              className="flex-1"
-            />
+      <View className="flex-row space-x-3">
+        <DateField
+          label="Horário de Início"
+          value={startTime}
+          onChange={setStartTime}
+          mode="time"
+          required
+          className="flex-1"
+        />
 
-            <DateField
-              label="Horário de Término"
-              value={endTime}
-              onChange={setEndTime}
-              mode="time"
-              required
-              error={errors.endTime}
-              className="flex-1"
-            />
-          </View>
+        <DateField
+          label="Horário de Término"
+          value={endTime}
+          onChange={setEndTime}
+          mode="time"
+          required
+          error={errors.endTime}
+          className="flex-1"
+        />
+      </View>
 
-          <SelectField
-            label="Local"
-            value={locationId}
-            onValueChange={setLocationId}
-            options={MOCK_LOCATIONS}
-            placeholder="Selecione o local"
-            required
-            error={errors.locationId}
-          />
+      <SelectField
+        label="Local"
+        value={locationId}
+        onValueChange={setLocationId}
+        options={MOCK_LOCATIONS}
+        placeholder="Selecione o local"
+        required
+        error={errors.locationId}
+      />
 
-          <SelectField
-            label="Contratante"
-            value={contractorId}
-            onValueChange={setContractorId}
-            options={MOCK_CONTRACTORS}
-            placeholder="Selecione o contratante (opcional)"
-          />
+      <SelectField
+        label="Contratante"
+        value={contractorId}
+        onValueChange={setContractorId}
+        options={MOCK_CONTRACTORS}
+        placeholder="Selecione o contratante (opcional)"
+      />
 
-          <Input
-            label="Valor do Plantão"
-            value={value}
-            onChangeText={(text) => setValue(formatValue(text))}
-            placeholder="0,00"
-            keyboardType="numeric"
-            leftIcon="cash-outline"
-            required
-            error={errors.value}
-            helperText="Informe o valor bruto do plantão"
-          />
+      <TextField
+        label="Valor do Plantão"
+        value={value}
+        onChangeText={(text) => setValue(formatValue(text))}
+        placeholder="0,00"
+        keyboardType="numeric"
+        leftIcon="cash-outline"
+        required
+        error={errors.value}
+        helperText="Informe o valor bruto do plantão"
+      />
 
-          <SelectField
-            label="Tipo de Pagamento"
-            value={paymentType}
-            onValueChange={setPaymentType}
-            options={PAYMENT_TYPE_OPTIONS}
-            required
-          />
+      <ButtonGroup
+        label="Tipo de Pagamento"
+        value={paymentType}
+        onValueChange={setPaymentType}
+        options={PAYMENT_TYPE_OPTIONS}
+        required
+      />
 
-          <SwitchField
-            label="Plantão Fixo"
-            value={isFixed}
-            onValueChange={setIsFixed}
-            helperText="Ative para plantões que se repetem regularmente"
-          />
+      <SwitchField
+        label="Plantão Fixo"
+        value={isFixed}
+        onValueChange={setIsFixed}
+        helperText="Ative para plantões que se repetem regularmente"
+      />
 
-          <Input
-            label="Observações"
-            value={notes}
-            onChangeText={setNotes}
-            placeholder="Observações adicionais (opcional)"
-            multiline
-            numberOfLines={4}
-            autoCapitalize="sentences"
-          />
-
-          <View className="mt-4 flex-row space-x-3">
-            {onCancel && (
-              <Button variant="outline" onPress={onCancel} disabled={isLoading} className="flex-1">
-                Cancelar
-              </Button>
-            )}
-            <Button variant="primary" onPress={handleSubmit} loading={isLoading} className="flex-1">
-              {shiftId ? 'Atualizar' : 'Salvar'}
-            </Button>
-          </View>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      <TextField
+        label="Observações"
+        value={notes}
+        onChangeText={setNotes}
+        placeholder="Observações adicionais (opcional)"
+        multiline
+        numberOfLines={4}
+        autoCapitalize="sentences"
+      />
+    </Form>
   );
 }
+
+export default EnhancedShiftForm;

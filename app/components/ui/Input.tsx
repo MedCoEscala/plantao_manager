@@ -1,95 +1,95 @@
-import React, { useState } from "react";
-import { View, TextInput, Text, TextInputProps } from "react-native";
+// app/components/ui/Input.tsx (modificado)
+import React, { useState } from 'react';
+import { View, TextInput, Text, TextInputProps, TouchableOpacity } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { FieldWrapper } from '../form/FormField';
 
-interface InputProps extends TextInputProps {
+export interface InputProps extends TextInputProps {
   label?: string;
   error?: string;
+  helperText?: string;
   fullWidth?: boolean;
-  onFocus?: (e: any) => void;
-  onBlur?: (e: any) => void;
+  leftIcon?: string;
+  rightIcon?: string;
+  onRightIconPress?: () => void;
+  required?: boolean;
 }
 
 export const Input: React.FC<InputProps> = ({
   label,
   error,
+  helperText,
   fullWidth = false,
-  className = "",
-  onFocus,
-  onBlur,
+  className = '',
+  leftIcon,
+  rightIcon,
+  onRightIconPress,
+  required = false,
   ...props
 }) => {
   const [isFocused, setIsFocused] = useState(false);
 
-  // Função para gerar as classes do container
-  const getContainerClasses = () => {
-    let classes = "mb-4 ";
-
-    if (fullWidth) {
-      classes += "w-full ";
-    }
-
-    return classes + className;
-  };
-
-  // Função para gerar as classes do input
-  const getInputClasses = () => {
-    let classes = "border rounded-lg p-3 bg-white ";
-
-    if (isFocused) {
-      classes += "border-primary ";
-    } else {
-      classes += "border-gray-300 ";
-    }
-
-    if (error) {
-      classes += "border-error ";
-    }
-
-    return classes;
-  };
-
-  // Função para gerar as classes do label
-  const getLabelClasses = () => {
-    let classes = "text-sm mb-1 ";
-
-    if (error) {
-      classes += "text-error ";
-    } else {
-      classes += "text-text-light ";
-    }
-
-    return classes;
-  };
-
-  // Função para gerar as classes da mensagem de erro
-  const getErrorClasses = () => {
-    return "text-error text-xs mt-1";
-  };
-
   const handleFocus = (e: any) => {
     setIsFocused(true);
-    onFocus && onFocus(e);
+    props.onFocus?.(e);
   };
 
   const handleBlur = (e: any) => {
     setIsFocused(false);
-    onBlur && onBlur(e);
+    props.onBlur?.(e);
   };
 
-  return (
-    <View className={getContainerClasses()}>
-      {label && <Text className={getLabelClasses()}>{label}</Text>}
+  const inputContent = (
+    <View
+      className={`flex-row items-center overflow-hidden rounded-lg border
+      ${error ? 'border-error' : isFocused ? 'border-primary' : 'border-gray-300'}
+      ${props.multiline ? 'min-h-[100px]' : 'h-12'}`}>
+      {leftIcon && (
+        <View className="pl-3">
+          <Ionicons name={leftIcon as any} size={20} color="#64748b" />
+        </View>
+      )}
+
       <TextInput
-        className={getInputClasses()}
+        className={`flex-1 px-3 text-text-dark ${leftIcon ? 'pl-2' : 'pl-3'}`}
+        placeholderTextColor="#94a3b8"
         onFocus={handleFocus}
         onBlur={handleBlur}
-        placeholderTextColor="#A0AEC0"
+        textAlignVertical={props.multiline ? 'top' : 'center'}
         {...props}
       />
-      {error && <Text className={getErrorClasses()}>{error}</Text>}
+
+      {rightIcon && (
+        <TouchableOpacity className="pr-3" onPress={onRightIconPress} disabled={!onRightIconPress}>
+          <Ionicons name={rightIcon as any} size={20} color="#64748b" />
+        </TouchableOpacity>
+      )}
     </View>
+  );
+
+  if (!label) {
+    return (
+      <View className={`${fullWidth ? 'w-full' : ''} ${className}`}>
+        {inputContent}
+        {(error || helperText) && (
+          <Text className={`mt-1 text-xs ${error ? 'text-error' : 'text-text-light'}`}>
+            {error || helperText}
+          </Text>
+        )}
+      </View>
+    );
+  }
+
+  return (
+    <FieldWrapper
+      label={label}
+      error={error}
+      helperText={helperText}
+      required={required}
+      className={`${fullWidth ? 'w-full' : ''} ${className}`}>
+      {inputContent}
+    </FieldWrapper>
   );
 };
 
-// Exportação default para expo-router
 export default Input;
