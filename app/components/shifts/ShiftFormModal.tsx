@@ -1,4 +1,3 @@
-// app/components/shifts/ShiftFormModal.tsx
 import React, { useState, useEffect } from 'react';
 import {
   Modal,
@@ -26,7 +25,7 @@ interface ShiftFormModalProps {
 }
 
 const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window');
-const MODAL_HEIGHT = SCREEN_HEIGHT * 0.85; // 85% da altura da tela
+const MODAL_HEIGHT = SCREEN_HEIGHT * 0.85;
 
 const ShiftFormModal: React.FC<ShiftFormModalProps> = ({
   visible,
@@ -37,7 +36,6 @@ const ShiftFormModal: React.FC<ShiftFormModalProps> = ({
   const insets = useSafeAreaInsets();
   const [animatedValue] = useState(new Animated.Value(0));
 
-  // Animation when modal shows/hides
   useEffect(() => {
     if (visible) {
       Animated.timing(animatedValue, {
@@ -64,7 +62,6 @@ const ShiftFormModal: React.FC<ShiftFormModalProps> = ({
     outputRange: [0, 0.5],
   });
 
-  // Handle success (close modal and call onSuccess)
   const handleSuccess = () => {
     console.log('ShiftFormModal: handleSuccess chamado');
     if (onSuccess) {
@@ -72,7 +69,6 @@ const ShiftFormModal: React.FC<ShiftFormModalProps> = ({
     }
   };
 
-  // Handle closing the modal
   const handleClose = () => {
     console.log('ShiftFormModal: handleClose chamado');
     Animated.timing(animatedValue, {
@@ -93,7 +89,6 @@ const ShiftFormModal: React.FC<ShiftFormModalProps> = ({
       animationType="none"
       statusBarTranslucent
       onRequestClose={handleClose}>
-      {/* Backdrop */}
       <TouchableWithoutFeedback onPress={handleClose}>
         <Animated.View
           style={[
@@ -110,16 +105,14 @@ const ShiftFormModal: React.FC<ShiftFormModalProps> = ({
         />
       </TouchableWithoutFeedback>
 
-      {/* Modal Content */}
       <View className="flex-1 justify-end" style={{ paddingBottom: insets.bottom }}>
         <Animated.View
           className="w-full overflow-hidden rounded-t-3xl bg-white"
           style={{
             transform: [{ translateY }],
-            height: MODAL_HEIGHT, // Definir altura explicitamente
+            height: MODAL_HEIGHT,
             maxHeight: SCREEN_HEIGHT * 0.9,
           }}>
-          {/* Header */}
           <View className="flex-row items-center justify-between border-b border-gray-100 px-5 py-4">
             <Text className="text-lg font-semibold text-text-dark">
               {initialDate
@@ -131,7 +124,6 @@ const ShiftFormModal: React.FC<ShiftFormModalProps> = ({
             </TouchableOpacity>
           </View>
 
-          {/* Content */}
           <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             className="flex-1"

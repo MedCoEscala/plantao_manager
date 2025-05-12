@@ -1,4 +1,3 @@
-// app/components/CalendarComponent.tsx
 import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, Pressable, FlatList, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,10 +19,9 @@ import {
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
-// Define o tipo para um plantão (shift)
 interface Shift {
   id: string;
-  date: string; // ISO date string
+  date: string;
   locationId: string;
   startTime: string;
   endTime: string;
@@ -37,22 +35,20 @@ interface CalendarProps {
   onSelectDate: (date: Date) => void;
 }
 
-const WEEKDAYS = ['D', 'S', 'T', 'Q', 'Qi', 'S', 'S']; // Iniciais dos dias da semana
+const WEEKDAYS = ['D', 'S', 'T', 'Q', 'Qi', 'S', 'S'];
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const DAY_WIDTH = Math.floor((SCREEN_WIDTH - 40) / 7); // 40 = padding horizontal total
-const WEEK_ITEM_WIDTH = Math.floor((SCREEN_WIDTH - 64) / 5); // Increased padding for better display
+const DAY_WIDTH = Math.floor((SCREEN_WIDTH - 40) / 7);
+const WEEK_ITEM_WIDTH = Math.floor((SCREEN_WIDTH - 64) / 5);
 
 const CalendarComponent: React.FC<CalendarProps> = ({ shifts, selectedDate, onSelectDate }) => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [calendarView, setCalendarView] = useState<'week' | 'month'>('week');
 
-  // Calculate dates for week view - create enough dates to enable proper scrolling
   const weekDates = useMemo(() => {
     const today = new Date();
     return Array.from({ length: 21 }, (_, i) => addDays(today, i - 10));
   }, []);
 
-  // Calculate dates for month view
   const monthDates = useMemo(() => {
     const monthStart = startOfMonth(currentMonth);
     const monthEnd = endOfMonth(currentMonth);
@@ -70,7 +66,6 @@ const CalendarComponent: React.FC<CalendarProps> = ({ shifts, selectedDate, onSe
     setCurrentMonth(subMonths(currentMonth, 1));
   }, [currentMonth]);
 
-  // Count shifts on a specific day
   const countShifts = useCallback(
     (date: Date) => {
       return shifts.filter((shift) => {
@@ -81,7 +76,6 @@ const CalendarComponent: React.FC<CalendarProps> = ({ shifts, selectedDate, onSe
     [shifts]
   );
 
-  // Using a plain function component instead of a callback to avoid navigation errors
   function WeekDay({ item }: { item: Date }) {
     const isSelected = isSameDay(item, selectedDate);
     const isTodayDate = isToday(item);
@@ -115,7 +109,6 @@ const CalendarComponent: React.FC<CalendarProps> = ({ shifts, selectedDate, onSe
           shadowRadius: 4,
           elevation: isSelected ? 3 : 0,
         }}>
-        {/* Day of week (initials) */}
         <Text
           style={{
             fontSize: 12,
@@ -126,7 +119,6 @@ const CalendarComponent: React.FC<CalendarProps> = ({ shifts, selectedDate, onSe
           {weekdayLetter}
         </Text>
 
-        {/* Day number */}
         <Text
           style={{
             fontSize: 18,
@@ -136,7 +128,6 @@ const CalendarComponent: React.FC<CalendarProps> = ({ shifts, selectedDate, onSe
           {getDate(item)}
         </Text>
 
-        {/* Shift indicator */}
         {hasShift && (
           <View
             style={{
@@ -162,7 +153,6 @@ const CalendarComponent: React.FC<CalendarProps> = ({ shifts, selectedDate, onSe
     );
   }
 
-  // Render month day without any navigation dependencies
   const renderMonthDay = useCallback(
     (date: Date, index: number) => {
       const isSelected = isSameDay(date, selectedDate);
@@ -242,7 +232,6 @@ const CalendarComponent: React.FC<CalendarProps> = ({ shifts, selectedDate, onSe
 
   return (
     <View style={{ borderBottomWidth: 1, borderBottomColor: '#e2e8f0', backgroundColor: 'white' }}>
-      {/* Header */}
       <View
         style={{
           flexDirection: 'row',
@@ -311,7 +300,6 @@ const CalendarComponent: React.FC<CalendarProps> = ({ shifts, selectedDate, onSe
         </View>
       </View>
 
-      {/* Week view - completely rewritten to avoid navigation errors */}
       {calendarView === 'week' && (
         <View style={{ paddingVertical: 12 }}>
           <FlatList
@@ -331,10 +319,8 @@ const CalendarComponent: React.FC<CalendarProps> = ({ shifts, selectedDate, onSe
         </View>
       )}
 
-      {/* Month view */}
       {calendarView === 'month' && (
         <View style={{ paddingHorizontal: 4, paddingBottom: 8 }}>
-          {/* Days of week */}
           <View style={{ flexDirection: 'row', marginBottom: 4 }}>
             {WEEKDAYS.map((day, index) => (
               <View
@@ -349,14 +335,12 @@ const CalendarComponent: React.FC<CalendarProps> = ({ shifts, selectedDate, onSe
             ))}
           </View>
 
-          {/* Grid of days */}
           <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
             {monthDates.map((date, index) => renderMonthDay(date, index))}
           </View>
         </View>
       )}
 
-      {/* Selected date display */}
       <View
         style={{
           borderTopWidth: 1,

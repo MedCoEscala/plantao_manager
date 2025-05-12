@@ -10,7 +10,6 @@ import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
 import DateTimePicker from 'react-native-modal-datetime-picker';
 
-// Mock data que viria da API
 const MOCK_LOCATIONS = [
   { id: 'loc1', name: 'Hospital Central', color: '#0077B6', address: 'Av. Paulista, 1500' },
   { id: 'loc2', name: 'Clínica Sul', color: '#EF476F', address: 'Rua Augusta, 500' },
@@ -235,9 +234,7 @@ const ShiftForm: React.FC<ShiftFormProps> = ({
 
   return (
     <View className="w-full">
-      {/* Formulário com campos estilizados usando NativeWind */}
       <View className="space-y-4">
-        {/* Data do Plantão */}
         <View className="space-y-1">
           <Text className="text-sm font-medium text-text-light">Data do Plantão *</Text>
           <TouchableOpacity
@@ -258,7 +255,6 @@ const ShiftForm: React.FC<ShiftFormProps> = ({
           />
         </View>
 
-        {/* Horário de Início */}
         <View className="space-y-1">
           <Text className="text-sm font-medium text-text-light">Horário de Início *</Text>
           <TouchableOpacity
@@ -279,7 +275,6 @@ const ShiftForm: React.FC<ShiftFormProps> = ({
           />
         </View>
 
-        {/* Horário de Término */}
         <View className="space-y-1">
           <Text className="text-sm font-medium text-text-light">Horário de Término *</Text>
           <TouchableOpacity
@@ -300,7 +295,6 @@ const ShiftForm: React.FC<ShiftFormProps> = ({
           />
         </View>
 
-        {/* Local */}
         <View className="space-y-1">
           <Text className="text-sm font-medium text-text-light">Local *</Text>
           <TouchableOpacity
@@ -312,7 +306,6 @@ const ShiftForm: React.FC<ShiftFormProps> = ({
             <Ionicons name="chevron-down" size={20} color="#64748b" />
           </TouchableOpacity>
 
-          {/* Dropdown simples para locais */}
           {showLocationPicker && (
             <View className="mt-1 rounded-lg border border-gray-200 bg-white shadow-sm">
               {MOCK_LOCATIONS.map((location) => (
@@ -334,7 +327,6 @@ const ShiftForm: React.FC<ShiftFormProps> = ({
           )}
         </View>
 
-        {/* Contratante */}
         <View className="space-y-1">
           <Text className="text-sm font-medium text-text-light">Contratante</Text>
           <TouchableOpacity
@@ -348,7 +340,6 @@ const ShiftForm: React.FC<ShiftFormProps> = ({
             <Ionicons name="chevron-down" size={20} color="#64748b" />
           </TouchableOpacity>
 
-          {/* Dropdown simples para contratantes */}
           {showContractorPicker && (
             <View className="mt-1 rounded-lg border border-gray-200 bg-white shadow-sm">
               {MOCK_CONTRACTORS.map((contractor) => (
@@ -366,7 +357,6 @@ const ShiftForm: React.FC<ShiftFormProps> = ({
           )}
         </View>
 
-        {/* Valor do Plantão */}
         <View className="space-y-1">
           <Text className="text-sm font-medium text-text-light">Valor do Plantão *</Text>
           <View className="flex-row rounded-lg border border-gray-300 bg-white p-3">
@@ -382,7 +372,6 @@ const ShiftForm: React.FC<ShiftFormProps> = ({
           <Text className="text-xs text-gray-500">Informe o valor bruto do plantão</Text>
         </View>
 
-        {/* Tipo de Pagamento */}
         <View className="space-y-1">
           <Text className="text-sm font-medium text-text-light">Tipo de Pagamento *</Text>
           <TouchableOpacity
@@ -394,7 +383,6 @@ const ShiftForm: React.FC<ShiftFormProps> = ({
             <Ionicons name="chevron-down" size={20} color="#64748b" />
           </TouchableOpacity>
 
-          {/* Dropdown simples para tipo de pagamento */}
           {showPaymentTypePicker && (
             <View className="mt-1 rounded-lg border border-gray-200 bg-white shadow-sm">
               <TouchableOpacity
@@ -417,7 +405,6 @@ const ShiftForm: React.FC<ShiftFormProps> = ({
           )}
         </View>
 
-        {/* Plantão Fixo */}
         <View className="space-y-1">
           <Text className="text-sm font-medium text-text-light">Plantão Fixo</Text>
           <View className="flex-row items-center">
@@ -433,7 +420,6 @@ const ShiftForm: React.FC<ShiftFormProps> = ({
           </Text>
         </View>
 
-        {/* Observações */}
         <View className="space-y-1">
           <Text className="text-sm font-medium text-text-light">Observações</Text>
           <Input
@@ -446,7 +432,6 @@ const ShiftForm: React.FC<ShiftFormProps> = ({
           />
         </View>
 
-        {/* Botões de ação */}
         <View className="mt-4 flex-row justify-between">
           <Button
             variant="outline"

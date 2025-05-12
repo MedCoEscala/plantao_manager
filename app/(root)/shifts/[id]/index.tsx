@@ -1,4 +1,3 @@
-// app/(root)/shifts/[id]/index.tsx
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -17,7 +16,6 @@ import { ptBR } from 'date-fns/locale';
 import { useToast } from '@/components/ui/Toast';
 import { useDialog } from '@/contexts/DialogContext';
 
-// Interfaces para tipagem
 interface ShiftDetails {
   id: string;
   date: string;
@@ -43,15 +41,12 @@ export default function ShiftDetailsScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [shift, setShift] = useState<ShiftDetails | null>(null);
 
-  // Carregar dados do plantão
   useEffect(() => {
     const loadShiftDetails = async () => {
       setIsLoading(true);
       try {
-        // Simular chamada à API
         await new Promise((resolve) => setTimeout(resolve, 1000));
 
-        // Dados mockados
         setShift({
           id: shiftId,
           date: '2025-05-10T00:00:00Z',
@@ -78,12 +73,10 @@ export default function ShiftDetailsScreen() {
     loadShiftDetails();
   }, [shiftId]);
 
-  // Navegar para a tela de edição
   const handleEdit = () => {
     router.push(`/shifts/${shiftId}/edit`);
   };
 
-  // Confirmar exclusão do plantão
   const handleDelete = () => {
     showDialog({
       title: 'Confirmar Exclusão',
@@ -93,7 +86,6 @@ export default function ShiftDetailsScreen() {
       onConfirm: async () => {
         setIsLoading(true);
         try {
-          // Simular chamada à API
           await new Promise((resolve) => setTimeout(resolve, 1000));
           showToast('Plantão excluído com sucesso!', 'success');
           router.back();
@@ -107,7 +99,6 @@ export default function ShiftDetailsScreen() {
     });
   };
 
-  // Formatar a data para exibição
   const formatShiftDate = (dateString: string) => {
     try {
       const date = new Date(dateString);
@@ -117,7 +108,6 @@ export default function ShiftDetailsScreen() {
     }
   };
 
-  // Tela de carregamento
   if (isLoading) {
     return (
       <SafeAreaView className="flex-1 bg-white">
@@ -130,7 +120,6 @@ export default function ShiftDetailsScreen() {
     );
   }
 
-  // Se não encontrou o plantão
   if (!shift) {
     return (
       <SafeAreaView className="flex-1 bg-white">
@@ -153,7 +142,6 @@ export default function ShiftDetailsScreen() {
     );
   }
 
-  // Configuração do cabeçalho
   return (
     <SafeAreaView className="flex-1 bg-white">
       <StatusBar style="dark" />
@@ -175,7 +163,6 @@ export default function ShiftDetailsScreen() {
       />
 
       <ScrollView className="flex-1 px-4 py-4">
-        {/* Cabeçalho do plantão */}
         <View className="mb-6 items-center">
           <View
             style={{ backgroundColor: shift.locationColor }}
@@ -200,7 +187,6 @@ export default function ShiftDetailsScreen() {
           </View>
         </View>
 
-        {/* Detalhes do plantão */}
         <View className="mb-4 rounded-xl bg-gray-50 p-5">
           <View className="mb-4 flex-row justify-between">
             <View>
@@ -243,7 +229,6 @@ export default function ShiftDetailsScreen() {
           )}
         </View>
 
-        {/* Botões de ação */}
         <View className="mt-2 flex-row space-x-3">
           <TouchableOpacity
             className="flex-1 flex-row items-center justify-center rounded-lg bg-primary py-3"
@@ -264,18 +249,17 @@ export default function ShiftDetailsScreen() {
   );
 }
 
-// Helper para obter cor baseada no status
 function getStatusColor(status: string): string {
   switch (status.toLowerCase()) {
     case 'agendado':
-      return '#18cb96'; // primary
+      return '#18cb96';
     case 'confirmado':
-      return '#10b981'; // success
+      return '#10b981';
     case 'cancelado':
-      return '#ef4444'; // error
+      return '#ef4444';
     case 'concluído':
-      return '#64748b'; // text-light
+      return '#64748b';
     default:
-      return '#64748b'; // text-light
+      return '#64748b';
   }
 }
