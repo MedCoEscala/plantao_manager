@@ -1,207 +1,351 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   TouchableOpacity,
   FlatList,
   ActivityIndicator,
+  TextInput,
+  Alert,
+  Animated,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useDialog } from '@/contexts/DialogContext';
+import { useToast } from '@/components/ui/Toast';
 
-// --- MOCK DATA --- (Substituir por chamadas reais)
 interface Location {
   id: string;
   name: string;
   address?: string;
   phone?: string;
-  color?: string;
+  color: string;
+  shiftCount?: number;
 }
+
 const MOCK_LOCATIONS_DATA: Location[] = [
   {
     id: 'loc1',
     name: 'Hospital Central',
-    address: 'Rua Principal, 123',
-    phone: '51 9999-1111',
+    address: 'Av. Principal, 123',
+    phone: '(51) 9999-1111',
     color: '#0077B6',
+    shiftCount: 12,
   },
   {
     id: 'loc2',
     name: 'Clínica Sul',
     address: 'Av. Secundária, 456',
-    phone: '51 9999-2222',
+    phone: '(51) 9999-2222',
     color: '#2A9D8F',
+    shiftCount: 8,
   },
   {
     id: 'loc3',
     name: 'Posto de Saúde Norte',
     address: 'Travessa Terciária, 789',
     color: '#E9C46A',
+    shiftCount: 5,
+  },
+  {
+    id: 'loc4',
+    name: 'Hospital Universitário',
+    address: 'Rua das Universidades, 1000',
+    phone: '(51) 3333-4444',
+    color: '#E76F51',
+    shiftCount: 15,
+  },
+  {
+    id: 'loc5',
+    name: 'Centro Médico Leste',
+    address: 'Av. Leste, 789',
+    color: '#9381FF',
+    shiftCount: 7,
   },
 ];
-// --- FIM MOCK DATA ---
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function LocationsScreen() {
   const [locations, setLocations] = useState<Location[]>(MOCK_LOCATIONS_DATA);
+  const [filteredLocations, setFilteredLocations] = useState<Location[]>(MOCK_LOCATIONS_DATA);
   const [refreshing, setRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showSearch, setShowSearch] = useState(false);
+  const fadeAnim = useState(new Animated.Value(0))[0];
+
   const { showDialog } = useDialog();
+  const { showToast } = useToast();
   const router = useRouter();
+
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: showSearch ? 1 : 0,
+      duration: 300,
+      useNativeDriver: false,
+    }).start();
+  }, [showSearch, fadeAnim]);
+
+  useEffect(() => {
+    if (searchQuery.trim() === '') {
+      setFilteredLocations(locations);
+    } else {
+      const filtered = locations.filter(
+        (location) =>
+          location.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          location.address?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          false
+      );
+      setFilteredLocations(filtered);
+    }
+  }, [searchQuery, locations]);
 
   const loadLocations = useCallback(async () => {
     setRefreshing(true);
-    // Simular carregamento (substituir por chamada real)
-    await new Promise((res) => setTimeout(res, 1000));
-    setLocations(MOCK_LOCATIONS_DATA); // Reset para mock
-    setRefreshing(false);
-    showDialog({ type: 'success', title: 'Atualizado', message: 'Locais recarregados (mock).' });
-  }, [showDialog]);
 
-  const confirmDelete = (location: Location) => {
-    showDialog({
-      title: 'Confirmar exclusão',
-      message: `Deseja realmente excluir o local "${location.name}"? (Ação simulada)`,
-      type: 'confirm',
-      confirmText: 'Excluir',
-      onConfirm: () => {
-        // Simular exclusão (remover do estado local)
-        setLocations((prev) => prev.filter((loc) => loc.id !== location.id));
-        showDialog({ title: 'Sucesso', message: 'Local excluído (simulado).', type: 'success' });
-      },
-    });
-  };
+    try {
+      await new Promise((res) => setTimeout(res, 1000));
+      setLocations(MOCK_LOCATIONS_DATA);
+      setFilteredLocations(MOCK_LOCATIONS_DATA);
+      showToast('Locais atualizados com sucesso', 'success');
+    } catch (error) {
+      console.error('Erro ao carregar locais:', error);
+      showToast('Erro ao carregar locais', 'error');
+    } finally {
+      setRefreshing(false);
+    }
+  }, [showToast]);
 
-  const navigateToEdit = (location: Location) => {
-    showDialog({
-      title: 'Em desenvolvimento',
-      message: `Editar local "${location.name}" em breve!`,
-      type: 'info',
-    });
-    // router.push({ pathname: '/locations/edit', params: { id: location.id } });
-  };
+  const confirmDelete = useCallback(
+    (location: Location) => {
+      showDialog({
+        title: 'Confirmar exclusão',
+        message: `Deseja realmente excluir o local "${location.name}"?`,
+        type: 'confirm',
+        confirmText: 'Excluir',
+        onConfirm: () => {
+          setLocations((prev) => prev.filter((loc) => loc.id !== location.id));
+          setFilteredLocations((prev) => prev.filter((loc) => loc.id !== location.id));
+          showToast('Local excluído com sucesso', 'success');
+        },
+      });
+    },
+    [showDialog, showToast]
+  );
 
-  const navigateToAdd = () => {
-    showDialog({ title: 'Em desenvolvimento', message: 'Adicionar local em breve!', type: 'info' });
-    // router.push('/locations/add');
-  };
+  const navigateToEdit = useCallback(
+    (location: Location) => {
+      router.push({
+        pathname: '/locations/edit',
+        params: { id: location.id },
+      });
+    },
+    [router]
+  );
 
-  const renderLocationItem = ({ item }: { item: Location }) => (
-    <TouchableOpacity style={styles.card} onPress={() => navigateToEdit(item)}>
-      <View style={[styles.colorStripe, { backgroundColor: item.color || '#0077B6' }]} />
-      <View style={styles.cardContent}>
-        <Text style={styles.cardTitle}>{item.name}</Text>
-        {item.address && <Text style={styles.cardSubtitle}>{item.address}</Text>}
-        {item.phone && <Text style={styles.cardSubtitle}>{item.phone}</Text>}
-      </View>
-      <TouchableOpacity style={styles.deleteButton} onPress={() => confirmDelete(item)}>
-        <Ionicons name="trash-outline" size={20} color="#EF4444" />
-      </TouchableOpacity>
-    </TouchableOpacity>
+  const navigateToAdd = useCallback(() => {
+    router.push('/locations/add');
+  }, [router]);
+
+  const toggleSearch = useCallback(() => {
+    if (showSearch && searchQuery) {
+      setSearchQuery('');
+    }
+    setShowSearch(!showSearch);
+  }, [showSearch, searchQuery]);
+
+  const renderLocationItem = useCallback(
+    ({ item, index }: { item: Location; index: number }) => {
+      const translateY = new Animated.Value(50);
+      const opacity = new Animated.Value(0);
+
+      Animated.parallel([
+        Animated.timing(translateY, {
+          toValue: 0,
+          duration: 300,
+          delay: index * 50,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacity, {
+          toValue: 1,
+          duration: 300,
+          delay: index * 50,
+          useNativeDriver: true,
+        }),
+      ]).start();
+
+      return (
+        <Animated.View
+          style={{
+            transform: [{ translateY }],
+            opacity,
+          }}>
+          <TouchableOpacity
+            className="mb-3 overflow-hidden rounded-xl bg-white shadow-sm"
+            style={{
+              borderLeftWidth: 6,
+              borderLeftColor: item.color,
+            }}
+            activeOpacity={0.7}
+            onPress={() => navigateToEdit(item)}>
+            <View className="flex-row">
+              <View className="flex-1 p-4">
+                <View className="mb-1 flex-row items-center">
+                  <Text className="text-lg font-bold text-text-dark">{item.name}</Text>
+                  {item.shiftCount !== undefined && (
+                    <View className="ml-2 rounded-full bg-background-200 px-2 py-0.5">
+                      <Text className="text-xs text-text-light">{item.shiftCount} plantões</Text>
+                    </View>
+                  )}
+                </View>
+
+                {item.address && (
+                  <View className="mt-1 flex-row items-center">
+                    <Ionicons name="location-outline" size={14} color="#64748b" />
+                    <Text
+                      className="ml-1 text-sm text-text-light"
+                      numberOfLines={1}
+                      ellipsizeMode="tail">
+                      {item.address}
+                    </Text>
+                  </View>
+                )}
+
+                {item.phone && (
+                  <View className="mt-1 flex-row items-center">
+                    <Ionicons name="call-outline" size={14} color="#64748b" />
+                    <Text className="ml-1 text-sm text-text-light">{item.phone}</Text>
+                  </View>
+                )}
+              </View>
+
+              <View className="justify-center pr-4">
+                <TouchableOpacity
+                  className="h-8 w-8 items-center justify-center rounded-full bg-background-100"
+                  onPress={() => confirmDelete(item)}>
+                  <Ionicons name="trash-outline" size={16} color="#ef4444" />
+                </TouchableOpacity>
+              </View>
+            </View>
+          </TouchableOpacity>
+        </Animated.View>
+      );
+    },
+    [confirmDelete, navigateToEdit]
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView className="flex-1 bg-background">
       <StatusBar style="dark" />
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Locais</Text>
-        <TouchableOpacity style={styles.refreshButton} onPress={loadLocations}>
-          <Ionicons name="refresh-outline" size={24} color="#2B2D42" />
-        </TouchableOpacity>
+
+      <View className="z-10 border-b border-background-300 bg-white px-4 py-3">
+        <View className="flex-row items-center justify-between">
+          <Text className="text-xl font-bold text-text-dark">Meus Locais</Text>
+
+          <View className="flex-row">
+            <TouchableOpacity
+              className="mr-2 h-9 w-9 items-center justify-center rounded-full bg-background-100"
+              onPress={toggleSearch}>
+              <Ionicons
+                name={showSearch ? 'close-outline' : 'search-outline'}
+                size={20}
+                color="#1e293b"
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              className="h-9 w-9 items-center justify-center rounded-full bg-background-100"
+              onPress={loadLocations}
+              disabled={refreshing}>
+              {refreshing ? (
+                <ActivityIndicator size="small" color="#18cb96" />
+              ) : (
+                <Ionicons name="refresh-outline" size={18} color="#1e293b" />
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <Animated.View
+          style={{
+            height: fadeAnim.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0, 44],
+            }),
+            opacity: fadeAnim,
+            marginTop: fadeAnim.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0, 8],
+            }),
+            overflow: 'hidden',
+          }}>
+          <View className="flex-row items-center rounded-lg bg-background-100 px-3">
+            <Ionicons name="search-outline" size={16} color="#64748b" />
+            <TextInput
+              className="ml-2 h-10 flex-1 text-text-dark"
+              placeholder="Buscar local..."
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              autoCapitalize="none"
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')}>
+                <Ionicons name="close-circle" size={16} color="#64748b" />
+              </TouchableOpacity>
+            )}
+          </View>
+        </Animated.View>
       </View>
 
-      {locations.length > 0 ? (
+      {filteredLocations.length > 0 ? (
         <FlatList
-          data={locations}
+          data={filteredLocations}
           renderItem={renderLocationItem}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContent}
-          refreshing={refreshing}
+          contentContainerClassName="px-4 py-4"
+          showsVerticalScrollIndicator={false}
           onRefresh={loadLocations}
+          refreshing={refreshing}
         />
       ) : (
-        <View style={styles.emptyStateContainer}>
-          <Ionicons name="location-outline" size={64} color="#8D99AE" />
-          <Text style={styles.emptyText}>Nenhum local cadastrado.</Text>
-          <TouchableOpacity style={styles.addButtonEmpty} onPress={navigateToAdd}>
-            <Ionicons name="add" size={20} color="#FFFFFF" />
-            <Text style={styles.addButtonText}>Adicionar Local</Text>
-          </TouchableOpacity>
+        <View className="flex-1 items-center justify-center px-6">
+          <Ionicons
+            name={searchQuery ? 'search-outline' : 'location-outline'}
+            size={64}
+            color="#cbd5e1"
+          />
+          <Text className="mt-4 text-center text-lg font-bold text-text-dark">
+            {searchQuery ? 'Nenhum local encontrado' : 'Nenhum local cadastrado'}
+          </Text>
+          <Text className="mt-2 text-center text-sm text-text-light">
+            {searchQuery
+              ? `Não encontramos locais com "${searchQuery}"`
+              : 'Adicione seus locais de plantão para começar a organizá-los.'}
+          </Text>
+
+          {!searchQuery && (
+            <TouchableOpacity
+              className="mt-6 flex-row items-center rounded-lg bg-primary px-4 py-2.5 shadow-sm"
+              onPress={navigateToAdd}>
+              <Ionicons name="add-circle-outline" size={20} color="#FFFFFF" />
+              <Text className="ml-2 font-medium text-white">Adicionar Local</Text>
+            </TouchableOpacity>
+          )}
         </View>
       )}
 
-      <TouchableOpacity style={styles.fab} onPress={navigateToAdd}>
-        <Ionicons name="add" size={24} color="#FFFFFF" />
-      </TouchableOpacity>
+      {filteredLocations.length > 0 && (
+        <TouchableOpacity
+          className="absolute bottom-6 right-6 h-14 w-14 items-center justify-center rounded-full bg-primary shadow-lg"
+          style={{ elevation: 4 }}
+          activeOpacity={0.9}
+          onPress={navigateToAdd}>
+          <Ionicons name="add" size={28} color="#FFFFFF" />
+        </TouchableOpacity>
+      )}
     </SafeAreaView>
   );
 }
-
-// Estilos
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8F9FA' },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  headerTitle: { fontSize: 20, fontWeight: 'bold', color: '#1F2937' },
-  refreshButton: { padding: 8 },
-  listContent: { padding: 16 },
-  card: {
-    flexDirection: 'row',
-    backgroundColor: 'white',
-    borderRadius: 12,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-    overflow: 'hidden',
-  },
-  colorStripe: { width: 8 },
-  cardContent: { flex: 1, padding: 16 },
-  cardTitle: { fontSize: 16, fontWeight: 'bold', color: '#1F2937', marginBottom: 4 },
-  cardSubtitle: { fontSize: 14, color: '#6B7280', marginBottom: 2 },
-  deleteButton: { justifyContent: 'center', paddingHorizontal: 16 },
-  emptyStateContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
-  emptyText: {
-    marginTop: 16,
-    marginBottom: 16,
-    fontSize: 16,
-    color: '#6B7280',
-    textAlign: 'center',
-  },
-  addButtonEmpty: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#0077B6',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
-  },
-  addButtonText: { color: 'white', marginLeft: 8, fontWeight: '500' },
-  fab: {
-    position: 'absolute',
-    bottom: 24,
-    right: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#0077B6',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-});
