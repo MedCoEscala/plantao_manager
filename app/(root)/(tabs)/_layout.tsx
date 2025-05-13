@@ -11,16 +11,16 @@ export default function TabsLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#18cb96', // Primary color
-        tabBarInactiveTintColor: '#64748b', // text-light color
+        tabBarActiveTintColor: '#18cb96',
+        tabBarInactiveTintColor: '#64748b',
         tabBarStyle: {
           backgroundColor: '#ffffff',
-          borderTopColor: '#e2e8f0', // border color
+          borderTopColor: '#e2e8f0',
           height: Platform.OS === 'ios' ? 50 + bottomInset : 60,
           paddingBottom: Platform.OS === 'ios' ? bottomInset : 8,
           paddingTop: 8,
-          elevation: 5, // Shadow on Android
-          shadowColor: '#94a3b8', // Subtle shadow
+          elevation: 5,
+          shadowColor: '#94a3b8',
           shadowOffset: { width: 0, height: -2 },
           shadowOpacity: 0.1,
           shadowRadius: 3,
@@ -28,22 +28,22 @@ export default function TabsLayout() {
         },
         headerStyle: {
           backgroundColor: '#ffffff',
-          elevation: 2, // Subtle shadow on Android
+          elevation: 2,
           shadowColor: '#94a3b8',
           shadowOffset: { width: 0, height: 2 },
           shadowOpacity: 0.1,
           shadowRadius: 3,
           borderBottomWidth: 1,
-          borderBottomColor: '#e2e8f0', // border color
+          borderBottomColor: '#e2e8f0',
           height: Platform.OS === 'ios' ? 44 + insets.top : 60,
         },
         headerTitleStyle: {
           fontWeight: '600',
-          color: '#1e293b', // text-dark
+          color: '#1e293b',
           fontSize: 18,
         },
-        headerShadowVisible: false, // Hide the default shadow
-        headerTintColor: '#18cb96', // primary color
+        headerShadowVisible: false,
+        headerTintColor: '#18cb96',
         headerTitleAlign: 'center',
         tabBarLabelStyle: {
           fontSize: 12,
@@ -78,6 +78,7 @@ export default function TabsLayout() {
         options={{
           title: 'Locais',
           headerTitle: 'Meus Locais',
+          headerShown: false,
           tabBarIcon: ({ color, size }) => (
             <View className="items-center justify-center">
               <Ionicons name="location-outline" size={size} color={color} />
@@ -90,6 +91,7 @@ export default function TabsLayout() {
         options={{
           title: 'Pagamentos',
           headerTitle: 'Meus Pagamentos',
+          headerShown: false,
           tabBarIcon: ({ color, size }) => (
             <View className="items-center justify-center">
               <Ionicons name="cash-outline" size={size} color={color} />

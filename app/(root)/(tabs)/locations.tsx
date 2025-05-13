@@ -16,8 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useDialog } from '@/contexts/DialogContext';
 import { useToast } from '@/components/ui/Toast';
-import { LocationFormModal } from '@/components'; // Importa o LocationFormModal
-
+import { LocationFormModal } from '@/components/ui';
 interface Location {
   id: string;
   name: string;

@@ -17,6 +17,7 @@ import { useDialog } from '@/contexts/DialogContext';
 import { useToast } from '@/components/ui/Toast';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import PaymentFormModal from '@/components/payment/PaymentFormModal';
 
 // Tipo para pagamento
 interface Payment {
@@ -118,6 +119,8 @@ export default function PaymentsScreen() {
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'pending' | 'completed' | 'failed'>(
     'all'
   );
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedPaymentId, setSelectedPaymentId] = useState<string | undefined>(undefined);
 
   const fadeAnim = useState(new Animated.Value(0))[0];
   const filtersHeight = useState(new Animated.Value(0))[0];
@@ -204,19 +207,20 @@ export default function PaymentsScreen() {
     [showDialog, showToast]
   );
 
-  const navigateToEdit = useCallback(
-    (payment: Payment) => {
-      router.push({
-        pathname: '/payments/edit',
-        params: { id: payment.id },
-      });
-    },
-    [router]
-  );
+  const navigateToEdit = useCallback((payment: Payment) => {
+    setSelectedPaymentId(payment.id);
+    setShowPaymentModal(true);
+  }, []);
 
   const navigateToAdd = useCallback(() => {
-    router.push('/payments/add');
-  }, [router]);
+    setSelectedPaymentId(undefined);
+    setShowPaymentModal(true);
+  }, []);
+
+  const handlePaymentSuccess = useCallback(() => {
+    setShowPaymentModal(false);
+    loadPayments();
+  }, [loadPayments]);
 
   const toggleSearch = useCallback(() => {
     if (showSearch && searchQuery) {
@@ -517,7 +521,7 @@ export default function PaymentsScreen() {
           data={filteredPayments}
           renderItem={renderPaymentItem}
           keyExtractor={(item) => item.id}
-          contentContainerClassName="px-4 pb-24"
+          contentContainerClassName="px-4 pb-4"
           showsVerticalScrollIndicator={false}
           onRefresh={loadPayments}
           refreshing={refreshing}
@@ -559,6 +563,14 @@ export default function PaymentsScreen() {
           <Ionicons name="add" size={28} color="#FFFFFF" />
         </TouchableOpacity>
       )}
+
+      {/* Modal de Formulário de Pagamento */}
+      <PaymentFormModal
+        visible={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        paymentId={selectedPaymentId}
+        onSuccess={handlePaymentSuccess}
+      />
     </SafeAreaView>
   );
 }

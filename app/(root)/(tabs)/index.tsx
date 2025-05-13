@@ -450,7 +450,8 @@ export default function ShiftsScreen() {
 
       {/* Floating Action Button */}
       <TouchableOpacity
-        className="absolute bottom-4 right-4 h-14 w-14 items-center justify-center rounded-full bg-primary shadow-lg shadow-primary/30"
+        className="absolute bottom-6 right-6 h-14 w-14 items-center justify-center rounded-full bg-primary shadow-lg"
+        style={{ elevation: 4 }}
         activeOpacity={0.9}
         onPress={navigateToAddShift}>
         <Ionicons name="add" size={28} color="#FFFFFF" />
