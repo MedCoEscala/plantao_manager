@@ -7,13 +7,14 @@ import { useToast } from '@/components/ui/Toast';
 import DateField from '@/components/form/DateField';
 import SelectField from '@/components/form/SelectField';
 import SwitchField from '@/components/form/SwitchField';
+import { useShiftsApi, Shift } from '@/services/shifts-api';
+import { useDialog } from '@/contexts/DialogContext';
 
 const PAYMENT_TYPE_OPTIONS = [
   { label: 'Pessoa Física (PF)', value: 'PF' },
   { label: 'Pessoa Jurídica (PJ)', value: 'PJ' },
 ];
 
-// Dados mockados (substituir por dados reais de API)
 const MOCK_LOCATIONS = [
   { value: 'loc1', label: 'Hospital Central', icon: 'business-outline', color: '#0077B6' },
   { value: 'loc2', label: 'Clínica Sul', icon: 'business-outline', color: '#EF476F' },
@@ -41,7 +42,6 @@ export default function ShiftForm({
   onCancel,
   isModal = false,
 }: ShiftFormProps) {
-  // Estados do formulário
   const [date, setDate] = useState<Date>(initialDate || new Date());
   const [startTime, setStartTime] = useState<Date>(() => {
     const now = new Date();
@@ -60,44 +60,70 @@ export default function ShiftForm({
   const [isFixed, setIsFixed] = useState<boolean>(false);
   const [notes, setNotes] = useState<string>('');
 
-  // Estados de validação e UI
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const { showToast } = useToast();
+  const { showDialog } = useDialog();
+  const shiftsApi = useShiftsApi();
 
-  // Efeito para carregar dados existentes se for edição
   useEffect(() => {
     if (shiftId) {
-      setIsLoading(true);
-      // Simular carregamento de dados (substituir por API real)
-      setTimeout(() => {
-        // Carregar dados do shiftId
-        setLocationId('loc1');
-        setContractorId('cont1');
-        setValue('1200');
-        setPaymentType('PF');
-        setIsFixed(false);
-        setNotes('Plantão de emergência na ala de trauma.');
-
-        setIsLoading(false);
-      }, 1000);
+      loadShiftData();
     }
   }, [shiftId]);
 
-  // Efeito para atualizar as dates quando mudar initialDate
   useEffect(() => {
     if (initialDate) {
       setDate(initialDate);
     }
   }, [initialDate]);
 
-  // Formatação do valor monetário
+  const loadShiftData = async () => {
+    if (!shiftId) return;
+
+    setIsLoading(true);
+    try {
+      const shift = await shiftsApi.getShiftById(shiftId);
+
+      setDate(new Date(shift.date));
+
+      if (shift.startTime) {
+        const startParts = shift.startTime.split(':');
+        const startDate = new Date();
+        startDate.setHours(parseInt(startParts[0]), parseInt(startParts[1]), 0, 0);
+        setStartTime(startDate);
+      }
+
+      if (shift.endTime) {
+        const endParts = shift.endTime.split(':');
+        const endDate = new Date();
+        endDate.setHours(parseInt(endParts[0]), parseInt(endParts[1]), 0, 0);
+        setEndTime(endDate);
+      }
+
+      setLocationId(shift.locationId || '');
+      setContractorId(shift.contractorId || '');
+      setValue(shift.value.toString());
+      setPaymentType(shift.paymentType);
+      setIsFixed(shift.isFixed);
+      setNotes(shift.notes || '');
+
+      showToast('Dados do plantão carregados', 'success');
+    } catch (error: any) {
+      showDialog({
+        title: 'Erro',
+        message: `Erro ao carregar dados do plantão: ${error.message || 'Erro desconhecido'}`,
+        type: 'error',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const formatValue = (text: string) => {
-    // Remove caracteres não numéricos
     const numbers = text.replace(/[^\d]/g, '');
 
-    // Formata como moeda brasileira (R$)
     if (numbers) {
       const amount = parseInt(numbers, 10) / 100;
       return amount.toLocaleString('pt-BR', {
@@ -108,7 +134,6 @@ export default function ShiftForm({
     return '';
   };
 
-  // Validação do formulário
   const validateForm = () => {
     const newErrors: { [key: string]: string } = {};
 
@@ -128,7 +153,6 @@ export default function ShiftForm({
     return Object.keys(newErrors).length === 0;
   };
 
-  // Salvar o formulário
   const handleSubmit = async () => {
     if (!validateForm()) {
       showToast('Por favor, corrija os erros no formulário', 'error');
@@ -138,38 +162,52 @@ export default function ShiftForm({
     setIsLoading(true);
 
     try {
-      // Formatar valor para envio (string para número)
       const formattedValue = value.replace(/\./g, '').replace(',', '.');
 
-      // Dados para enviar para API
-      const formData = {
-        date: format(date, 'yyyy-MM-dd'),
-        startTime: format(startTime, 'HH:mm'),
-        endTime: format(endTime, 'HH:mm'),
-        locationId,
-        contractorId: contractorId || undefined,
-        value: parseFloat(formattedValue),
-        paymentType,
-        isFixed,
-        notes: notes || undefined,
-      };
+      const formattedStartTime = format(startTime, 'HH:mm');
+      const formattedEndTime = format(endTime, 'HH:mm');
 
-      console.log('Enviando dados:', formData);
+      if (shiftId) {
+        await shiftsApi.updateShift(shiftId, {
+          date: format(date, 'yyyy-MM-dd'),
+          startTime: formattedStartTime,
+          endTime: formattedEndTime,
+          value: parseFloat(formattedValue),
+          paymentType,
+          isFixed,
+          notes: notes || undefined,
+          locationId: locationId || undefined,
+          contractorId: contractorId || undefined,
+        });
 
-      // Simular chamada de API (substituir por chamada real)
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+        showToast('Plantão atualizado com sucesso!', 'success');
+      } else {
+        await shiftsApi.createShift({
+          date: format(date, 'yyyy-MM-dd'),
+          startTime: formattedStartTime,
+          endTime: formattedEndTime,
+          value: parseFloat(formattedValue),
+          paymentType,
+          isFixed,
+          notes: notes || undefined,
+          locationId: locationId || undefined,
+          contractorId: contractorId || undefined,
+        });
 
-      showToast(
-        shiftId ? 'Plantão atualizado com sucesso!' : 'Plantão criado com sucesso!',
-        'success'
-      );
+        showToast('Plantão criado com sucesso!', 'success');
+      }
 
       if (onSuccess) {
         onSuccess();
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao salvar plantão:', error);
-      showToast('Erro ao salvar plantão', 'error');
+
+      showDialog({
+        title: 'Erro',
+        message: `Erro ao ${shiftId ? 'atualizar' : 'criar'} plantão: ${error.message || 'Erro desconhecido'}`,
+        type: 'error',
+      });
     } finally {
       setIsLoading(false);
     }

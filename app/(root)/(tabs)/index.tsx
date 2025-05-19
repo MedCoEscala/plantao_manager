@@ -1,5 +1,4 @@
-// app/(root)/(tabs)/index.tsx
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -19,136 +18,13 @@ import CalendarComponent from '@/components/CalendarComponent';
 import { useProfile } from '@/hooks/useProfile';
 import ShiftFormModal from '@/components/shifts/ShiftFormModal';
 import { useToast } from '@/components';
-
-// Defining types for locations
-type LocationType = {
-  id: string;
-  name: string;
-  address: string;
-  color: string;
-};
-
-// Defining type for the locations object with index signature
-type LocationsType = {
-  [key: string]: LocationType;
-};
-
-// --- IMPROVED MOCK DATA --- (Replace with real API calls later)
-// Create a locations object for use in the form and display
-const MOCK_LOCATIONS: LocationsType = {
-  loc1: {
-    id: 'loc1',
-    name: 'Hospital Central',
-    address: 'Av. Paulista, 1500',
-    color: '#0077B6',
-  },
-  loc2: {
-    id: 'loc2',
-    name: 'Clínica Sul',
-    address: 'Rua Augusta, 500',
-    color: '#EF476F',
-  },
-  loc3: {
-    id: 'loc3',
-    name: 'Posto de Saúde Norte',
-    address: 'Av. Brigadeiro Faria Lima, 1200',
-    color: '#06D6A0',
-  },
-};
-
-// Helper function to generate dates relative to today
-const createDate = (daysOffset: number) => {
-  const date = new Date();
-  date.setDate(date.getDate() + daysOffset);
-  return date.toISOString();
-};
-
-// Future shifts (next 30 days)
-const MOCK_SHIFTS = [
-  {
-    id: '1',
-    date: createDate(2), // 2 days from now
-    locationId: 'loc1',
-    startTime: '08:00',
-    endTime: '14:00',
-    value: 1200,
-    status: 'Agendado',
-  },
-  {
-    id: '2',
-    date: createDate(4), // 4 days from now
-    locationId: 'loc2',
-    startTime: '13:00',
-    endTime: '19:00',
-    value: 1350,
-    status: 'Confirmado',
-  },
-  {
-    id: '3',
-    date: createDate(7), // 7 days from now
-    locationId: 'loc1',
-    startTime: '07:00',
-    endTime: '13:00',
-    value: 1100,
-    status: 'Agendado',
-  },
-  {
-    id: '4',
-    date: createDate(7), // Same day as previous one (to test multiple shifts)
-    locationId: 'loc3',
-    startTime: '14:00',
-    endTime: '22:00',
-    value: 1400,
-    status: 'Agendado',
-  },
-  {
-    id: '5',
-    date: createDate(10), // 10 days from now
-    locationId: 'loc2',
-    startTime: '09:00',
-    endTime: '17:00',
-    value: 1250,
-    status: 'Agendado',
-  },
-];
-
-// Past shifts (last 30 days)
-const MOCK_PAST_SHIFTS = [
-  {
-    id: 'p1',
-    date: createDate(-3), // 3 days ago
-    locationId: 'loc2',
-    startTime: '08:00',
-    endTime: '14:00',
-    value: 1150,
-    status: 'Concluído',
-  },
-  {
-    id: 'p2',
-    date: createDate(-7), // 7 days ago
-    locationId: 'loc1',
-    startTime: '07:00',
-    endTime: '19:00',
-    value: 1800,
-    status: 'Concluído',
-  },
-  {
-    id: 'p3',
-    date: createDate(-14), // 14 days ago
-    locationId: 'loc3',
-    startTime: '13:00',
-    endTime: '19:00',
-    value: 950,
-    status: 'Cancelado',
-  },
-];
-// --- END MOCK DATA ---
+import { useShiftsApi, Shift } from '@/services/shifts-api';
 
 export default function ShiftsScreen() {
-  const [upcomingShifts, setUpcomingShifts] = useState(MOCK_SHIFTS);
-  const [pastShifts, setPastShifts] = useState(MOCK_PAST_SHIFTS);
+  const [shifts, setShifts] = useState<Shift[]>([]);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [modalInitialDate, setModalInitialDate] = useState<Date | null>(null);
 
@@ -156,17 +32,16 @@ export default function ShiftsScreen() {
   const { showDialog } = useDialog();
   const { showToast } = useToast();
   const router = useRouter();
+  const shiftsApi = useShiftsApi();
 
   // Extract user name from profile
   const userName = useMemo(() => {
     if (isProfileLoading || !profile) return 'Usuário';
 
-    // Try to combine firstName and lastName
     if (profile.firstName || profile.lastName) {
       return ((profile.firstName || '') + ' ' + (profile.lastName || '')).trim();
     }
 
-    // Or use the name field if available
     if (profile.name) {
       return profile.name;
     }
@@ -174,30 +49,52 @@ export default function ShiftsScreen() {
     return 'Usuário';
   }, [profile, isProfileLoading]);
 
-  // Combine all shifts (future and past)
-  const allShifts = useMemo(() => {
-    return [...upcomingShifts, ...pastShifts];
-  }, [upcomingShifts, pastShifts]);
+  // Carrega os plantões do backend
+  const loadShifts = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      // Carregar plantões do mês atual
+      const currentDate = new Date();
+      const firstDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+      const lastDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+
+      const data = await shiftsApi.getShifts({
+        startDate: format(firstDay, 'yyyy-MM-dd'),
+        endDate: format(lastDay, 'yyyy-MM-dd'),
+      });
+
+      setShifts(data);
+    } catch (error: any) {
+      console.error('Erro ao carregar plantões:', error);
+      showToast(`Erro ao carregar plantões: ${error.message}`, 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [showToast]);
+
+  // Carrega os plantões ao iniciar a tela
+  useEffect(() => {
+    if (!isProfileLoading) {
+      loadShifts();
+    }
+  }, [isProfileLoading]);
 
   // Filter shifts for the selected date
   const shiftsForSelectedDate = useMemo(() => {
-    return allShifts.filter((shift) => isSameDay(parseISO(shift.date), selectedDate));
-  }, [allShifts, selectedDate]);
+    return shifts.filter((shift) => isSameDay(parseISO(shift.date), selectedDate));
+  }, [shifts, selectedDate]);
 
-  const handleRefresh = useCallback(() => {
+  const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
-    // Simulate data refresh (replace with real API call)
-    setTimeout(() => {
-      setUpcomingShifts(MOCK_SHIFTS);
-      setPastShifts(MOCK_PAST_SHIFTS);
+    try {
+      await loadShifts();
+      showToast('Dados atualizados com sucesso!', 'success');
+    } catch (error) {
+      console.error('Erro ao atualizar plantões:', error);
+    } finally {
       setIsRefreshing(false);
-      showDialog({
-        type: 'success',
-        title: 'Atualizado',
-        message: 'Dados recarregados com sucesso.',
-      });
-    }, 1000);
-  }, [showDialog]);
+    }
+  }, [loadShifts, showToast]);
 
   // Show modal to add a shift
   const navigateToAddShift = useCallback(() => {
@@ -215,7 +112,7 @@ export default function ShiftsScreen() {
 
   // Navigate to shift details
   const navigateToShiftDetails = useCallback(
-    (shift: any) => {
+    (shift: Shift) => {
       router.push({
         pathname: `/shifts/${shift.id}`,
       });
@@ -233,9 +130,9 @@ export default function ShiftsScreen() {
     showToast('Plantão adicionado com sucesso!', 'success');
     setIsAddModalVisible(false);
 
-    // Atualizar dados (simulação)
-    handleRefresh();
-  }, [showToast, handleRefresh]);
+    // Atualizar dados
+    loadShifts();
+  }, [showToast, loadShifts]);
 
   // Fechar o modal
   const handleCloseModal = useCallback(() => {
@@ -244,22 +141,24 @@ export default function ShiftsScreen() {
   }, []);
 
   // Get color and name info for a location with handling for undefined
-  const getLocationInfo = (locationId: string) => {
-    // If we don't have the locationId or it doesn't exist in mock locations, return default values
-    if (!locationId || !MOCK_LOCATIONS[locationId]) {
+  const getLocationInfo = (shift: Shift) => {
+    // Se o plantão tem informações de localização, use-as
+    if (shift.location) {
       return {
-        name: 'Local desconhecido',
-        color: '#64748b', // default color
+        name: shift.location.name,
+        color: shift.location.color,
       };
     }
+
+    // Caso contrário, retorne valores padrão
     return {
-      name: MOCK_LOCATIONS[locationId].name,
-      color: MOCK_LOCATIONS[locationId].color,
+      name: 'Local não informado',
+      color: '#64748b', // default color
     };
   };
 
   const renderShiftItem = useCallback(
-    ({ item }: { item: (typeof MOCK_SHIFTS)[0] }) => {
+    ({ item }: { item: Shift }) => {
       const formatShiftDate = () => {
         try {
           return format(new Date(item.date), "dd 'de' MMMM", { locale: ptBR });
@@ -277,7 +176,8 @@ export default function ShiftsScreen() {
       };
 
       const getStatusInfo = () => {
-        switch (item.status?.toLowerCase()) {
+        const status = item.status?.toLowerCase() || 'agendado';
+        switch (status) {
           case 'agendado':
             return { label: 'Agendado', color: '#18cb96' }; // primary
           case 'confirmado':
@@ -285,6 +185,7 @@ export default function ShiftsScreen() {
           case 'cancelado':
             return { label: 'Cancelado', color: '#ef4444' }; // error
           case 'concluído':
+          case 'concluido':
             return { label: 'Concluído', color: '#64748b' }; // text-light
           default:
             return { label: item.status || 'Agendado', color: '#64748b' };
@@ -292,7 +193,7 @@ export default function ShiftsScreen() {
       };
 
       const statusInfo = getStatusInfo();
-      const locationInfo = getLocationInfo(item.locationId);
+      const locationInfo = getLocationInfo(item);
 
       return (
         <TouchableOpacity
@@ -412,15 +313,24 @@ export default function ShiftsScreen() {
         </View>
       </View>
 
-      {/* Calendar Component */}
       <CalendarComponent
-        shifts={allShifts}
+        shifts={shifts.map((shift) => ({
+          ...shift,
+          locationId: shift.locationId ?? '',
+          startTime: shift.startTime ?? '',
+          endTime: shift.endTime ?? '',
+          status: shift.status ?? '',
+        }))}
         selectedDate={selectedDate}
         onSelectDate={handleSelectDate}
       />
 
-      {/* Main Content */}
-      {allShifts.length === 0 && !isRefreshing ? (
+      {isLoading ? (
+        <View className="flex-1 items-center justify-center">
+          <ActivityIndicator size="large" color="#18cb96" />
+          <Text className="mt-4 text-text-light">Carregando plantões...</Text>
+        </View>
+      ) : shifts.length === 0 && !isRefreshing ? (
         renderEmptyContent()
       ) : (
         <FlatList
