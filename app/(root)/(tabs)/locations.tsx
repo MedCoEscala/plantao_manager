@@ -6,9 +6,7 @@ import {
   FlatList,
   ActivityIndicator,
   TextInput,
-  Alert,
   Animated,
-  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -17,64 +15,15 @@ import { useRouter } from 'expo-router';
 import { useDialog } from '@/contexts/DialogContext';
 import { useToast } from '@/components/ui/Toast';
 import { LocationFormModal } from '@/components/ui';
-interface Location {
-  id: string;
-  name: string;
-  address?: string;
-  phone?: string;
-  color: string;
-  shiftCount?: number;
-}
+import { useLocationsApi, Location, LocationsFilters } from '@/services/locations-api';
 
-const MOCK_LOCATIONS_DATA: Location[] = [
-  {
-    id: 'loc1',
-    name: 'Hospital Central',
-    address: 'Av. Principal, 123',
-    phone: '(51) 9999-1111',
-    color: '#0077B6',
-    shiftCount: 12,
-  },
-  {
-    id: 'loc2',
-    name: 'Clínica Sul',
-    address: 'Av. Secundária, 456',
-    phone: '(51) 9999-2222',
-    color: '#2A9D8F',
-    shiftCount: 8,
-  },
-  {
-    id: 'loc3',
-    name: 'Posto de Saúde Norte',
-    address: 'Travessa Terciária, 789',
-    color: '#E9C46A',
-    shiftCount: 5,
-  },
-  {
-    id: 'loc4',
-    name: 'Hospital Universitário',
-    address: 'Rua das Universidades, 1000',
-    phone: '(51) 3333-4444',
-    color: '#E76F51',
-    shiftCount: 15,
-  },
-  {
-    id: 'loc5',
-    name: 'Centro Médico Leste',
-    address: 'Av. Leste, 789',
-    color: '#9381FF',
-    shiftCount: 7,
-  },
-];
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-
-export default function LocationsScreen() {
-  const [locations, setLocations] = useState<Location[]>(MOCK_LOCATIONS_DATA);
-  const [filteredLocations, setFilteredLocations] = useState<Location[]>(MOCK_LOCATIONS_DATA);
+const LocationsScreen = () => {
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [filteredLocations, setFilteredLocations] = useState<Location[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const fadeAnim = useState(new Animated.Value(0))[0];
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
@@ -82,6 +31,7 @@ export default function LocationsScreen() {
   const { showDialog } = useDialog();
   const { showToast } = useToast();
   const router = useRouter();
+  const locationsApi = useLocationsApi();
 
   useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -107,19 +57,30 @@ export default function LocationsScreen() {
 
   const loadLocations = useCallback(async () => {
     setRefreshing(true);
+    setIsLoading(true);
 
     try {
-      await new Promise((res) => setTimeout(res, 1000));
-      setLocations(MOCK_LOCATIONS_DATA);
-      setFilteredLocations(MOCK_LOCATIONS_DATA);
+      const filters: LocationsFilters = {};
+      if (searchQuery.trim()) {
+        filters.searchTerm = searchQuery.trim();
+      }
+
+      const data = await locationsApi.getLocations(filters);
+      setLocations(data);
+      setFilteredLocations(data);
       showToast('Locais atualizados com sucesso', 'success');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao carregar locais:', error);
-      showToast('Erro ao carregar locais', 'error');
+      showToast(`Erro ao carregar locais: ${error.message || 'Erro desconhecido'}`, 'error');
     } finally {
       setRefreshing(false);
+      setIsLoading(false);
     }
-  }, [showToast]);
+  }, [showToast, locationsApi, searchQuery]);
+
+  useEffect(() => {
+    loadLocations();
+  }, [loadLocations]);
 
   const confirmDelete = useCallback(
     (location: Location) => {
@@ -128,14 +89,20 @@ export default function LocationsScreen() {
         message: `Deseja realmente excluir o local "${location.name}"?`,
         type: 'confirm',
         confirmText: 'Excluir',
-        onConfirm: () => {
-          setLocations((prev) => prev.filter((loc) => loc.id !== location.id));
-          setFilteredLocations((prev) => prev.filter((loc) => loc.id !== location.id));
-          showToast('Local excluído com sucesso', 'success');
+        onConfirm: async () => {
+          try {
+            await locationsApi.deleteLocation(location.id);
+            setLocations((prev) => prev.filter((loc) => loc.id !== location.id));
+            setFilteredLocations((prev) => prev.filter((loc) => loc.id !== location.id));
+            showToast('Local excluído com sucesso', 'success');
+          } catch (error: any) {
+            console.error('Erro ao excluir local:', error);
+            showToast(`Erro ao excluir local: ${error.message || 'Erro desconhecido'}`, 'error');
+          }
         },
       });
     },
-    [showDialog, showToast]
+    [showDialog, showToast, locationsApi]
   );
 
   const handleEditLocation = useCallback((location: Location) => {
@@ -195,7 +162,7 @@ export default function LocationsScreen() {
             className="mb-3 overflow-hidden rounded-xl bg-white shadow-sm"
             style={{
               borderLeftWidth: 6,
-              borderLeftColor: item.color,
+              borderLeftColor: item.color || '#0077B6',
             }}
             activeOpacity={0.7}
             onPress={() => handleEditLocation(item)}>
@@ -203,11 +170,6 @@ export default function LocationsScreen() {
               <View className="flex-1 p-4">
                 <View className="mb-1 flex-row items-center">
                   <Text className="text-lg font-bold text-text-dark">{item.name}</Text>
-                  {item.shiftCount !== undefined && (
-                    <View className="ml-2 rounded-full bg-background-200 px-2 py-0.5">
-                      <Text className="text-xs text-text-light">{item.shiftCount} plantões</Text>
-                    </View>
-                  )}
                 </View>
 
                 {item.address && (
@@ -249,7 +211,7 @@ export default function LocationsScreen() {
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
       <StatusBar style="dark" />
 
-      {/* Custom Header - Sem Duplicação */}
+      {/* Header */}
       <View className="z-10 border-b border-background-300 bg-white px-4 py-3">
         <View className="flex-row items-center justify-between">
           <Text className="text-xl font-bold text-text-dark">Meus Locais</Text>
@@ -309,7 +271,12 @@ export default function LocationsScreen() {
         </Animated.View>
       </View>
 
-      {filteredLocations.length > 0 ? (
+      {isLoading ? (
+        <View className="flex-1 items-center justify-center">
+          <ActivityIndicator size="large" color="#18cb96" />
+          <Text className="mt-4 text-gray-500">Carregando locais...</Text>
+        </View>
+      ) : filteredLocations.length > 0 ? (
         <FlatList
           data={filteredLocations}
           renderItem={renderLocationItem}
@@ -356,7 +323,6 @@ export default function LocationsScreen() {
         </TouchableOpacity>
       )}
 
-      {/* Modal de Adicionar/Editar Local */}
       <LocationFormModal
         visible={isAddModalVisible}
         onClose={handleModalClose}
@@ -365,4 +331,6 @@ export default function LocationsScreen() {
       />
     </SafeAreaView>
   );
-}
+};
+
+export default LocationsScreen;

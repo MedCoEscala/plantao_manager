@@ -6,6 +6,7 @@ import { ConfigModule } from '@nestjs/config';
 import { UsersModule } from './users/users.module';
 import { ShiftsModule } from './shifts/shifts.module';
 import { ContractorsModule } from './contractors/contractors.module';
+import { LocationsModule } from './locations/location.module';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { ContractorsModule } from './contractors/contractors.module';
     PrismaModule,
     UsersModule,
     ShiftsModule,
+    LocationsModule,
     ContractorsModule,
   ],
   controllers: [AppController],
