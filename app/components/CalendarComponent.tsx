@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -27,6 +27,9 @@ import {
   getDate,
   parseISO,
   startOfDay,
+  isValid,
+  addWeeks,
+  subWeeks,
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -149,15 +152,18 @@ const CalendarComponent: React.FC<CalendarProps> = ({
   const [internalMonth, setInternalMonth] = useState(new Date());
   const currentMonth = externalMonth || internalMonth;
 
-  const [calendarView, setCalendarView] = useState<'week' | 'month'>('week');
+  // Para evitar chamadas desnecessárias ao onMonthChange
+  const prevMonthRef = useRef<string>('');
 
-  // Gera as datas da semana centradas no dia atual ou dia selecionado
+  const [calendarView, setCalendarView] = useState<'week' | 'month'>('week');
+  const [currentWeekStart, setCurrentWeekStart] = useState(() =>
+    startOfWeek(new Date(), { locale: ptBR })
+  );
+
+  // Gera as datas da semana a partir do início da semana atual (não centraliza na data selecionada)
   const weekDates = useMemo(() => {
-    // Use a data selecionada ou hoje como centro
-    const centerDate = startOfDay(selectedDate);
-    // Gerar 3 dias antes e 3 depois = 7 dias no total
-    return Array.from({ length: 7 }, (_, i) => addDays(subDays(centerDate, 3), i));
-  }, [selectedDate]);
+    return Array.from({ length: 7 }, (_, i) => addDays(currentWeekStart, i));
+  }, [currentWeekStart]);
 
   const monthDates = useMemo(() => {
     const monthStart = startOfMonth(currentMonth);
@@ -170,32 +176,69 @@ const CalendarComponent: React.FC<CalendarProps> = ({
 
   const nextMonth = useCallback(() => {
     const newMonth = addMonths(currentMonth, 1);
-    if (onMonthChange) {
-      // Notificar o componente pai sobre a mudança, mas não atualizar internamente
-      onMonthChange(newMonth);
-    } else {
-      // Se não estiver sendo controlado externamente, atualize o state interno
-      setInternalMonth(newMonth);
+    const newMonthKey = `${newMonth.getFullYear()}-${newMonth.getMonth()}`;
+
+    // Só notifica se o mês realmente mudou
+    if (newMonthKey !== prevMonthRef.current) {
+      prevMonthRef.current = newMonthKey;
+
+      if (onMonthChange) {
+        // Notificar o componente pai sobre a mudança, mas não atualizar internamente
+        onMonthChange(newMonth);
+      } else {
+        // Se não estiver sendo controlado externamente, atualize o state interno
+        setInternalMonth(newMonth);
+      }
     }
   }, [currentMonth, onMonthChange]);
 
   const prevMonth = useCallback(() => {
     const newMonth = subMonths(currentMonth, 1);
-    if (onMonthChange) {
-      // Notificar o componente pai sobre a mudança, mas não atualizar internamente
-      onMonthChange(newMonth);
-    } else {
-      // Se não estiver sendo controlado externamente, atualize o state interno
-      setInternalMonth(newMonth);
+    const newMonthKey = `${newMonth.getFullYear()}-${newMonth.getMonth()}`;
+
+    // Só notifica se o mês realmente mudou
+    if (newMonthKey !== prevMonthRef.current) {
+      prevMonthRef.current = newMonthKey;
+
+      if (onMonthChange) {
+        // Notificar o componente pai sobre a mudança, mas não atualizar internamente
+        onMonthChange(newMonth);
+      } else {
+        // Se não estiver sendo controlado externamente, atualize o state interno
+        setInternalMonth(newMonth);
+      }
     }
   }, [currentMonth, onMonthChange]);
+
+  const nextWeek = useCallback(() => {
+    setCurrentWeekStart((prevWeekStart) => addWeeks(prevWeekStart, 1));
+  }, []);
+
+  const prevWeek = useCallback(() => {
+    setCurrentWeekStart((prevWeekStart) => subWeeks(prevWeekStart, 1));
+  }, []);
+
+  // Inicializa a referência do mês
+  useEffect(() => {
+    if (currentMonth) {
+      prevMonthRef.current = `${currentMonth.getFullYear()}-${currentMonth.getMonth()}`;
+    }
+  }, []);
 
   // Memoize a contagem de shifts para reduzir cálculos
   const shiftCountByDate = useMemo(() => {
     const countMap = new Map<string, number>();
+
+    if (!shifts || !Array.isArray(shifts)) return countMap;
+
     shifts.forEach((shift) => {
       try {
+        // Garantir que a data existe e é válida
+        if (!shift.date) return;
+
         const shiftDate = parseISO(shift.date);
+        if (!isValid(shiftDate)) return;
+
         const dateKey = format(shiftDate, 'yyyy-MM-dd');
         countMap.set(dateKey, (countMap.get(dateKey) || 0) + 1);
       } catch (error) {
@@ -294,7 +337,10 @@ const CalendarComponent: React.FC<CalendarProps> = ({
     );
 
     return (
-      <Pressable onPress={() => onSelectDate(item)} style={containerStyle}>
+      <Pressable
+        onPress={() => onSelectDate(item)}
+        style={containerStyle}
+        android_ripple={{ color: 'rgba(0, 0, 0, 0.1)' }}>
         <Text style={weekdayTextStyle}>{weekdayLetter}</Text>
         <Text style={dateTextStyle}>{getDate(item)}</Text>
 
@@ -372,7 +418,11 @@ const CalendarComponent: React.FC<CalendarProps> = ({
       };
 
       return (
-        <Pressable key={index} style={dayContainerStyle} onPress={() => onSelectDate(date)}>
+        <Pressable
+          key={index}
+          style={dayContainerStyle}
+          onPress={() => onSelectDate(date)}
+          android_ripple={{ color: 'rgba(0, 0, 0, 0.1)', radius: DAY_WIDTH / 2 }}>
           <Text style={dateTextStyle}>{getDate(date)}</Text>
 
           {hasShift && (
@@ -407,6 +457,16 @@ const CalendarComponent: React.FC<CalendarProps> = ({
                 <Ionicons name="chevron-back" size={16} color="#1e293b" />
               </Pressable>
               <Pressable style={[styles.navButton, styles.rightNavButton]} onPress={nextMonth}>
+                <Ionicons name="chevron-forward" size={16} color="#1e293b" />
+              </Pressable>
+            </>
+          )}
+          {calendarView === 'week' && (
+            <>
+              <Pressable style={styles.navButton} onPress={prevWeek}>
+                <Ionicons name="chevron-back" size={16} color="#1e293b" />
+              </Pressable>
+              <Pressable style={[styles.navButton, styles.rightNavButton]} onPress={nextWeek}>
                 <Ionicons name="chevron-forward" size={16} color="#1e293b" />
               </Pressable>
             </>

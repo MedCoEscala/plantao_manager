@@ -6,13 +6,14 @@ import {
   FlatList,
   ActivityIndicator,
   RefreshControl,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useDialog } from '@/contexts/DialogContext';
-import { format, isSameDay, parseISO } from 'date-fns';
+import { format, isSameDay, parseISO, isValid } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import CalendarComponent from '@/components/CalendarComponent';
 import { useProfile } from '@/hooks/useProfile';
@@ -30,6 +31,7 @@ export default function ShiftsScreen() {
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [modalInitialDate, setModalInitialDate] = useState<Date | null>(null);
   const prevMonthRef = useRef<string>('');
+  const currentMonthRef = useRef<string>('');
 
   const { profile, isLoading: isProfileLoading } = useProfile();
   const { showDialog } = useDialog();
@@ -37,7 +39,6 @@ export default function ShiftsScreen() {
   const router = useRouter();
   const shiftsApi = useShiftsApi();
 
-  // Extract user name from profile
   const userName = useMemo(() => {
     if (isProfileLoading || !profile) return 'Usuário';
 
@@ -52,41 +53,37 @@ export default function ShiftsScreen() {
     return 'Usuário';
   }, [profile, isProfileLoading]);
 
-  // Carrega os plantões do backend
   const loadShifts = useCallback(
     async (forceRefresh = false) => {
-      if ((isLoading && !forceRefresh) || isProfileLoading) return; // Evita chamadas concorrentes ou se o perfil ainda estiver carregando
+      if ((isLoading && !forceRefresh) || isProfileLoading) return;
 
       setIsLoading(true);
       try {
-        // Calcular a data do primeiro dia e do último dia do mês selecionado
         const firstDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
         const lastDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
 
-        // Formatar o mês atual para verificação
         const monthKey = `${currentMonth.getFullYear()}-${currentMonth.getMonth()}`;
 
-        // Apenas pula requisição se não for refresh forçado e já tivermos dados
         if (!forceRefresh && monthKey === prevMonthRef.current && shifts.length > 0) {
           console.log(`Mês ${monthKey} já carregado, pulando requisição`);
           setIsLoading(false);
           return;
         }
 
-        console.log(
-          `Buscando plantões de ${format(firstDay, 'yyyy-MM-dd')} até ${format(lastDay, 'yyyy-MM-dd')}`
-        );
+        const formattedStartDate = format(firstDay, 'yyyy-MM-dd');
+        const formattedEndDate = format(lastDay, 'yyyy-MM-dd');
+
+        console.log(`Buscando plantões de ${formattedStartDate} até ${formattedEndDate}`);
 
         const data = await shiftsApi.getShifts({
-          startDate: format(firstDay, 'yyyy-MM-dd'),
-          endDate: format(lastDay, 'yyyy-MM-dd'),
+          startDate: formattedStartDate,
+          endDate: formattedEndDate,
         });
 
         console.log(`Plantões carregados: ${data.length}`);
         setShifts(data);
-        setIsDataLoaded(true); // Marca que os dados foram carregados com sucesso
+        setIsDataLoaded(true);
 
-        // Atualiza o mês de referência
         prevMonthRef.current = monthKey;
       } catch (error: any) {
         console.error('Erro ao carregar plantões:', error);
@@ -98,32 +95,84 @@ export default function ShiftsScreen() {
     [showToast, shiftsApi, currentMonth, isLoading, shifts.length, isProfileLoading]
   );
 
-  // Efeito para carregar dados iniciais quando o componente montar
   useEffect(() => {
     if (!isProfileLoading && !isDataLoaded) {
       console.log('Iniciando carregamento inicial de plantões...');
-      loadShifts(true);
+      setIsDataLoaded(true);
+      loadShifts(true).catch(() => {
+        setTimeout(() => {
+          if (!isProfileLoading) {
+            setIsDataLoaded(false);
+          }
+        }, 10000);
+      });
     }
   }, [isProfileLoading, isDataLoaded, loadShifts]);
 
-  // Efeito para reagir a mudanças de mês
+  const loadingMonthRef = useRef(false);
+
   useEffect(() => {
-    // Evitamos o primeiro carregamento (já coberto pelo efeito acima)
-    if (!isProfileLoading && isDataLoaded) {
+    const monthKey = `${currentMonth.getFullYear()}-${currentMonth.getMonth()}`;
+
+    if (
+      !isProfileLoading &&
+      isDataLoaded &&
+      monthKey !== currentMonthRef.current &&
+      !loadingMonthRef.current
+    ) {
       console.log(`Mês alterado para ${format(currentMonth, 'yyyy-MM')}, recarregando dados...`);
-      loadShifts();
+
+      loadingMonthRef.current = true;
+
+      currentMonthRef.current = monthKey;
+
+      loadShifts().finally(() => {
+        loadingMonthRef.current = false;
+      });
     }
   }, [currentMonth, isProfileLoading, isDataLoaded, loadShifts]);
 
-  // Filter shifts for the selected date
   const shiftsForSelectedDate = useMemo(() => {
-    return shifts.filter((shift) => isSameDay(parseISO(shift.date), selectedDate));
+    if (!shifts || shifts.length === 0) return [];
+
+    console.log(
+      `Filtrando ${shifts.length} plantões para data: ${format(selectedDate, 'yyyy-MM-dd')}`
+    );
+
+    const filteredShifts = shifts.filter((shift) => {
+      if (!shift.date) {
+        console.log('Plantão sem data descartado');
+        return false;
+      }
+
+      try {
+        const shiftDate = parseISO(shift.date);
+        if (!isValid(shiftDate)) {
+          console.log(`Data inválida descartada: ${shift.date}`);
+          return false;
+        }
+
+        const isSame = isSameDay(shiftDate, selectedDate);
+
+        if (isSame) {
+          console.log(`Plantão incluído: ${shift.id} - ${format(shiftDate, 'yyyy-MM-dd')}`);
+        }
+
+        return isSame;
+      } catch (error) {
+        console.error(`Erro ao comparar datas para shift ${shift.id}:`, error);
+        return false;
+      }
+    });
+
+    console.log(`Total de plantões filtrados: ${filteredShifts.length}`);
+    return filteredShifts;
   }, [shifts, selectedDate]);
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
     try {
-      await loadShifts(true); // Forçar refresh
+      await loadShifts(true);
       showToast('Dados atualizados com sucesso!', 'success');
     } catch (error) {
       console.error('Erro ao atualizar plantões:', error);
@@ -132,38 +181,45 @@ export default function ShiftsScreen() {
     }
   }, [loadShifts, showToast]);
 
-  // Show modal to add a shift
   const navigateToAddShift = useCallback(() => {
     console.log('Abrindo modal para adicionar plantão sem data específica');
-    setModalInitialDate(null); // Limpa a data inicial
-    setIsAddModalVisible(true); // Abre o modal
+    setModalInitialDate(null);
+    setIsAddModalVisible(true);
   }, []);
 
-  // Show modal to add a shift on the selected date
   const navigateToAddShiftOnDate = useCallback(() => {
     console.log(`Abrindo modal para adicionar plantão em ${selectedDate.toISOString()}`);
-    setModalInitialDate(selectedDate); // Define a data inicial como a data selecionada
-    setIsAddModalVisible(true); // Abre o modal
+    setModalInitialDate(selectedDate);
+    setIsAddModalVisible(true);
   }, [selectedDate]);
 
-  // Navigate to shift details
   const navigateToShiftDetails = useCallback(
     (shift: Shift) => {
-      router.push({
-        pathname: `/shifts/${shift.id}`,
-      });
+      if (!shift || !shift.id) {
+        showToast('Informações do plantão incompletas', 'error');
+        return;
+      }
+
+      try {
+        router.push({
+          pathname: `/shifts/${shift.id}`,
+        });
+      } catch (error) {
+        console.error('Erro ao navegar para detalhes do plantão:', error);
+        showToast('Erro ao abrir detalhes do plantão', 'error');
+      }
     },
-    [router]
+    [router, showToast]
   );
 
   const handleSelectDate = useCallback((date: Date) => {
+    console.log(`Data selecionada: ${date.toISOString()}`);
     setSelectedDate(date);
   }, []);
 
   const handleMonthChange = useCallback(
     (month: Date) => {
       console.log(`Mês alterado para: ${format(month, 'MMMM yyyy', { locale: ptBR })}`);
-      // Antes de atualizar, verificamos se o mês já é o atual para evitar rerenders desnecessários
       if (
         month.getMonth() !== currentMonth.getMonth() ||
         month.getFullYear() !== currentMonth.getFullYear()
@@ -174,59 +230,66 @@ export default function ShiftsScreen() {
     [currentMonth]
   );
 
-  // Success handler for modal
   const handleAddSuccess = useCallback(() => {
     console.log('Plantão adicionado com sucesso, fechando modal');
     showToast('Plantão adicionado com sucesso!', 'success');
     setIsAddModalVisible(false);
 
-    // Atualizar dados
-    loadShifts();
+    loadShifts(true);
   }, [showToast, loadShifts]);
 
-  // Fechar o modal
   const handleCloseModal = useCallback(() => {
     console.log('Fechando modal');
     setIsAddModalVisible(false);
   }, []);
 
-  // Get color and name info for a location with handling for undefined
   const getLocationInfo = (shift: Shift) => {
-    // Se o plantão tem informações de localização, use-as
     if (shift.location) {
       return {
-        name: shift.location.name,
-        color: shift.location.color,
+        name: shift.location.name || 'Local sem nome',
+        color: shift.location.color || '#64748b',
       };
     }
 
-    // Caso contrário, retorne valores padrão
     return {
       name: 'Local não informado',
-      color: '#64748b', // default color
+      color: '#64748b',
     };
   };
 
   const renderShiftItem = useCallback(
     ({ item }: { item: Shift }) => {
+      if (!item || !item.id) {
+        console.error('Tentativa de renderizar um plantão inválido');
+        return null;
+      }
+
       const formatShiftDate = () => {
         try {
-          return format(new Date(item.date), "dd 'de' MMMM", { locale: ptBR });
-        } catch {
+          if (!item.date) return 'Data inválida';
+          const date = parseISO(item.date);
+          if (!isValid(date)) return 'Data inválida';
+          return format(date, "dd 'de' MMMM", { locale: ptBR });
+        } catch (error) {
+          console.error('Erro ao formatar data:', error);
           return 'Data inválida';
         }
       };
 
       const formatValue = () => {
         try {
-          return `R$ ${Number(item.value).toFixed(2).replace('.', ',')}`;
-        } catch {
+          if (typeof item.value !== 'number') return 'R$ --';
+          return `R$ ${item.value.toFixed(2).replace('.', ',')}`;
+        } catch (error) {
+          console.error('Erro ao formatar valor:', error);
           return 'R$ --';
         }
       };
 
       const getStatusInfo = () => {
-        const status = item.status?.toLowerCase() || 'agendado';
+        const status =
+          item.status && typeof item.status === 'string' ? item.status.toLowerCase() : 'agendado';
+
         switch (status) {
           case 'agendado':
             return { label: 'Agendado', color: '#18cb96' }; // primary
@@ -247,6 +310,7 @@ export default function ShiftsScreen() {
 
       return (
         <TouchableOpacity
+          key={item.id}
           className="mb-3 overflow-hidden rounded-xl bg-white shadow-sm"
           activeOpacity={0.7}
           onPress={() => navigateToShiftDetails(item)}>
@@ -255,9 +319,11 @@ export default function ShiftsScreen() {
               <View className="flex-1">
                 <Text className="text-base font-bold text-text-dark">{formatShiftDate()}</Text>
                 <Text className="mt-2 text-sm text-text-light">
-                  {item.startTime || '--:--'} - {item.endTime || '--:--'}
+                  {item.startTime && item.startTime.trim() !== ''
+                    ? `${item.startTime}${item.endTime && item.endTime.trim() !== '' ? ` - ${item.endTime}` : ''}`
+                    : 'Horário não definido'}
                 </Text>
-                <View className="mt-1 flex-row items-center">
+                <View className="mt-3 flex-row items-center">
                   <View
                     className="mr-2 h-3 w-3 rounded-full"
                     style={{ backgroundColor: locationInfo.color }}
@@ -281,7 +347,7 @@ export default function ShiftsScreen() {
         </TouchableOpacity>
       );
     },
-    [navigateToShiftDetails]
+    [navigateToShiftDetails, getLocationInfo]
   );
 
   const renderEmptyShiftsForDate = useCallback(
@@ -330,7 +396,6 @@ export default function ShiftsScreen() {
     [navigateToAddShift]
   );
 
-  // Show loader while loading profile
   if (isProfileLoading) {
     return (
       <View className="flex-1 items-center justify-center bg-background">
@@ -343,7 +408,6 @@ export default function ShiftsScreen() {
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
       <StatusBar style="dark" />
 
-      {/* Header Section */}
       <View className="border-b border-background-300 bg-white">
         <View className="flex-row items-center justify-between px-4 py-2">
           <View>
@@ -410,7 +474,6 @@ export default function ShiftsScreen() {
         />
       )}
 
-      {/* Floating Action Button */}
       <TouchableOpacity
         className="absolute bottom-6 right-6 h-14 w-14 items-center justify-center rounded-full bg-primary shadow-lg"
         style={{ elevation: 4 }}
@@ -419,7 +482,6 @@ export default function ShiftsScreen() {
         <Ionicons name="add" size={28} color="#FFFFFF" />
       </TouchableOpacity>
 
-      {/* Add Shift Modal */}
       <ShiftFormModal
         visible={isAddModalVisible}
         onClose={handleCloseModal}

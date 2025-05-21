@@ -31,7 +31,12 @@ const ShiftFormModal: React.FC<ShiftFormModalProps> = ({
   };
 
   return (
-    <FormModal visible={visible} onClose={onClose} title={getModalTitle()}>
+    <FormModal
+      visible={visible}
+      onClose={onClose}
+      title={getModalTitle()}
+      fullHeight={false}
+      height={0.85}>
       <ShiftForm
         initialDate={initialDate}
         onSuccess={handleSuccess}

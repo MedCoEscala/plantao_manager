@@ -1,21 +1,32 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  ActivityIndicator,
-  TouchableOpacity,
-  StyleSheet,
-} from 'react-native';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, isValid } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useToast } from '@/components/ui/Toast';
 import { useDialog } from '@/contexts/DialogContext';
 import { useShiftsApi, Shift } from '@/services/shifts-api';
+
+// Função auxiliar para obter cor baseada no status
+const getStatusColor = (status: string) => {
+  switch (status) {
+    case 'Agendado':
+      return '#3B82F6'; // azul
+    case 'Confirmado':
+      return '#10B981'; // verde
+    case 'Cancelado':
+      return '#EF4444'; // vermelho
+    case 'Concluído':
+      return '#8B5CF6'; // roxo
+    case 'Pendente':
+      return '#F59E0B'; // laranja
+    default:
+      return '#64748B'; // cinza
+  }
+};
 
 interface ShiftDetails {
   id: string;
@@ -41,55 +52,106 @@ export default function ShiftDetailsScreen() {
   const shiftsApi = useShiftsApi();
 
   const [isLoading, setIsLoading] = useState(true);
+  const [isRetrying, setIsRetrying] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
   const [shift, setShift] = useState<ShiftDetails | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Carrega os detalhes do plantão
+  // Referência para controlar se já iniciamos o carregamento
+  const hasLoadedRef = useRef(false);
+  // Referência para controlar se componente está montado
+  const isMounted = useRef(true);
+  // Referência para retry timers
+  const retryTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Limpar recursos quando o componente for desmontado
   useEffect(() => {
-    const loadShiftDetails = async () => {
-      if (!shiftId) {
-        setError('ID do plantão não fornecido');
-        setIsLoading(false);
-        return;
-      }
+    isMounted.current = true;
 
-      setIsLoading(true);
-      try {
-        console.log(`Carregando detalhes do plantão: ${shiftId}`);
-        const shiftData = await shiftsApi.getShiftById(shiftId);
-        console.log('Dados do plantão recebidos:', shiftData);
-
-        // Transforma os dados da API no formato esperado pelo componente
-        setShift({
-          id: shiftData.id,
-          date: shiftData.date,
-          startTime: shiftData.startTime || '',
-          endTime: shiftData.endTime || '',
-          value: shiftData.value,
-          locationName: shiftData.location?.name || 'Local não definido',
-          locationColor: shiftData.location?.color || '#64748b',
-          contractorName: shiftData.contractor?.name,
-          notes: shiftData.notes || '',
-          status: shiftData.status || 'Agendado',
-          paymentType: shiftData.paymentType as 'PF' | 'PJ',
-          isFixed: shiftData.isFixed,
-        });
-        setError(null);
-      } catch (error: any) {
-        console.error('Erro ao carregar detalhes do plantão:', error);
-        setError(`Erro ao carregar detalhes: ${error.message || 'Erro desconhecido'}`);
-        showToast('Erro ao carregar detalhes do plantão', 'error');
-      } finally {
-        setIsLoading(false);
+    return () => {
+      isMounted.current = false;
+      if (retryTimerRef.current) {
+        clearTimeout(retryTimerRef.current);
       }
     };
+  }, []);
 
-    loadShiftDetails();
-  }, [shiftId, shiftsApi, showToast]);
+  // Função centralizada para carregar os detalhes do plantão
+  const loadShiftDetails = useCallback(async () => {
+    // Não carregue se o componente não estiver montado
+    if (!isMounted.current) return;
+
+    // Não carregue se não tiver ID
+    if (!shiftId) {
+      setError('ID do plantão não fornecido');
+      setIsLoading(false);
+      return;
+    }
+
+    // Defina o estado de carregamento
+    setIsLoading(true);
+
+    try {
+      console.log(`Carregando detalhes do plantão: ${shiftId}`);
+      const shiftData = await shiftsApi.getShiftById(shiftId);
+
+      // Verifique se o componente ainda está montado antes de atualizar o estado
+      if (!isMounted.current) return;
+
+      if (!shiftData || !shiftData.id) {
+        throw new Error('Dados do plantão incompletos ou inválidos');
+      }
+
+      // Transforme os dados para o formato esperado pelo componente
+      setShift({
+        id: shiftData.id,
+        date: shiftData.date,
+        startTime: shiftData.startTime || '',
+        endTime: shiftData.endTime || '',
+        value: typeof shiftData.value === 'number' ? shiftData.value : 0,
+        locationName: shiftData.location?.name || 'Local não definido',
+        locationColor: shiftData.location?.color || '#64748b',
+        contractorName: shiftData.contractor?.name,
+        notes: shiftData.notes || '',
+        status: shiftData.status || 'Agendado',
+        paymentType: shiftData.paymentType as 'PF' | 'PJ',
+        isFixed: Boolean(shiftData.isFixed),
+      });
+
+      // Limpe estados de erro e retry
+      setError(null);
+      setRetryCount(0);
+    } catch (error: any) {
+      console.error('Erro ao carregar detalhes do plantão:', error);
+
+      if (!isMounted.current) return;
+
+      // Defina mensagem de erro apropriada
+      setError(`Erro ao carregar plantão: ${error.message || 'Erro desconhecido'}`);
+    } finally {
+      if (isMounted.current) {
+        setIsLoading(false);
+      }
+    }
+  }, [shiftId, shiftsApi]);
+
+  // Carregue os dados apenas uma vez quando o componente montar
+  useEffect(() => {
+    if (!hasLoadedRef.current) {
+      hasLoadedRef.current = true;
+      loadShiftDetails();
+    }
+  }, [loadShiftDetails]);
 
   const handleEdit = () => {
     if (!shiftId) return;
-    router.push(`/shifts/${shiftId}/edit`);
+
+    try {
+      router.push(`/shifts/${shiftId}/edit`);
+    } catch (error) {
+      console.error('Erro ao navegar para edição:', error);
+      showToast('Erro ao abrir tela de edição', 'error');
+    }
   };
 
   const handleDelete = () => {
@@ -109,7 +171,6 @@ export default function ShiftDetailsScreen() {
         } catch (error: any) {
           console.error('Erro ao excluir plantão:', error);
           showToast(`Erro ao excluir plantão: ${error.message || 'Erro desconhecido'}`, 'error');
-        } finally {
           setIsLoading(false);
         }
       },
@@ -118,7 +179,11 @@ export default function ShiftDetailsScreen() {
 
   const formatShiftDate = (dateString: string) => {
     try {
+      if (!dateString) return 'Data inválida';
+
       const date = parseISO(dateString);
+      if (!isValid(date)) return 'Data inválida';
+
       return format(date, "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
     } catch (e) {
       console.error('Erro ao formatar data:', e);
@@ -126,6 +191,43 @@ export default function ShiftDetailsScreen() {
     }
   };
 
+  // Calcular e formatar a duração do plantão
+  const getShiftDuration = () => {
+    if (!shift?.startTime || !shift?.endTime) return '';
+
+    try {
+      // Parse das strings de hora
+      const [startHours, startMinutes] = shift.startTime.split(':').map(Number);
+      const [endHours, endMinutes] = shift.endTime.split(':').map(Number);
+
+      // Calcular minutos totais
+      let startTotalMinutes = startHours * 60 + startMinutes;
+      let endTotalMinutes = endHours * 60 + endMinutes;
+
+      // Ajustar para plantões noturnos (quando término é no dia seguinte)
+      if (endTotalMinutes < startTotalMinutes) {
+        endTotalMinutes += 24 * 60; // Adicionar 24 horas em minutos
+      }
+
+      const durationMinutes = endTotalMinutes - startTotalMinutes;
+      const hours = Math.floor(durationMinutes / 60);
+      const minutes = durationMinutes % 60;
+
+      return `${hours}h${minutes > 0 ? ` ${minutes}min` : ''}`;
+    } catch (e) {
+      console.error('Erro ao calcular duração:', e);
+      return '';
+    }
+  };
+
+  // Botão para tentar novamente em caso de erro
+  const handleRetry = () => {
+    setError(null);
+    hasLoadedRef.current = false; // Permitir nova tentativa
+    loadShiftDetails();
+  };
+
+  // Tela de carregamento
   if (isLoading) {
     return (
       <SafeAreaView className="flex-1 bg-white">
@@ -138,6 +240,7 @@ export default function ShiftDetailsScreen() {
     );
   }
 
+  // Tela de erro
   if (error || !shift) {
     return (
       <SafeAreaView className="flex-1 bg-white">
@@ -150,11 +253,16 @@ export default function ShiftDetailsScreen() {
           <Text className="mt-2 text-center text-gray-500">
             Não foi possível encontrar o plantão solicitado.
           </Text>
-          <TouchableOpacity
-            className="mt-6 rounded-lg bg-primary px-6 py-3"
-            onPress={() => router.back()}>
-            <Text className="font-medium text-white">Voltar</Text>
-          </TouchableOpacity>
+          <View className="mt-6 flex-row space-x-4">
+            <TouchableOpacity className="rounded-lg bg-primary px-6 py-3" onPress={handleRetry}>
+              <Text className="font-medium text-white">Tentar Novamente</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              className="rounded-lg bg-gray-200 px-6 py-3"
+              onPress={() => router.back()}>
+              <Text className="font-medium text-gray-800">Voltar</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </SafeAreaView>
     );
@@ -180,14 +288,17 @@ export default function ShiftDetailsScreen() {
         }}
       />
 
-      <ScrollView className="flex-1 px-4 py-4">
-        <View className="mb-6 items-center">
+      <ScrollView className="flex-1" contentContainerClassName="pb-6">
+        {/* Header com data e status */}
+        <View className="items-center px-4 py-6">
           <View
             style={{ backgroundColor: shift.locationColor }}
             className="mb-3 h-16 w-16 items-center justify-center rounded-full">
             <Ionicons name="calendar" size={32} color="#FFFFFF" />
           </View>
           <Text className="text-xl font-bold text-text-dark">{formatShiftDate(shift.date)}</Text>
+
+          {/* Status e horário */}
           <View className="mt-2 flex-row items-center">
             <View
               className="mr-2 rounded-full px-3 py-1"
@@ -200,30 +311,56 @@ export default function ShiftDetailsScreen() {
               </Text>
             </View>
             <Text className="text-text-light">
-              {shift.startTime} - {shift.endTime}
+              {shift.startTime &&
+              shift.startTime.trim() !== '' &&
+              shift.endTime &&
+              shift.endTime.trim() !== ''
+                ? `${shift.startTime} - ${shift.endTime}`
+                : 'Horário não definido'}
             </Text>
           </View>
         </View>
 
-        <View className="mb-4 rounded-xl bg-gray-50 p-5">
-          <View className="mb-4 flex-row justify-between">
+        {/* Seção de local */}
+        <View className="mx-4 mb-4 rounded-xl bg-background-50 p-4">
+          <Text className="mb-3 text-base font-bold text-text-dark">Local</Text>
+
+          <View className="flex-row items-center">
+            <View
+              className="mr-3 h-6 w-6 rounded-full"
+              style={{ backgroundColor: shift.locationColor }}
+            />
             <View>
-              <Text className="text-xs text-text-light">Local</Text>
               <Text className="text-base font-medium text-text-dark">{shift.locationName}</Text>
-            </View>
-            <View className="items-end">
-              <Text className="text-xs text-text-light">Valor</Text>
-              <Text className="text-base font-bold text-primary">
-                R$ {shift.value.toFixed(2).replace('.', ',')}
-              </Text>
+              <Text className="text-xs text-text-light">Local do plantão</Text>
             </View>
           </View>
+        </View>
+
+        {/* Seção de pagamento */}
+        <View className="mx-4 mb-4 rounded-xl bg-background-50 p-4">
+          <Text className="mb-3 text-base font-bold text-text-dark">Pagamento</Text>
 
           <View className="mb-4 flex-row justify-between">
             <View>
-              <Text className="text-xs text-text-light">Tipo de Pagamento</Text>
+              <Text className="text-xs text-text-light">Valor</Text>
+              <Text className="text-lg font-bold text-primary">
+                R$ {shift.value.toFixed(2).replace('.', ',')}
+              </Text>
+            </View>
+
+            <View className="items-end">
+              <Text className="text-xs text-text-light">Tipo</Text>
               <Text className="text-base font-medium text-text-dark">{shift.paymentType}</Text>
             </View>
+          </View>
+
+          <View className="flex-row justify-between">
+            <View>
+              <Text className="text-xs text-text-light">Duração</Text>
+              <Text className="text-base font-medium text-text-dark">{getShiftDuration()}</Text>
+            </View>
+
             <View className="items-end">
               <Text className="text-xs text-text-light">Plantão Fixo</Text>
               <Text className="text-base font-medium text-text-dark">
@@ -231,23 +368,29 @@ export default function ShiftDetailsScreen() {
               </Text>
             </View>
           </View>
-
-          {shift.contractorName && (
-            <View className="mb-4">
-              <Text className="text-xs text-text-light">Contratante</Text>
-              <Text className="text-base font-medium text-text-dark">{shift.contractorName}</Text>
-            </View>
-          )}
-
-          {shift.notes && (
-            <View>
-              <Text className="text-xs text-text-light">Observações</Text>
-              <Text className="text-base text-text-dark">{shift.notes}</Text>
-            </View>
-          )}
         </View>
 
-        <View className="mt-2 flex-row space-x-3">
+        {/* Seção de contratante, se houver */}
+        {shift.contractorName && (
+          <View className="mx-4 mb-4 rounded-xl bg-background-50 p-4">
+            <Text className="mb-2 text-base font-bold text-text-dark">Contratante</Text>
+            <View className="flex-row items-center">
+              <Ionicons name="briefcase-outline" size={20} color="#64748b" className="mr-2" />
+              <Text className="text-base text-text-dark">{shift.contractorName}</Text>
+            </View>
+          </View>
+        )}
+
+        {/* Seção de observações, se houver */}
+        {shift.notes && (
+          <View className="mx-4 mb-4 rounded-xl bg-background-50 p-4">
+            <Text className="mb-2 text-base font-bold text-text-dark">Observações</Text>
+            <Text className="text-base text-text-dark">{shift.notes}</Text>
+          </View>
+        )}
+
+        {/* Botões de ação */}
+        <View className="mx-4 mt-4 flex-row space-x-3">
           <TouchableOpacity
             className="flex-1 flex-row items-center justify-center rounded-lg bg-primary py-3"
             onPress={handleEdit}>
@@ -265,20 +408,4 @@ export default function ShiftDetailsScreen() {
       </ScrollView>
     </SafeAreaView>
   );
-}
-
-function getStatusColor(status: string): string {
-  switch (status.toLowerCase()) {
-    case 'agendado':
-      return '#18cb96';
-    case 'confirmado':
-      return '#10b981';
-    case 'cancelado':
-      return '#ef4444';
-    case 'concluído':
-    case 'concluido':
-      return '#64748b';
-    default:
-      return '#64748b';
-  }
 }

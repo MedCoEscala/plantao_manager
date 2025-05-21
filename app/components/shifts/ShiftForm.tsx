@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { View } from 'react-native';
-import { format } from 'date-fns';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { View, Text, ScrollView } from 'react-native';
+import { format, parseISO, isValid } from 'date-fns';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { useToast } from '@/components/ui/Toast';
@@ -9,13 +9,12 @@ import SelectField from '@/components/form/SelectField';
 import SwitchField from '@/components/form/SwitchField';
 import { useShiftsApi, Shift } from '@/services/shifts-api';
 import { useDialog } from '@/contexts/DialogContext';
-import { useContractorsSelector } from '@/hooks/useContractorsSelector';
 import { useLocationsSelector } from '@/hooks/useLocationsSelector';
 import ContractorsSelector from '@/components/contractors/ContractorsSelector';
 
 const PAYMENT_TYPE_OPTIONS = [
-  { label: 'Pessoa Física (PF)', value: 'PF' },
-  { label: 'Pessoa Jurídica (PJ)', value: 'PJ' },
+  { label: 'Pessoa Física (PF)', value: 'PF', icon: 'person-outline' },
+  { label: 'Pessoa Jurídica (PJ)', value: 'PJ', icon: 'business-outline' },
 ];
 
 interface ShiftFormProps {
@@ -53,67 +52,163 @@ export default function ShiftForm({
 
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isLoadingShift, setIsLoadingShift] = useState<boolean>(Boolean(shiftId));
 
   const { showToast } = useToast();
   const { showDialog } = useDialog();
   const shiftsApi = useShiftsApi();
-  const { contractorOptions, isLoading: isLoadingContractors } = useContractorsSelector();
   const { locationOptions, isLoading: isLoadingLocations } = useLocationsSelector();
 
-  useEffect(() => {
-    if (shiftId) {
-      loadShiftData();
-    }
-  }, [shiftId]);
+  // Formatar hora para exibição
+  const formatTimeDisplay = (date: Date): string => {
+    return format(date, 'HH:mm');
+  };
 
+  // Calcular duração do plantão
+  const shiftDuration = useMemo(() => {
+    const startMinutes = startTime.getHours() * 60 + startTime.getMinutes();
+    const endMinutes = endTime.getHours() * 60 + endTime.getMinutes();
+
+    // Verificar se o horário de término é antes do início (ex: plantões noturnos)
+    const durationMinutes =
+      endMinutes >= startMinutes ? endMinutes - startMinutes : 24 * 60 - startMinutes + endMinutes;
+
+    const hours = Math.floor(durationMinutes / 60);
+    const minutes = durationMinutes % 60;
+
+    return `${hours}h${minutes > 0 ? ` ${minutes}min` : ''}`;
+  }, [startTime, endTime]);
+
+  // Adicionar um useEffect para carregar os dados de um plantão existente
+  useEffect(() => {
+    // Proteger contra múltiplas tentativas
+    if (shiftId && !isLoadingShift && componentIsMounted.current) {
+      const loadAttemptCount = useRef(0);
+
+      const loadShiftDetails = async () => {
+        // Limitar número de tentativas
+        if (loadAttemptCount.current >= 3) {
+          showToast(
+            'Não foi possível carregar os dados do plantão após várias tentativas',
+            'error'
+          );
+          setIsLoadingShift(false);
+          return;
+        }
+
+        loadAttemptCount.current += 1;
+        setIsLoadingShift(true);
+
+        try {
+          const shiftData = await shiftsApi.getShiftById(shiftId);
+
+          // Garante que não tentamos atualizar estados se o componente foi desmontado
+          if (!componentIsMounted.current) return;
+
+          // Atualiza os estados com os dados do plantão
+          if (shiftData) {
+            if (shiftData.date) {
+              try {
+                const parsedDate = parseISO(shiftData.date);
+                if (isValid(parsedDate)) {
+                  setDate(parsedDate);
+                }
+              } catch (error) {
+                console.error('Erro ao processar data do plantão:', error);
+              }
+            }
+
+            // Preenche os outros campos apenas se existirem dados válidos
+            if (shiftData.startTime) {
+              const [hours, minutes] = shiftData.startTime.split(':').map(Number);
+              const startTimeDate = new Date();
+              startTimeDate.setHours(hours || 0, minutes || 0, 0, 0);
+              setStartTime(startTimeDate);
+            }
+
+            if (shiftData.endTime) {
+              const [hours, minutes] = shiftData.endTime.split(':').map(Number);
+              const endTimeDate = new Date();
+              endTimeDate.setHours(hours || 0, minutes || 0, 0, 0);
+              setEndTime(endTimeDate);
+            }
+
+            if (shiftData.locationId) {
+              setLocationId(shiftData.locationId);
+            }
+
+            if (shiftData.contractorId) {
+              setContractorId(shiftData.contractorId);
+            }
+
+            if (typeof shiftData.value === 'number') {
+              setValue(shiftData.value.toString());
+            }
+
+            if (shiftData.paymentType) {
+              setPaymentType(shiftData.paymentType);
+            }
+
+            if (typeof shiftData.isFixed === 'boolean') {
+              setIsFixed(shiftData.isFixed);
+            }
+
+            if (shiftData.notes) {
+              setNotes(shiftData.notes);
+            }
+
+            showToast('Plantão carregado com sucesso', 'success');
+          } else {
+            showToast('Não foi possível encontrar os dados do plantão', 'error');
+          }
+        } catch (error) {
+          console.error('Erro ao carregar detalhes do plantão:', error);
+          showToast('Erro ao carregar dados do plantão', 'error');
+
+          // Se for uma falha de conexão, tenta novamente após um delay
+          if (
+            error instanceof Error &&
+            (error.message.includes('network') || error.message.includes('timeout'))
+          ) {
+            setTimeout(() => {
+              if (componentIsMounted.current) {
+                loadShiftDetails();
+              }
+            }, 3000);
+            return;
+          }
+        } finally {
+          if (componentIsMounted.current) {
+            setIsLoadingShift(false);
+          }
+        }
+      };
+
+      loadShiftDetails();
+    }
+  }, [shiftId, shiftsApi, showToast, isLoadingShift]); // Apenas dependências necessárias e estáveis
+
+  // Usar referência para evitar atualização em componentes desmontados
+  const componentIsMounted = useRef(true);
+
+  useEffect(() => {
+    // Configuração quando o componente é montado
+    componentIsMounted.current = true;
+
+    // Limpeza quando o componente for desmontado
+    return () => {
+      componentIsMounted.current = false;
+    };
+  }, []);
+
+  // Atualizar data quando mudar initialDate (por exemplo: ao selecionar no calendário)
   useEffect(() => {
     if (initialDate) {
       setDate(initialDate);
     }
   }, [initialDate]);
 
-  const loadShiftData = async () => {
-    if (!shiftId) return;
-
-    setIsLoading(true);
-    try {
-      const shift = await shiftsApi.getShiftById(shiftId);
-
-      setDate(new Date(shift.date));
-
-      if (shift.startTime) {
-        const startParts = shift.startTime.split(':');
-        const startDate = new Date();
-        startDate.setHours(parseInt(startParts[0]), parseInt(startParts[1]), 0, 0);
-        setStartTime(startDate);
-      }
-
-      if (shift.endTime) {
-        const endParts = shift.endTime.split(':');
-        const endDate = new Date();
-        endDate.setHours(parseInt(endParts[0]), parseInt(endParts[1]), 0, 0);
-        setEndTime(endDate);
-      }
-
-      setLocationId(shift.locationId || '');
-      setContractorId(shift.contractorId || '');
-      setValue(shift.value.toString());
-      setPaymentType(shift.paymentType);
-      setIsFixed(shift.isFixed);
-      setNotes(shift.notes || '');
-
-      showToast('Dados do plantão carregados', 'success');
-    } catch (error: any) {
-      showDialog({
-        title: 'Erro',
-        message: `Erro ao carregar dados do plantão: ${error.message || 'Erro desconhecido'}`,
-        type: 'error',
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
+  // Formatação para valor monetário
   const formatValue = (text: string) => {
     const numbers = text.replace(/[^\d]/g, '');
 
@@ -127,25 +222,33 @@ export default function ShiftForm({
     return '';
   };
 
+  // Validação do formulário
   const validateForm = () => {
     const newErrors: { [key: string]: string } = {};
 
-    if (!locationId) {
-      newErrors.locationId = 'Selecione o local do plantão';
-    }
-
+    // Validar só os campos obrigatórios
     if (!value) {
       newErrors.value = 'Informe o valor do plantão';
     }
 
-    if (endTime <= startTime) {
-      newErrors.endTime = 'O horário de término deve ser após o início';
+    // Verificar se o horário de término é após o início (para plantões no mesmo dia)
+    const startMinutes = startTime.getHours() * 60 + startTime.getMinutes();
+    const endMinutes = endTime.getHours() * 60 + endTime.getMinutes();
+
+    if (endMinutes <= startMinutes) {
+      // Permitimos que o horário de término seja antes do início para plantões noturnos
+      // Podemos adicionar uma confirmação em vez de considerar um erro
+      if (endMinutes < startMinutes && startMinutes - endMinutes > 720) {
+        // Se a diferença for maior que 12 horas
+        newErrors.endTime = 'Verifique o horário de término';
+      }
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
+  // Salvar o formulário
   const handleSubmit = async () => {
     if (!validateForm()) {
       showToast('Por favor, corrija os erros no formulário', 'error');
@@ -155,10 +258,9 @@ export default function ShiftForm({
     setIsLoading(true);
 
     try {
+      const formattedStartTime = formatTimeDisplay(startTime);
+      const formattedEndTime = formatTimeDisplay(endTime);
       const formattedValue = value.replace(/\./g, '').replace(',', '.');
-
-      const formattedStartTime = format(startTime, 'HH:mm');
-      const formattedEndTime = format(endTime, 'HH:mm');
 
       if (shiftId) {
         await shiftsApi.updateShift(shiftId, {
@@ -206,85 +308,125 @@ export default function ShiftForm({
     }
   };
 
-  return (
-    <View className="space-y-4">
-      <DateField label="Data do Plantão" value={date} onChange={setDate} mode="date" required />
+  // Se estiver carregando os dados do plantão, exibe um indicador
+  if (isLoadingShift) {
+    return (
+      <View className="flex-1 items-center justify-center py-10">
+        <Text className="text-center text-text-light">Carregando dados do plantão...</Text>
+      </View>
+    );
+  }
 
-      <View className="flex-row space-x-3">
-        <DateField
-          label="Horário de Início"
-          value={startTime}
-          onChange={setStartTime}
-          mode="time"
-          required
-          className="flex-1"
+  return (
+    <ScrollView
+      className="flex-1"
+      showsVerticalScrollIndicator={false}
+      contentContainerClassName="pb-6">
+      {/* Seção de Data e Horário */}
+      <View className="mb-6 rounded-xl bg-background-50 p-4">
+        <Text className="mb-3 text-base font-bold text-text-dark">Data e Horário</Text>
+
+        <DateField label="Data do Plantão" value={date} onChange={setDate} mode="date" required />
+
+        <View className="flex-row space-x-3">
+          <DateField
+            label="Início"
+            value={startTime}
+            onChange={setStartTime}
+            mode="time"
+            required
+            className="flex-1"
+          />
+
+          <DateField
+            label="Término"
+            value={endTime}
+            onChange={setEndTime}
+            mode="time"
+            required
+            error={errors.endTime}
+            className="flex-1"
+          />
+        </View>
+
+        {/* Exibir duração do plantão */}
+        <View className="mt-2 rounded-lg bg-primary/10 p-2">
+          <Text className="text-center text-sm font-medium text-primary">
+            Duração: {shiftDuration}
+          </Text>
+        </View>
+      </View>
+
+      {/* Seção de Local e Contratante */}
+      <View className="mb-6 rounded-xl bg-background-50 p-4">
+        <Text className="mb-3 text-base font-bold text-text-dark">Local e Contratante</Text>
+
+        <SelectField
+          label="Local"
+          value={locationId}
+          onValueChange={setLocationId}
+          options={locationOptions}
+          placeholder="Selecione o local (opcional)"
+          error={errors.locationId}
+          isLoading={isLoadingLocations}
         />
 
-        <DateField
-          label="Horário de Término"
-          value={endTime}
-          onChange={setEndTime}
-          mode="time"
-          required
-          error={errors.endTime}
-          className="flex-1"
+        <ContractorsSelector
+          selectedContractorId={contractorId}
+          onContractorSelect={setContractorId}
+          required={false}
+          title="Contratante"
         />
       </View>
 
-      <SelectField
-        label="Local"
-        value={locationId}
-        onValueChange={setLocationId}
-        options={locationOptions}
-        placeholder="Selecione o local"
-        required
-        error={errors.locationId}
-        isLoading={isLoadingLocations}
-      />
+      {/* Seção de Pagamento */}
+      <View className="mb-6 rounded-xl bg-background-50 p-4">
+        <Text className="mb-3 text-base font-bold text-text-dark">Pagamento</Text>
 
-      <ContractorsSelector
-        selectedContractorId={contractorId}
-        onContractorSelect={setContractorId}
-        required={false}
-      />
+        <Input
+          label="Valor do Plantão"
+          value={value}
+          onChangeText={(text) => setValue(formatValue(text))}
+          placeholder="0,00"
+          keyboardType="numeric"
+          leftIcon="cash-outline"
+          required
+          error={errors.value}
+          helperText="Valor bruto do plantão"
+        />
 
-      <Input
-        label="Valor do Plantão"
-        value={value}
-        onChangeText={(text) => setValue(formatValue(text))}
-        placeholder="0,00"
-        keyboardType="numeric"
-        leftIcon="cash-outline"
-        required
-        error={errors.value}
-        helperText="Informe o valor bruto do plantão"
-      />
+        <SelectField
+          label="Tipo de Pagamento"
+          value={paymentType}
+          onValueChange={setPaymentType}
+          options={PAYMENT_TYPE_OPTIONS}
+          required
+        />
 
-      <SelectField
-        label="Tipo de Pagamento"
-        value={paymentType}
-        onValueChange={setPaymentType}
-        options={PAYMENT_TYPE_OPTIONS}
-        required
-      />
+        <SwitchField
+          label="Plantão Fixo"
+          value={isFixed}
+          onValueChange={setIsFixed}
+          helperText="Ative para plantões que se repetem regularmente"
+        />
+      </View>
 
-      <SwitchField
-        label="Plantão Fixo"
-        value={isFixed}
-        onValueChange={setIsFixed}
-        helperText="Ative para plantões que se repetem regularmente"
-      />
+      {/* Seção de Observações */}
+      <View className="mb-6 rounded-xl bg-background-50 p-4">
+        <Text className="mb-3 text-base font-bold text-text-dark">Observações</Text>
 
-      <Input
-        label="Observações"
-        value={notes}
-        onChangeText={setNotes}
-        placeholder="Observações adicionais (opcional)"
-        multiline
-        numberOfLines={4}
-        autoCapitalize="sentences"
-      />
+        <Input
+          label="Observações Adicionais"
+          value={notes}
+          onChangeText={setNotes}
+          placeholder="Observações adicionais (opcional)"
+          multiline
+          numberOfLines={4}
+          autoCapitalize="sentences"
+        />
+      </View>
 
+      {/* Botões de Ação */}
       <View className="mt-4 flex-row space-x-3">
         {onCancel && (
           <Button variant="outline" onPress={onCancel} disabled={isLoading} className="flex-1">
@@ -295,6 +437,6 @@ export default function ShiftForm({
           {shiftId ? 'Atualizar' : 'Salvar'}
         </Button>
       </View>
-    </View>
+    </ScrollView>
   );
 }
