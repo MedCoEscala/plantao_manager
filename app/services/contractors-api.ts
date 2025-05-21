@@ -67,11 +67,11 @@ export const useContractorsApi = () => {
     }
   };
 
-  const createContractor = async (id: string, data: CreateContractorData): Promise<Contractor> => {
+  const createContractor = async (data: CreateContractorData): Promise<Contractor> => {
     try {
       const token = await getToken();
 
-      const response = await apiClient.post(`/contractors`, data, {
+      const response = await apiClient.post('/contractors', data, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -79,7 +79,7 @@ export const useContractorsApi = () => {
 
       return response.data;
     } catch (error) {
-      console.log(`Erro ao criar contratante ${id}`, error);
+      console.log('Erro ao criar contratante', error);
       throw error;
     }
   };

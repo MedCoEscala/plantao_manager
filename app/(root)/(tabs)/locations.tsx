@@ -24,6 +24,7 @@ const LocationsScreen = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isFirstLoad, setIsFirstLoad] = useState(true);
   const fadeAnim = useState(new Animated.Value(0))[0];
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
@@ -41,46 +42,65 @@ const LocationsScreen = () => {
     }).start();
   }, [showSearch, fadeAnim]);
 
-  useEffect(() => {
-    if (searchQuery.trim() === '') {
-      setFilteredLocations(locations);
-    } else {
-      const filtered = locations.filter(
-        (location) =>
-          location.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          location.address?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          false
-      );
-      setFilteredLocations(filtered);
-    }
-  }, [searchQuery, locations]);
+  const loadLocations = useCallback(
+    async (forceLoad = false) => {
+      if (!forceLoad && !isFirstLoad && (refreshing || isLoading)) return;
 
-  const loadLocations = useCallback(async () => {
-    setRefreshing(true);
-    setIsLoading(true);
+      setRefreshing(true);
+      setIsLoading(true);
 
-    try {
-      const filters: LocationsFilters = {};
-      if (searchQuery.trim()) {
-        filters.searchTerm = searchQuery.trim();
+      try {
+        const filters: LocationsFilters = {};
+        if (searchQuery.trim()) {
+          filters.searchTerm = searchQuery.trim();
+        }
+
+        console.log('[LocationsScreen] Carregando locais...');
+        const data = await locationsApi.getLocations(filters);
+        console.log(`[LocationsScreen] ${data.length} locais carregados`);
+
+        setLocations(data);
+        setFilteredLocations(data);
+
+        if (refreshing && !isFirstLoad) {
+          showToast('Locais atualizados com sucesso', 'success');
+        }
+
+        if (isFirstLoad) {
+          setIsFirstLoad(false);
+        }
+      } catch (error: any) {
+        console.error('Erro ao carregar locais:', error);
+        showToast(`Erro ao carregar locais: ${error.message || 'Erro desconhecido'}`, 'error');
+      } finally {
+        setRefreshing(false);
+        setIsLoading(false);
       }
-
-      const data = await locationsApi.getLocations(filters);
-      setLocations(data);
-      setFilteredLocations(data);
-      showToast('Locais atualizados com sucesso', 'success');
-    } catch (error: any) {
-      console.error('Erro ao carregar locais:', error);
-      showToast(`Erro ao carregar locais: ${error.message || 'Erro desconhecido'}`, 'error');
-    } finally {
-      setRefreshing(false);
-      setIsLoading(false);
-    }
-  }, [showToast, locationsApi, searchQuery]);
+    },
+    [showToast, locationsApi, searchQuery, refreshing, isLoading, isFirstLoad]
+  );
 
   useEffect(() => {
-    loadLocations();
-  }, [loadLocations]);
+    loadLocations(true);
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchQuery.trim() === '') {
+        setFilteredLocations(locations);
+      } else {
+        const filtered = locations.filter(
+          (location) =>
+            location.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            location.address?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            false
+        );
+        setFilteredLocations(filtered);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery, locations]);
 
   const confirmDelete = useCallback(
     (location: Location) => {
@@ -122,7 +142,8 @@ const LocationsScreen = () => {
 
   const handleModalSuccess = useCallback(() => {
     setIsAddModalVisible(false);
-    loadLocations();
+    setSelectedLocation(null);
+    loadLocations(true);
   }, [loadLocations]);
 
   const toggleSearch = useCallback(() => {
@@ -229,7 +250,7 @@ const LocationsScreen = () => {
 
             <TouchableOpacity
               className="h-9 w-9 items-center justify-center rounded-full bg-background-100"
-              onPress={loadLocations}
+              onPress={() => loadLocations(true)}
               disabled={refreshing}>
               {refreshing ? (
                 <ActivityIndicator size="small" color="#18cb96" />
@@ -283,7 +304,7 @@ const LocationsScreen = () => {
           keyExtractor={(item) => item.id}
           contentContainerClassName="px-4 py-4"
           showsVerticalScrollIndicator={false}
-          onRefresh={loadLocations}
+          onRefresh={() => loadLocations(true)}
           refreshing={refreshing}
         />
       ) : (
@@ -313,15 +334,13 @@ const LocationsScreen = () => {
         </View>
       )}
 
-      {filteredLocations.length > 0 && (
-        <TouchableOpacity
-          className="absolute bottom-6 right-6 h-14 w-14 items-center justify-center rounded-full bg-primary shadow-lg"
-          style={{ elevation: 4 }}
-          activeOpacity={0.9}
-          onPress={handleAddLocation}>
-          <Ionicons name="add" size={28} color="#FFFFFF" />
-        </TouchableOpacity>
-      )}
+      <TouchableOpacity
+        className="absolute bottom-6 right-6 h-14 w-14 items-center justify-center rounded-full bg-primary shadow-lg"
+        style={{ elevation: 4 }}
+        activeOpacity={0.9}
+        onPress={handleAddLocation}>
+        <Ionicons name="add" size={28} color="#FFFFFF" />
+      </TouchableOpacity>
 
       <LocationFormModal
         visible={isAddModalVisible}

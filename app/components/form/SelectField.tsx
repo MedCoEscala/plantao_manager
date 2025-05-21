@@ -1,6 +1,6 @@
 // app/components/form/SelectField.tsx
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { FieldWrapper } from './FormField';
 
@@ -21,6 +21,7 @@ interface SelectFieldProps {
   helperText?: string;
   required?: boolean;
   className?: string;
+  isLoading?: boolean;
 }
 
 export function SelectField({
@@ -33,6 +34,7 @@ export function SelectField({
   helperText,
   required = false,
   className = '',
+  isLoading = false,
 }: SelectFieldProps) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -49,9 +51,10 @@ export function SelectField({
         className={`h-12 flex-row items-center justify-between rounded-lg border px-3
           ${error ? 'border-error' : 'border-gray-300'}
         `}
-        onPress={() => setIsOpen(!isOpen)}>
+        onPress={() => setIsOpen(!isOpen)}
+        disabled={isLoading}>
         <View className="flex-row items-center">
-          {selectedOption?.icon && (
+          {selectedOption?.icon && !isLoading && (
             <Ionicons
               name={selectedOption.icon as any}
               size={20}
@@ -59,14 +62,23 @@ export function SelectField({
               style={{ marginRight: 8 }}
             />
           )}
-          <Text className={value ? 'text-text-dark' : 'text-gray-400'}>
-            {selectedOption ? selectedOption.label : placeholder}
-          </Text>
+          {isLoading ? (
+            <View className="flex-row items-center">
+              <ActivityIndicator size="small" color="#18cb96" style={{ marginRight: 8 }} />
+              <Text className="text-gray-400">Carregando...</Text>
+            </View>
+          ) : (
+            <Text className={value ? 'text-text-dark' : 'text-gray-400'}>
+              {selectedOption ? selectedOption.label : placeholder}
+            </Text>
+          )}
         </View>
-        <Ionicons name={isOpen ? 'chevron-up' : 'chevron-down'} size={20} color="#64748b" />
+        {!isLoading && (
+          <Ionicons name={isOpen ? 'chevron-up' : 'chevron-down'} size={20} color="#64748b" />
+        )}
       </TouchableOpacity>
 
-      {isOpen && (
+      {isOpen && !isLoading && (
         <View className="z-10 mt-1 rounded-lg border border-gray-200 bg-white shadow-sm">
           {options.map((option) => (
             <TouchableOpacity

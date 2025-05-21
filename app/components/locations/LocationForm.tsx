@@ -4,6 +4,7 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { useToast } from '@/components/ui/Toast';
 import ColorField from '@/components/form/ColorField';
+import { useLocationsApi } from '@/services/locations-api';
 
 const COLOR_PALETTE = [
   { color: '#0077B6', name: 'Azul' },
@@ -47,24 +48,20 @@ export default function LocationForm({
   // Estados de validação e UI
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [hasSubmitted, setHasSubmitted] = useState(false);
 
   const { showToast } = useToast();
+  const locationsApi = useLocationsApi();
 
-  // Carregar dados se for edição
+  // Atualizar valores se as props mudarem
   useEffect(() => {
-    if (locationId && !initialValues.name) {
-      setIsLoading(true);
-      // Simular carregamento de dados (substituir por API real)
-      setTimeout(() => {
-        // Dados simulados para edição
-        setName('Hospital Central');
-        setAddress('Av. Principal, 123');
-        setPhone('(11) 5555-1234');
-        setSelectedColor('#0077B6');
-        setIsLoading(false);
-      }, 1000);
+    if (initialValues) {
+      setName(initialValues.name || '');
+      setAddress(initialValues.address || '');
+      setPhone(initialValues.phone || '');
+      setSelectedColor(initialValues.color || COLOR_PALETTE[0].color);
     }
-  }, [locationId, initialValues]);
+  }, [initialValues]);
 
   // Validação do formulário
   const validateForm = () => {
@@ -72,18 +69,65 @@ export default function LocationForm({
 
     if (!name.trim()) {
       newErrors.name = 'Nome é obrigatório';
+    } else if (name.trim().length < 3) {
+      newErrors.name = 'Nome deve ter pelo menos 3 caracteres';
     }
 
     if (!selectedColor) {
       newErrors.color = 'Cor é obrigatória';
     }
 
-    if (phone && !/^[()\d\s-]+$/.test(phone)) {
-      newErrors.phone = 'Formato de telefone inválido';
+    if (phone && phone.trim()) {
+      // Verifica se tem formato válido (apenas parênteses, dígitos, espaços e hífens)
+      if (!/^[()\d\s-]+$/.test(phone)) {
+        newErrors.phone = 'Formato de telefone inválido';
+      }
+
+      // Verifica se tem dígitos suficientes
+      const phoneDigits = phone.replace(/\D/g, '');
+      if (phoneDigits.length < 8 || phoneDigits.length > 11) {
+        newErrors.phone = 'Telefone deve ter entre 8 e 11 dígitos';
+      }
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+
+  // Validar quando sair do campo
+  const validateField = (field: string, value: string) => {
+    const newErrors = { ...errors };
+
+    if (field === 'name') {
+      if (!value.trim()) {
+        newErrors.name = 'Nome é obrigatório';
+      } else if (value.trim().length < 3) {
+        newErrors.name = 'Nome deve ter pelo menos 3 caracteres';
+      } else {
+        delete newErrors.name;
+      }
+    }
+
+    if (field === 'phone') {
+      if (value && value.trim()) {
+        // Verifica se tem formato válido (apenas parênteses, dígitos, espaços e hífens)
+        if (!/^[()\d\s-]+$/.test(value)) {
+          newErrors.phone = 'Formato de telefone inválido';
+        } else {
+          // Verifica se tem dígitos suficientes
+          const phoneDigits = value.replace(/\D/g, '');
+          if (phoneDigits.length < 8 || phoneDigits.length > 11) {
+            newErrors.phone = 'Telefone deve ter entre 8 e 11 dígitos';
+          } else {
+            delete newErrors.phone;
+          }
+        }
+      } else {
+        delete newErrors.phone;
+      }
+    }
+
+    setErrors(newErrors);
   };
 
   // Formatar telefone
@@ -101,10 +145,25 @@ export default function LocationForm({
     }
 
     setPhone(formatted);
+
+    if (hasSubmitted) {
+      validateField('phone', formatted);
+    }
+  };
+
+  // Atualizar nome com validação
+  const handleNameChange = (text: string) => {
+    setName(text);
+
+    if (hasSubmitted) {
+      validateField('name', text);
+    }
   };
 
   // Salvar formulário
   const handleSubmit = async () => {
+    setHasSubmitted(true);
+
     if (!validateForm()) {
       showToast('Por favor, corrija os erros no formulário', 'error');
       return;
@@ -113,31 +172,41 @@ export default function LocationForm({
     setIsLoading(true);
 
     try {
+      // Converter telefone para número removendo todos os caracteres não numéricos
+      let phoneValue = undefined;
+      if (phone && phone.trim()) {
+        const phoneDigits = phone.replace(/\D/g, '');
+        if (phoneDigits) {
+          phoneValue = Number(phoneDigits);
+        }
+      }
+
       // Dados para enviar para API
       const formData = {
-        id: locationId,
         name: name.trim(),
         address: address.trim() || undefined,
-        phone: phone.trim() || undefined,
+        phone: phoneValue,
         color: selectedColor,
       };
 
-      console.log('Enviando dados:', formData);
+      console.log(`[LocationForm] ${locationId ? 'Atualizando' : 'Criando'} local:`, formData);
 
-      // Simular chamada de API (substituir por chamada real)
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      showToast(
-        locationId ? 'Local atualizado com sucesso!' : 'Local adicionado com sucesso!',
-        'success'
-      );
+      if (locationId) {
+        // Atualizar local existente
+        await locationsApi.updateLocation(locationId, formData);
+        showToast('Local atualizado com sucesso!', 'success');
+      } else {
+        // Criar novo local
+        await locationsApi.createLocation(formData);
+        showToast('Local adicionado com sucesso!', 'success');
+      }
 
       if (onSuccess) {
         onSuccess();
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao salvar local:', error);
-      showToast('Erro ao salvar local', 'error');
+      showToast(`Erro ao salvar local: ${error.message || 'Erro desconhecido'}`, 'error');
     } finally {
       setIsLoading(false);
     }
@@ -162,11 +231,13 @@ export default function LocationForm({
       <Input
         label="Nome"
         value={name}
-        onChangeText={setName}
+        onChangeText={handleNameChange}
         placeholder="Nome do local"
         required
         error={errors.name}
         autoCapitalize="words"
+        disabled={isLoading}
+        onBlur={() => validateField('name', name)}
       />
 
       <Input
@@ -178,6 +249,7 @@ export default function LocationForm({
         multiline
         numberOfLines={2}
         autoCapitalize="sentences"
+        disabled={isLoading}
       />
 
       <Input
@@ -189,6 +261,8 @@ export default function LocationForm({
         helperText="Opcional"
         error={errors.phone}
         leftIcon="call-outline"
+        disabled={isLoading}
+        onBlur={() => validateField('phone', phone)}
       />
 
       <ColorField
@@ -198,6 +272,7 @@ export default function LocationForm({
         options={COLOR_PALETTE}
         required
         error={errors.color}
+        disabled={isLoading}
       />
 
       <View className="mt-4 flex-row space-x-3">

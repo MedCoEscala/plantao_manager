@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -23,10 +23,13 @@ import { useShiftsApi, Shift } from '@/services/shifts-api';
 export default function ShiftsScreen() {
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [currentMonth, setCurrentMonth] = useState(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [modalInitialDate, setModalInitialDate] = useState<Date | null>(null);
+  const prevMonthRef = useRef<string>('');
 
   const { profile, isLoading: isProfileLoading } = useProfile();
   const { showDialog } = useDialog();
@@ -50,34 +53,67 @@ export default function ShiftsScreen() {
   }, [profile, isProfileLoading]);
 
   // Carrega os plantões do backend
-  const loadShifts = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      // Carregar plantões do mês atual
-      const currentDate = new Date();
-      const firstDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-      const lastDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+  const loadShifts = useCallback(
+    async (forceRefresh = false) => {
+      if ((isLoading && !forceRefresh) || isProfileLoading) return; // Evita chamadas concorrentes ou se o perfil ainda estiver carregando
 
-      const data = await shiftsApi.getShifts({
-        startDate: format(firstDay, 'yyyy-MM-dd'),
-        endDate: format(lastDay, 'yyyy-MM-dd'),
-      });
+      setIsLoading(true);
+      try {
+        // Calcular a data do primeiro dia e do último dia do mês selecionado
+        const firstDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+        const lastDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
 
-      setShifts(data);
-    } catch (error: any) {
-      console.error('Erro ao carregar plantões:', error);
-      showToast(`Erro ao carregar plantões: ${error.message}`, 'error');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [showToast]);
+        // Formatar o mês atual para verificação
+        const monthKey = `${currentMonth.getFullYear()}-${currentMonth.getMonth()}`;
 
-  // Carrega os plantões ao iniciar a tela
+        // Apenas pula requisição se não for refresh forçado e já tivermos dados
+        if (!forceRefresh && monthKey === prevMonthRef.current && shifts.length > 0) {
+          console.log(`Mês ${monthKey} já carregado, pulando requisição`);
+          setIsLoading(false);
+          return;
+        }
+
+        console.log(
+          `Buscando plantões de ${format(firstDay, 'yyyy-MM-dd')} até ${format(lastDay, 'yyyy-MM-dd')}`
+        );
+
+        const data = await shiftsApi.getShifts({
+          startDate: format(firstDay, 'yyyy-MM-dd'),
+          endDate: format(lastDay, 'yyyy-MM-dd'),
+        });
+
+        console.log(`Plantões carregados: ${data.length}`);
+        setShifts(data);
+        setIsDataLoaded(true); // Marca que os dados foram carregados com sucesso
+
+        // Atualiza o mês de referência
+        prevMonthRef.current = monthKey;
+      } catch (error: any) {
+        console.error('Erro ao carregar plantões:', error);
+        showToast(`Erro ao carregar plantões: ${error.message}`, 'error');
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [showToast, shiftsApi, currentMonth, isLoading, shifts.length, isProfileLoading]
+  );
+
+  // Efeito para carregar dados iniciais quando o componente montar
   useEffect(() => {
-    if (!isProfileLoading) {
+    if (!isProfileLoading && !isDataLoaded) {
+      console.log('Iniciando carregamento inicial de plantões...');
+      loadShifts(true);
+    }
+  }, [isProfileLoading, isDataLoaded, loadShifts]);
+
+  // Efeito para reagir a mudanças de mês
+  useEffect(() => {
+    // Evitamos o primeiro carregamento (já coberto pelo efeito acima)
+    if (!isProfileLoading && isDataLoaded) {
+      console.log(`Mês alterado para ${format(currentMonth, 'yyyy-MM')}, recarregando dados...`);
       loadShifts();
     }
-  }, [isProfileLoading]);
+  }, [currentMonth, isProfileLoading, isDataLoaded, loadShifts]);
 
   // Filter shifts for the selected date
   const shiftsForSelectedDate = useMemo(() => {
@@ -87,7 +123,7 @@ export default function ShiftsScreen() {
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
     try {
-      await loadShifts();
+      await loadShifts(true); // Forçar refresh
       showToast('Dados atualizados com sucesso!', 'success');
     } catch (error) {
       console.error('Erro ao atualizar plantões:', error);
@@ -123,6 +159,20 @@ export default function ShiftsScreen() {
   const handleSelectDate = useCallback((date: Date) => {
     setSelectedDate(date);
   }, []);
+
+  const handleMonthChange = useCallback(
+    (month: Date) => {
+      console.log(`Mês alterado para: ${format(month, 'MMMM yyyy', { locale: ptBR })}`);
+      // Antes de atualizar, verificamos se o mês já é o atual para evitar rerenders desnecessários
+      if (
+        month.getMonth() !== currentMonth.getMonth() ||
+        month.getFullYear() !== currentMonth.getFullYear()
+      ) {
+        setCurrentMonth(month);
+      }
+    },
+    [currentMonth]
+  );
 
   // Success handler for modal
   const handleAddSuccess = useCallback(() => {
@@ -323,6 +373,8 @@ export default function ShiftsScreen() {
         }))}
         selectedDate={selectedDate}
         onSelectDate={handleSelectDate}
+        onMonthChange={handleMonthChange}
+        currentMonth={currentMonth}
       />
 
       {isLoading ? (

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View } from 'react-native';
 import { format } from 'date-fns';
 import Button from '@/components/ui/Button';
@@ -7,20 +7,15 @@ import DateField from '@/components/form/DateField';
 import SelectField from '@/components/form/SelectField';
 import SwitchField from '@/components/form/SwitchField';
 import { useToast } from '@/components/ui/Toast';
+import { usePaymentsApi } from '@/services/payments-api';
+import { useShiftsApi } from '@/services/shifts-api';
 
 const PAYMENT_METHODS = [
   { value: 'pix', label: 'PIX', icon: 'cash-outline' },
-  { value: 'transfer', label: 'Transferência Bancária', icon: 'card-outline' },
-  { value: 'cash', label: 'Dinheiro', icon: 'wallet-outline' },
-  { value: 'check', label: 'Cheque', icon: 'document-outline' },
-  { value: 'other', label: 'Outro', icon: 'ellipsis-horizontal-outline' },
-];
-
-// Dados mockados de plantões para selecionar
-const MOCK_SHIFTS = [
-  { value: 'shift1', label: 'Hospital Central - 10/05/2025', icon: 'calendar-outline' },
-  { value: 'shift2', label: 'Clínica Sul - 15/05/2025', icon: 'calendar-outline' },
-  { value: 'shift3', label: 'Posto de Saúde - 20/05/2025', icon: 'calendar-outline' },
+  { value: 'transferencia', label: 'Transferência', icon: 'swap-horizontal-outline' },
+  { value: 'deposito', label: 'Depósito', icon: 'card-outline' },
+  { value: 'dinheiro', label: 'Dinheiro', icon: 'wallet-outline' },
+  { value: 'cheque', label: 'Cheque', icon: 'document-outline' },
 ];
 
 interface PaymentFormProps {
@@ -39,29 +34,84 @@ export default function PaymentForm({ paymentId, shiftId, onSuccess, onCancel }:
   const [notes, setNotes] = useState('');
   const [isPaid, setIsPaid] = useState(false);
 
+  // Estados para opções de plantões
+  const [shiftOptions, setShiftOptions] = useState<
+    { value: string; label: string; icon: string }[]
+  >([]);
+
   // Estados de validação e UI
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isLoadingShifts, setIsLoadingShifts] = useState<boolean>(false);
 
   const { showToast } = useToast();
+  const paymentsApi = usePaymentsApi();
+  const shiftsApi = useShiftsApi();
+
+  // Buscar plantões disponíveis
+  const loadShifts = useCallback(async () => {
+    setIsLoadingShifts(true);
+    try {
+      // Buscar todos os plantões (ou com filtros se necessário)
+      const shifts = await shiftsApi.getShifts();
+
+      // Converter para o formato esperado pelo componente SelectField
+      const options = shifts.map((shift) => ({
+        value: shift.id,
+        label: `${shift.location ? shift.location.name : 'Local não informado'} - ${format(new Date(shift.date), 'dd/MM/yyyy')}`,
+        icon: 'calendar-outline',
+      }));
+
+      setShiftOptions(options);
+    } catch (error) {
+      console.error('Erro ao carregar plantões:', error);
+      showToast('Erro ao carregar lista de plantões', 'error');
+    } finally {
+      setIsLoadingShifts(false);
+    }
+  }, [shiftsApi, showToast]);
+
+  // Carregar plantões ao montar o componente
+  useEffect(() => {
+    loadShifts();
+  }, [loadShifts]);
 
   // Carregar dados se for edição
   useEffect(() => {
-    if (paymentId) {
+    const loadPaymentData = async () => {
+      if (!paymentId) return;
+
       setIsLoading(true);
-      // Simular carregamento de dados (substituir por API real)
-      setTimeout(() => {
-        // Dados simulados para edição
-        setSelectedShiftId('shift1');
-        setAmount('1.200,00');
-        setPaymentDate(new Date());
-        setMethod('pix');
-        setNotes('Pagamento referente ao plantão de emergência.');
-        setIsPaid(true);
+      try {
+        const payment = await paymentsApi.getPaymentById(paymentId);
+
+        if (payment) {
+          setSelectedShiftId(payment.shiftId || '');
+          // Formatar o valor para exibição
+          setAmount(
+            payment.amount.toLocaleString('pt-BR', {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })
+          );
+          // Definir a data do pagamento
+          if (payment.date) {
+            setPaymentDate(new Date(payment.date));
+          }
+          setMethod(payment.method || '');
+          setNotes(payment.description || '');
+          setIsPaid(payment.status === 'completed');
+        }
+      } catch (error) {
+        console.error('Erro ao carregar dados do pagamento:', error);
+        showToast('Erro ao carregar dados do pagamento', 'error');
+      } finally {
         setIsLoading(false);
-      }, 1000);
-    }
-  }, [paymentId]);
+      }
+    };
+
+    loadPaymentData();
+  }, [paymentId, paymentsApi, showToast]);
 
   // Formatação do valor monetário
   const formatAmount = (text: string) => {
@@ -114,7 +164,6 @@ export default function PaymentForm({ paymentId, shiftId, onSuccess, onCancel }:
 
       // Dados para enviar para API
       const formData = {
-        id: paymentId,
         shiftId: selectedShiftId,
         amount: parseFloat(formattedAmount),
         paymentDate: format(paymentDate, 'yyyy-MM-dd'),
@@ -125,8 +174,11 @@ export default function PaymentForm({ paymentId, shiftId, onSuccess, onCancel }:
 
       console.log('Enviando dados:', formData);
 
-      // Simular chamada de API (substituir por chamada real)
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      if (paymentId) {
+        await paymentsApi.updatePayment(paymentId, formData);
+      } else {
+        await paymentsApi.createPayment(formData);
+      }
 
       showToast(
         paymentId ? 'Pagamento atualizado com sucesso!' : 'Pagamento registrado com sucesso!',
@@ -150,10 +202,11 @@ export default function PaymentForm({ paymentId, shiftId, onSuccess, onCancel }:
         label="Plantão"
         value={selectedShiftId}
         onValueChange={setSelectedShiftId}
-        options={MOCK_SHIFTS}
+        options={shiftOptions}
         placeholder="Selecione o plantão"
         required
         error={errors.shiftId}
+        isLoading={isLoadingShifts}
       />
 
       <Input

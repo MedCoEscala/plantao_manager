@@ -1,11 +1,21 @@
-import React, { useState, useCallback, useMemo } from 'react';
-import { View, Text, Pressable, FlatList, Dimensions } from 'react-native';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import {
+  View,
+  Text,
+  Pressable,
+  FlatList,
+  Dimensions,
+  StyleSheet,
+  ViewStyle,
+  TextStyle,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import {
   format,
   addMonths,
   subMonths,
   addDays,
+  subDays,
   startOfMonth,
   endOfMonth,
   startOfWeek,
@@ -16,6 +26,7 @@ import {
   isToday,
   getDate,
   parseISO,
+  startOfDay,
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -33,6 +44,8 @@ interface CalendarProps {
   shifts: Shift[];
   selectedDate: Date;
   onSelectDate: (date: Date) => void;
+  onMonthChange?: (month: Date) => void;
+  currentMonth?: Date; // Opcional: mês controlado externamente
 }
 
 const WEEKDAYS = ['D', 'S', 'T', 'Q', 'Qi', 'S', 'S'];
@@ -40,14 +53,111 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DAY_WIDTH = Math.floor((SCREEN_WIDTH - 40) / 7);
 const WEEK_ITEM_WIDTH = Math.floor((SCREEN_WIDTH - 64) / 5);
 
-const CalendarComponent: React.FC<CalendarProps> = ({ shifts, selectedDate, onSelectDate }) => {
-  const [currentMonth, setCurrentMonth] = useState(new Date());
+// Convertendo para StyleSheet para melhor performance
+const styles = StyleSheet.create({
+  container: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+    backgroundColor: 'white',
+  },
+  headerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  headerTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1e293b',
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  navButton: {
+    height: 32,
+    width: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 16,
+    backgroundColor: '#f8fafc',
+    marginRight: 8,
+  },
+  rightNavButton: {
+    marginRight: 12,
+  },
+  toggleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#18cb96',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  toggleButtonText: {
+    marginLeft: 4,
+    fontSize: 12,
+    fontWeight: '500',
+    color: 'white',
+  },
+  weekContainer: {
+    paddingVertical: 12,
+  },
+  weekdayContainer: {
+    flexDirection: 'row',
+    marginBottom: 4,
+  },
+  weekdayLabel: {
+    width: DAY_WIDTH,
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  weekdayText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#64748b',
+  },
+  monthGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  footerContainer: {
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  footerText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1e293b',
+  },
+});
+
+const CalendarComponent: React.FC<CalendarProps> = ({
+  shifts,
+  selectedDate,
+  onSelectDate,
+  onMonthChange,
+  currentMonth: externalMonth,
+}) => {
+  // Use o mês externo se fornecido, caso contrário use state interno
+  const [internalMonth, setInternalMonth] = useState(new Date());
+  const currentMonth = externalMonth || internalMonth;
+
   const [calendarView, setCalendarView] = useState<'week' | 'month'>('week');
 
+  // Gera as datas da semana centradas no dia atual ou dia selecionado
   const weekDates = useMemo(() => {
-    const today = new Date();
-    return Array.from({ length: 21 }, (_, i) => addDays(today, i - 10));
-  }, []);
+    // Use a data selecionada ou hoje como centro
+    const centerDate = startOfDay(selectedDate);
+    // Gerar 3 dias antes e 3 depois = 7 dias no total
+    return Array.from({ length: 7 }, (_, i) => addDays(subDays(centerDate, 3), i));
+  }, [selectedDate]);
 
   const monthDates = useMemo(() => {
     const monthStart = startOfMonth(currentMonth);
@@ -59,21 +169,52 @@ const CalendarComponent: React.FC<CalendarProps> = ({ shifts, selectedDate, onSe
   }, [currentMonth]);
 
   const nextMonth = useCallback(() => {
-    setCurrentMonth(addMonths(currentMonth, 1));
-  }, [currentMonth]);
+    const newMonth = addMonths(currentMonth, 1);
+    if (onMonthChange) {
+      // Notificar o componente pai sobre a mudança, mas não atualizar internamente
+      onMonthChange(newMonth);
+    } else {
+      // Se não estiver sendo controlado externamente, atualize o state interno
+      setInternalMonth(newMonth);
+    }
+  }, [currentMonth, onMonthChange]);
 
   const prevMonth = useCallback(() => {
-    setCurrentMonth(subMonths(currentMonth, 1));
-  }, [currentMonth]);
+    const newMonth = subMonths(currentMonth, 1);
+    if (onMonthChange) {
+      // Notificar o componente pai sobre a mudança, mas não atualizar internamente
+      onMonthChange(newMonth);
+    } else {
+      // Se não estiver sendo controlado externamente, atualize o state interno
+      setInternalMonth(newMonth);
+    }
+  }, [currentMonth, onMonthChange]);
+
+  // Memoize a contagem de shifts para reduzir cálculos
+  const shiftCountByDate = useMemo(() => {
+    const countMap = new Map<string, number>();
+    shifts.forEach((shift) => {
+      try {
+        const shiftDate = parseISO(shift.date);
+        const dateKey = format(shiftDate, 'yyyy-MM-dd');
+        countMap.set(dateKey, (countMap.get(dateKey) || 0) + 1);
+      } catch (error) {
+        console.error('Erro ao processar data do plantão:', error);
+      }
+    });
+    return countMap;
+  }, [shifts]);
 
   const countShifts = useCallback(
     (date: Date) => {
-      return shifts.filter((shift) => {
-        const shiftDate = parseISO(shift.date);
-        return isSameDay(shiftDate, date);
-      }).length;
+      try {
+        const dateKey = format(date, 'yyyy-MM-dd');
+        return shiftCountByDate.get(dateKey) || 0;
+      } catch {
+        return 0;
+      }
     },
-    [shifts]
+    [shiftCountByDate]
   );
 
   function WeekDay({ item }: { item: Date }) {
@@ -83,75 +224,91 @@ const CalendarComponent: React.FC<CalendarProps> = ({ shifts, selectedDate, onSe
     const hasShift = shiftCount > 0;
     const weekdayLetter = format(item, 'EEEEE', { locale: ptBR }).toUpperCase();
 
-    return (
-      <Pressable
-        onPress={() => onSelectDate(item)}
-        style={{
-          marginHorizontal: 4,
-          width: WEEK_ITEM_WIDTH,
-          height: 80,
-          borderRadius: 16,
-          overflow: 'hidden',
-          backgroundColor: isSelected
-            ? '#18cb96'
-            : isTodayDate
-              ? 'white'
-              : hasShift
-                ? '#18cb9620'
-                : 'white',
-          borderWidth: isTodayDate && !isSelected ? 1.5 : hasShift ? 0 : 1,
-          borderColor: isTodayDate && !isSelected ? '#18cb96' : '#e5e7eb',
-          justifyContent: 'center',
-          alignItems: 'center',
-          shadowColor: isSelected ? '#18cb96' : 'transparent',
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.3,
-          shadowRadius: 4,
-          elevation: isSelected ? 3 : 0,
-        }}>
-        <Text
-          style={{
-            fontSize: 12,
-            fontWeight: '700',
-            marginBottom: 4,
-            color: isSelected ? 'white' : isTodayDate ? '#18cb96' : '#64748b',
-          }}>
-          {weekdayLetter}
-        </Text>
+    // Estilos memoizados com tipagem correta
+    const containerStyle = useMemo<ViewStyle>(
+      () => ({
+        marginHorizontal: 4,
+        width: WEEK_ITEM_WIDTH,
+        height: 80,
+        borderRadius: 16,
+        overflow: 'hidden',
+        backgroundColor: isSelected
+          ? '#18cb96'
+          : isTodayDate
+            ? 'white'
+            : hasShift
+              ? '#18cb9620'
+              : 'white',
+        borderWidth: isTodayDate && !isSelected ? 1.5 : hasShift ? 0 : 1,
+        borderColor: isTodayDate && !isSelected ? '#18cb96' : '#e5e7eb',
+        justifyContent: 'center',
+        alignItems: 'center',
+        shadowColor: isSelected ? '#18cb96' : 'transparent',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 4,
+        elevation: isSelected ? 3 : 0,
+      }),
+      [isSelected, isTodayDate, hasShift]
+    );
 
-        <Text
-          style={{
-            fontSize: 18,
-            fontWeight: '700',
-            color: isSelected ? 'white' : isTodayDate ? '#18cb96' : '#1e293b',
-          }}>
-          {getDate(item)}
-        </Text>
+    const weekdayTextStyle = useMemo<TextStyle>(
+      () => ({
+        fontSize: 12,
+        fontWeight: '700',
+        marginBottom: 4,
+        color: isSelected ? 'white' : isTodayDate ? '#18cb96' : '#64748b',
+      }),
+      [isSelected, isTodayDate]
+    );
+
+    const dateTextStyle = useMemo<TextStyle>(
+      () => ({
+        fontSize: 18,
+        fontWeight: '700',
+        color: isSelected ? 'white' : isTodayDate ? '#18cb96' : '#1e293b',
+      }),
+      [isSelected, isTodayDate]
+    );
+
+    const badgeContainerStyle = useMemo<ViewStyle>(
+      () => ({
+        marginTop: 4,
+        minWidth: 18,
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 10,
+        backgroundColor: isSelected ? 'white' : '#18cb96',
+        alignItems: 'center',
+      }),
+      [isSelected]
+    );
+
+    const badgeTextStyle = useMemo<TextStyle>(
+      () => ({
+        fontSize: 10,
+        fontWeight: '700',
+        color: isSelected ? '#18cb96' : 'white',
+      }),
+      [isSelected]
+    );
+
+    return (
+      <Pressable onPress={() => onSelectDate(item)} style={containerStyle}>
+        <Text style={weekdayTextStyle}>{weekdayLetter}</Text>
+        <Text style={dateTextStyle}>{getDate(item)}</Text>
 
         {hasShift && (
-          <View
-            style={{
-              marginTop: 4,
-              minWidth: 18,
-              paddingHorizontal: 6,
-              paddingVertical: 2,
-              borderRadius: 10,
-              backgroundColor: isSelected ? 'white' : '#18cb96',
-              alignItems: 'center',
-            }}>
-            <Text
-              style={{
-                fontSize: 10,
-                fontWeight: '700',
-                color: isSelected ? '#18cb96' : 'white',
-              }}>
-              {shiftCount}
-            </Text>
+          <View style={badgeContainerStyle}>
+            <Text style={badgeTextStyle}>{shiftCount}</Text>
           </View>
         )}
       </Pressable>
     );
   }
+
+  // Memoize o componente WeekDay para evitar re-renders
+  const MemoizedWeekDay = React.memo(WeekDay);
 
   const renderMonthDay = useCallback(
     (date: Date, index: number) => {
@@ -161,62 +318,67 @@ const CalendarComponent: React.FC<CalendarProps> = ({ shifts, selectedDate, onSe
       const shiftCount = countShifts(date);
       const hasShift = shiftCount > 0;
 
-      return (
-        <Pressable
-          key={index}
-          style={{
-            margin: 2,
-            width: DAY_WIDTH,
-            height: DAY_WIDTH,
-            borderRadius: 8,
-            justifyContent: 'center',
-            alignItems: 'center',
-            backgroundColor: isSelected
+      // Usando tipos TypeScript corretos
+      const dayContainerStyle: ViewStyle = {
+        margin: 2,
+        width: DAY_WIDTH,
+        height: DAY_WIDTH,
+        borderRadius: 8,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: isSelected
+          ? '#18cb96'
+          : hasShift && !isSelected
+            ? '#18cb9620'
+            : 'transparent',
+        borderWidth: isTodayDate && !isSelected ? 1.5 : 0,
+        borderColor: isTodayDate && !isSelected ? '#18cb96' : 'transparent',
+        opacity: !isCurrentMonth ? 0.4 : 1,
+      };
+
+      const dateTextStyle: TextStyle = {
+        fontSize: 12,
+        fontWeight: isSelected || (isTodayDate && !isSelected) ? '700' : '500',
+        color: isSelected
+          ? 'white'
+          : !isCurrentMonth
+            ? '#64748b'
+            : isTodayDate && !isSelected
               ? '#18cb96'
-              : hasShift && !isSelected
-                ? '#18cb9620'
-                : 'transparent',
-            borderWidth: isTodayDate && !isSelected ? 1.5 : 0,
-            borderColor: isTodayDate && !isSelected ? '#18cb96' : 'transparent',
-            opacity: !isCurrentMonth ? 0.4 : 1,
-          }}
-          onPress={() => onSelectDate(date)}>
-          <Text
-            style={{
-              fontSize: 12,
-              fontWeight: isSelected || (isTodayDate && !isSelected) ? '700' : '500',
-              color: isSelected
-                ? 'white'
-                : !isCurrentMonth
-                  ? '#64748b'
-                  : isTodayDate && !isSelected
-                    ? '#18cb96'
-                    : '#1e293b',
-            }}>
-            {getDate(date)}
-          </Text>
+              : '#1e293b',
+      };
+
+      const badgeContainerStyle: ViewStyle = {
+        position: 'absolute',
+        bottom: 4,
+        alignItems: 'center',
+      };
+
+      const badgeStyle: ViewStyle = {
+        paddingHorizontal: 5,
+        borderRadius: 10,
+        minWidth: 16,
+        height: 16,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: isSelected ? 'white' : '#18cb96',
+      };
+
+      const badgeTextStyle: TextStyle = {
+        fontSize: 10,
+        fontWeight: '700',
+        textAlign: 'center',
+        color: isSelected ? '#18cb96' : 'white',
+      };
+
+      return (
+        <Pressable key={index} style={dayContainerStyle} onPress={() => onSelectDate(date)}>
+          <Text style={dateTextStyle}>{getDate(date)}</Text>
 
           {hasShift && (
-            <View style={{ position: 'absolute', bottom: 4, alignItems: 'center' }}>
-              <View
-                style={{
-                  paddingHorizontal: 5,
-                  borderRadius: 10,
-                  minWidth: 16,
-                  height: 16,
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  backgroundColor: isSelected ? 'white' : '#18cb96',
-                }}>
-                <Text
-                  style={{
-                    fontSize: 10,
-                    fontWeight: '700',
-                    textAlign: 'center',
-                    color: isSelected ? '#18cb96' : 'white',
-                  }}>
-                  {shiftCount}
-                </Text>
+            <View style={badgeContainerStyle}>
+              <View style={badgeStyle}>
+                <Text style={badgeTextStyle}>{shiftCount}</Text>
               </View>
             </View>
           )}
@@ -226,74 +388,36 @@ const CalendarComponent: React.FC<CalendarProps> = ({ shifts, selectedDate, onSe
     [currentMonth, selectedDate, countShifts, onSelectDate]
   );
 
-  const toggleCalendarView = () => {
+  const toggleCalendarView = useCallback(() => {
     setCalendarView(calendarView === 'week' ? 'month' : 'week');
-  };
+  }, [calendarView]);
 
   return (
-    <View style={{ borderBottomWidth: 1, borderBottomColor: '#e2e8f0', backgroundColor: 'white' }}>
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          paddingHorizontal: 16,
-          paddingVertical: 12,
-          borderBottomWidth: 1,
-          borderBottomColor: '#f1f5f9',
-        }}>
-        <Text style={{ fontSize: 16, fontWeight: '600', color: '#1e293b' }}>
+    <View style={styles.container}>
+      <View style={styles.headerContainer}>
+        <Text style={styles.headerTitle}>
           {calendarView === 'month'
             ? format(currentMonth, 'MMMM yyyy', { locale: ptBR })
             : 'Minha Agenda'}
         </Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <View style={styles.buttonContainer}>
           {calendarView === 'month' && (
             <>
-              <Pressable
-                style={{
-                  marginRight: 8,
-                  height: 32,
-                  width: 32,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  borderRadius: 16,
-                  backgroundColor: '#f8fafc',
-                }}
-                onPress={prevMonth}>
+              <Pressable style={styles.navButton} onPress={prevMonth}>
                 <Ionicons name="chevron-back" size={16} color="#1e293b" />
               </Pressable>
-              <Pressable
-                style={{
-                  marginRight: 12,
-                  height: 32,
-                  width: 32,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  borderRadius: 16,
-                  backgroundColor: '#f8fafc',
-                }}
-                onPress={nextMonth}>
+              <Pressable style={[styles.navButton, styles.rightNavButton]} onPress={nextMonth}>
                 <Ionicons name="chevron-forward" size={16} color="#1e293b" />
               </Pressable>
             </>
           )}
-          <Pressable
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              backgroundColor: '#18cb96',
-              paddingHorizontal: 12,
-              paddingVertical: 6,
-              borderRadius: 12,
-            }}
-            onPress={toggleCalendarView}>
+          <Pressable style={styles.toggleButton} onPress={toggleCalendarView}>
             <Ionicons
               name={calendarView === 'week' ? 'calendar-outline' : 'list-outline'}
               size={16}
               color="#fff"
             />
-            <Text style={{ marginLeft: 4, fontSize: 12, fontWeight: '500', color: 'white' }}>
+            <Text style={styles.toggleButtonText}>
               {calendarView === 'week' ? 'Mês' : 'Semana'}
             </Text>
           </Pressable>
@@ -301,54 +425,41 @@ const CalendarComponent: React.FC<CalendarProps> = ({ shifts, selectedDate, onSe
       </View>
 
       {calendarView === 'week' && (
-        <View style={{ paddingVertical: 12 }}>
+        <View style={styles.weekContainer}>
           <FlatList
-            data={weekDates}
-            renderItem={({ item }) => <WeekDay item={item} />}
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={{ paddingHorizontal: 12 }}
-            keyExtractor={(item) => item.toISOString()}
-            getItemLayout={(data, index) => ({
-              length: WEEK_ITEM_WIDTH + 8,
-              offset: (WEEK_ITEM_WIDTH + 8) * index,
-              index,
-            })}
-            initialScrollIndex={10}
+            data={weekDates}
+            keyExtractor={(_, index) => `week-day-${index}`}
+            renderItem={({ item, index }) => (
+              <MemoizedWeekDay key={`week-day-${index}`} item={item} />
+            )}
+            initialNumToRender={7}
+            maxToRenderPerBatch={7}
+            windowSize={7}
           />
         </View>
       )}
 
       {calendarView === 'month' && (
         <View style={{ paddingHorizontal: 4, paddingBottom: 8 }}>
-          <View style={{ flexDirection: 'row', marginBottom: 4 }}>
+          <View style={styles.weekdayContainer}>
             {WEEKDAYS.map((day, index) => (
-              <View
-                key={`weekday-${index}`}
-                style={{
-                  width: DAY_WIDTH,
-                  alignItems: 'center',
-                  paddingVertical: 8,
-                }}>
-                <Text style={{ fontSize: 12, fontWeight: '500', color: '#64748b' }}>{day}</Text>
+              <View key={`weekday-${index}`} style={styles.weekdayLabel}>
+                <Text style={styles.weekdayText}>{day}</Text>
               </View>
             ))}
           </View>
 
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+          <View style={styles.monthGrid}>
             {monthDates.map((date, index) => renderMonthDay(date, index))}
           </View>
         </View>
       )}
 
-      <View
-        style={{
-          borderTopWidth: 1,
-          borderTopColor: '#f1f5f9',
-          paddingHorizontal: 16,
-          paddingVertical: 8,
-        }}>
-        <Text style={{ fontSize: 14, fontWeight: '600', color: '#1e293b' }}>
+      <View style={styles.footerContainer}>
+        <Text style={styles.footerText}>
           {format(selectedDate, "dd 'de' MMMM", { locale: ptBR })}
         </Text>
       </View>

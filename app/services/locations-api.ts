@@ -5,21 +5,21 @@ export interface Location {
   id: string;
   name: string;
   address?: string;
-  phone?: string;
+  phone?: string | number;
   color: string;
 }
 
 export interface CreateLocationData {
   name: string;
   address?: string;
-  phone?: string;
+  phone?: string | number;
   color: string;
 }
 
 export interface UpdateLocationData {
   name?: string;
   address?: string;
-  phone?: string;
+  phone?: string | number;
   color?: string;
 }
 
@@ -70,7 +70,7 @@ export const useLocationsApi = () => {
     }
   };
 
-  const createLocation = async (id: string, data: CreateLocationData): Promise<Location> => {
+  const createLocation = async (data: CreateLocationData): Promise<Location> => {
     try {
       const token = await getToken();
 
@@ -82,7 +82,7 @@ export const useLocationsApi = () => {
 
       return response.data;
     } catch (error) {
-      console.log(`Erro ao criar local ${id}`, error);
+      console.log(`Erro ao criar local`, error);
       throw error;
     }
   };

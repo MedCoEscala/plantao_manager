@@ -18,81 +18,8 @@ import { useToast } from '@/components/ui/Toast';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import PaymentFormModal from '@/components/payment/PaymentFormModal';
+import { usePaymentsApi, Payment, PaymentFilters } from '@/services/payments-api';
 
-// Tipo para pagamento
-interface Payment {
-  id: string;
-  description: string;
-  amount: number;
-  date: string;
-  status: 'pending' | 'completed' | 'failed';
-  // Campos adicionais úteis para UI
-  method?: string;
-  shiftTitle?: string;
-  locationName?: string;
-  locationColor?: string;
-}
-
-// Dados mockados (substituir por chamada de API real)
-const MOCK_PAYMENTS: Payment[] = [
-  {
-    id: 'pay1',
-    description: 'Plantão Hospital Central - Jan/24',
-    amount: 1250.75,
-    date: '2024-02-15',
-    status: 'completed',
-    method: 'Transferência',
-    shiftTitle: 'Plantão Emergência',
-    locationName: 'Hospital Central',
-    locationColor: '#0077B6',
-  },
-  {
-    id: 'pay2',
-    description: 'Plantão Clínica Sul - Jan/24',
-    amount: 800.0,
-    date: '2024-02-20',
-    status: 'pending',
-    method: 'PIX',
-    shiftTitle: 'Plantão Cardiologia',
-    locationName: 'Clínica Sul',
-    locationColor: '#2A9D8F',
-  },
-  {
-    id: 'pay3',
-    description: 'Plantão Hospital Norte - Fev/24',
-    amount: 1100.5,
-    date: '2024-03-05',
-    status: 'pending',
-    method: 'Depósito',
-    shiftTitle: 'Plantão Pronto Socorro',
-    locationName: 'Hospital Norte',
-    locationColor: '#E9C46A',
-  },
-  {
-    id: 'pay4',
-    description: 'Adiantamento Fev/24',
-    amount: 500.0,
-    date: '2024-02-10',
-    status: 'completed',
-    method: 'PIX',
-    shiftTitle: 'Adiantamento',
-    locationName: 'Hospital Central',
-    locationColor: '#0077B6',
-  },
-  {
-    id: 'pay5',
-    description: 'Plantão Extra Fim de Semana',
-    amount: 650.0,
-    date: '2024-03-12',
-    status: 'failed',
-    method: 'Transferência',
-    shiftTitle: 'Plantão UTI',
-    locationName: 'Hospital Universitário',
-    locationColor: '#E76F51',
-  },
-];
-
-// Funções utilitárias
 const formatCurrency = (value: number): string => {
   return value.toLocaleString('pt-BR', {
     style: 'currency',
@@ -109,11 +36,11 @@ const formatDate = (dateString: string): string => {
   }
 };
 
-// Componente principal
 export default function PaymentsScreen() {
-  const [payments, setPayments] = useState<Payment[]>(MOCK_PAYMENTS);
-  const [filteredPayments, setFilteredPayments] = useState<Payment[]>(MOCK_PAYMENTS);
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [filteredPayments, setFilteredPayments] = useState<Payment[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'pending' | 'completed' | 'failed'>(
@@ -129,8 +56,8 @@ export default function PaymentsScreen() {
   const { showDialog } = useDialog();
   const { showToast } = useToast();
   const router = useRouter();
+  const paymentsApi = usePaymentsApi();
 
-  // Efeito para animar a barra de pesquisa
   useEffect(() => {
     Animated.timing(fadeAnim, {
       toValue: showSearch ? 1 : 0,
@@ -139,7 +66,6 @@ export default function PaymentsScreen() {
     }).start();
   }, [showSearch, fadeAnim]);
 
-  // Efeito para animar os filtros
   useEffect(() => {
     Animated.timing(filtersHeight, {
       toValue: showFilters ? 40 : 0,
@@ -148,46 +74,66 @@ export default function PaymentsScreen() {
     }).start();
   }, [showFilters, filtersHeight]);
 
-  // Efeito para filtrar pagamentos baseado na pesquisa
   useEffect(() => {
-    let filtered = payments;
+    const timer = setTimeout(() => {
+      let filtered = payments;
 
-    // Aplicar filtro de status
-    if (selectedFilter !== 'all') {
-      filtered = filtered.filter((payment) => payment.status === selectedFilter);
-    }
+      if (selectedFilter !== 'all') {
+        filtered = filtered.filter((payment) => payment.status === selectedFilter);
+      }
 
-    // Aplicar filtro de pesquisa
-    if (searchQuery.trim() !== '') {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        (payment) =>
-          payment.description.toLowerCase().includes(query) ||
-          payment.method?.toLowerCase().includes(query) ||
-          payment.shiftTitle?.toLowerCase().includes(query) ||
-          payment.locationName?.toLowerCase().includes(query)
-      );
-    }
+      if (searchQuery.trim() !== '') {
+        const query = searchQuery.toLowerCase();
+        filtered = filtered.filter(
+          (payment) =>
+            payment.description.toLowerCase().includes(query) ||
+            payment.method?.toLowerCase().includes(query) ||
+            payment.shiftTitle?.toLowerCase().includes(query) ||
+            payment.locationName?.toLowerCase().includes(query)
+        );
+      }
 
-    setFilteredPayments(filtered);
+      setFilteredPayments(filtered);
+    }, 300);
+
+    return () => clearTimeout(timer);
   }, [searchQuery, payments, selectedFilter]);
 
   const loadPayments = useCallback(async () => {
+    if (refreshing || isLoading) return;
+
     setRefreshing(true);
+    setIsLoading(true);
 
     try {
-      // Simular carregamento (substituir por chamada real à API)
-      await new Promise((res) => setTimeout(res, 1000));
-      setPayments(MOCK_PAYMENTS);
-      setFilteredPayments(MOCK_PAYMENTS);
-      showToast('Pagamentos atualizados com sucesso', 'success');
-    } catch (error) {
+      const filters: PaymentFilters = {};
+
+      if (selectedFilter !== 'all') {
+        filters.status = selectedFilter;
+      }
+
+      if (searchQuery.trim()) {
+        filters.searchTerm = searchQuery.trim();
+      }
+
+      const data = await paymentsApi.getPayments(filters);
+      setPayments(data);
+
+      if (refreshing) {
+        showToast('Pagamentos atualizados com sucesso', 'success');
+      }
+    } catch (error: any) {
       console.error('Erro ao carregar pagamentos:', error);
-      showToast('Erro ao carregar pagamentos', 'error');
+      showToast(`Erro ao carregar pagamentos: ${error.message || 'Erro desconhecido'}`, 'error');
     } finally {
       setRefreshing(false);
+      setIsLoading(false);
     }
-  }, [showToast]);
+  }, [showToast, refreshing, isLoading, paymentsApi, selectedFilter, searchQuery]);
+
+  useEffect(() => {
+    loadPayments();
+  }, []);
 
   const confirmDelete = useCallback(
     (payment: Payment) => {
@@ -196,15 +142,23 @@ export default function PaymentsScreen() {
         message: `Deseja realmente excluir o pagamento de ${formatCurrency(payment.amount)}?`,
         type: 'confirm',
         confirmText: 'Excluir',
-        onConfirm: () => {
-          // Simular exclusão (remover do estado local)
-          setPayments((prev) => prev.filter((p) => p.id !== payment.id));
-          setFilteredPayments((prev) => prev.filter((p) => p.id !== payment.id));
-          showToast('Pagamento excluído com sucesso', 'success');
+        onConfirm: async () => {
+          try {
+            await paymentsApi.deletePayment(payment.id);
+            setPayments((prev) => prev.filter((p) => p.id !== payment.id));
+            setFilteredPayments((prev) => prev.filter((p) => p.id !== payment.id));
+            showToast('Pagamento excluído com sucesso', 'success');
+          } catch (error: any) {
+            console.error('Erro ao excluir pagamento:', error);
+            showToast(
+              `Erro ao excluir pagamento: ${error.message || 'Erro desconhecido'}`,
+              'error'
+            );
+          }
         },
       });
     },
-    [showDialog, showToast]
+    [showDialog, showToast, paymentsApi]
   );
 
   const navigateToEdit = useCallback((payment: Payment) => {
@@ -553,16 +507,14 @@ export default function PaymentsScreen() {
         </View>
       )}
 
-      {/* Botão flutuante para adicionar */}
-      {filteredPayments.length > 0 && (
-        <TouchableOpacity
-          className="absolute bottom-6 right-6 h-14 w-14 items-center justify-center rounded-full bg-primary shadow-lg"
-          style={{ elevation: 4 }}
-          activeOpacity={0.9}
-          onPress={navigateToAdd}>
-          <Ionicons name="add" size={28} color="#FFFFFF" />
-        </TouchableOpacity>
-      )}
+      {/* Botão flutuante para adicionar - removendo a condição filteredPayments.length > 0 */}
+      <TouchableOpacity
+        className="absolute bottom-6 right-6 h-14 w-14 items-center justify-center rounded-full bg-primary shadow-lg"
+        style={{ elevation: 4 }}
+        activeOpacity={0.9}
+        onPress={navigateToAdd}>
+        <Ionicons name="add" size={28} color="#FFFFFF" />
+      </TouchableOpacity>
 
       {/* Modal de Formulário de Pagamento */}
       <PaymentFormModal

@@ -14,6 +14,9 @@ const LayoutRoot = () => {
           animation: 'fade_from_bottom',
         }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="shifts" options={{ headerShown: false }} />
+        <Stack.Screen name="locations" options={{ headerShown: false }} />
+        <Stack.Screen name="profile" options={{ headerShown: false }} />
       </Stack>
     </SafeAreaProvider>
   );

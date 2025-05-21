@@ -9,22 +9,13 @@ import SelectField from '@/components/form/SelectField';
 import SwitchField from '@/components/form/SwitchField';
 import { useShiftsApi, Shift } from '@/services/shifts-api';
 import { useDialog } from '@/contexts/DialogContext';
+import { useContractorsSelector } from '@/hooks/useContractorsSelector';
+import { useLocationsSelector } from '@/hooks/useLocationsSelector';
+import ContractorsSelector from '@/components/contractors/ContractorsSelector';
 
 const PAYMENT_TYPE_OPTIONS = [
   { label: 'Pessoa Física (PF)', value: 'PF' },
   { label: 'Pessoa Jurídica (PJ)', value: 'PJ' },
-];
-
-const MOCK_LOCATIONS = [
-  { value: 'loc1', label: 'Hospital Central', icon: 'business-outline', color: '#0077B6' },
-  { value: 'loc2', label: 'Clínica Sul', icon: 'business-outline', color: '#EF476F' },
-  { value: 'loc3', label: 'Posto de Saúde Norte', icon: 'business-outline', color: '#06D6A0' },
-];
-
-const MOCK_CONTRACTORS = [
-  { value: 'cont1', label: 'Hospital Estadual', icon: 'briefcase-outline' },
-  { value: 'cont2', label: 'Secretaria Municipal de Saúde', icon: 'briefcase-outline' },
-  { value: 'cont3', label: 'Clínica Particular', icon: 'briefcase-outline' },
 ];
 
 interface ShiftFormProps {
@@ -66,6 +57,8 @@ export default function ShiftForm({
   const { showToast } = useToast();
   const { showDialog } = useDialog();
   const shiftsApi = useShiftsApi();
+  const { contractorOptions, isLoading: isLoadingContractors } = useContractorsSelector();
+  const { locationOptions, isLoading: isLoadingLocations } = useLocationsSelector();
 
   useEffect(() => {
     if (shiftId) {
@@ -242,18 +235,17 @@ export default function ShiftForm({
         label="Local"
         value={locationId}
         onValueChange={setLocationId}
-        options={MOCK_LOCATIONS}
+        options={locationOptions}
         placeholder="Selecione o local"
         required
         error={errors.locationId}
+        isLoading={isLoadingLocations}
       />
 
-      <SelectField
-        label="Contratante"
-        value={contractorId}
-        onValueChange={setContractorId}
-        options={MOCK_CONTRACTORS}
-        placeholder="Selecione o contratante (opcional)"
+      <ContractorsSelector
+        selectedContractorId={contractorId}
+        onContractorSelect={setContractorId}
+        required={false}
       />
 
       <Input

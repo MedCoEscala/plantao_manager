@@ -11,10 +11,11 @@ import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useToast } from '@/components/ui/Toast';
 import { useDialog } from '@/contexts/DialogContext';
+import { useShiftsApi, Shift } from '@/services/shifts-api';
 
 interface ShiftDetails {
   id: string;
@@ -37,47 +38,63 @@ export default function ShiftDetailsScreen() {
   const shiftId = params.id as string;
   const { showToast } = useToast();
   const { showDialog } = useDialog();
+  const shiftsApi = useShiftsApi();
 
   const [isLoading, setIsLoading] = useState(true);
   const [shift, setShift] = useState<ShiftDetails | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
+  // Carrega os detalhes do plantão
   useEffect(() => {
     const loadShiftDetails = async () => {
+      if (!shiftId) {
+        setError('ID do plantão não fornecido');
+        setIsLoading(false);
+        return;
+      }
+
       setIsLoading(true);
       try {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        console.log(`Carregando detalhes do plantão: ${shiftId}`);
+        const shiftData = await shiftsApi.getShiftById(shiftId);
+        console.log('Dados do plantão recebidos:', shiftData);
 
+        // Transforma os dados da API no formato esperado pelo componente
         setShift({
-          id: shiftId,
-          date: '2025-05-10T00:00:00Z',
-          startTime: '08:00',
-          endTime: '14:00',
-          value: 1200,
-          locationName: 'Hospital Central',
-          locationColor: '#0077B6',
-          contractorName: 'Hospital Estadual',
-          notes: 'Plantão de emergência na ala de trauma.',
-          status: 'Agendado',
-          paymentType: 'PF',
-          isFixed: false,
+          id: shiftData.id,
+          date: shiftData.date,
+          startTime: shiftData.startTime || '',
+          endTime: shiftData.endTime || '',
+          value: shiftData.value,
+          locationName: shiftData.location?.name || 'Local não definido',
+          locationColor: shiftData.location?.color || '#64748b',
+          contractorName: shiftData.contractor?.name,
+          notes: shiftData.notes || '',
+          status: shiftData.status || 'Agendado',
+          paymentType: shiftData.paymentType as 'PF' | 'PJ',
+          isFixed: shiftData.isFixed,
         });
-      } catch (error) {
+        setError(null);
+      } catch (error: any) {
         console.error('Erro ao carregar detalhes do plantão:', error);
+        setError(`Erro ao carregar detalhes: ${error.message || 'Erro desconhecido'}`);
         showToast('Erro ao carregar detalhes do plantão', 'error');
-        router.back();
       } finally {
         setIsLoading(false);
       }
     };
 
     loadShiftDetails();
-  }, [shiftId]);
+  }, [shiftId, shiftsApi, showToast]);
 
   const handleEdit = () => {
+    if (!shiftId) return;
     router.push(`/shifts/${shiftId}/edit`);
   };
 
   const handleDelete = () => {
+    if (!shiftId) return;
+
     showDialog({
       title: 'Confirmar Exclusão',
       message: 'Tem certeza que deseja excluir este plantão? Esta ação não pode ser desfeita.',
@@ -86,12 +103,12 @@ export default function ShiftDetailsScreen() {
       onConfirm: async () => {
         setIsLoading(true);
         try {
-          await new Promise((resolve) => setTimeout(resolve, 1000));
+          await shiftsApi.deleteShift(shiftId);
           showToast('Plantão excluído com sucesso!', 'success');
           router.back();
-        } catch (error) {
+        } catch (error: any) {
           console.error('Erro ao excluir plantão:', error);
-          showToast('Erro ao excluir plantão', 'error');
+          showToast(`Erro ao excluir plantão: ${error.message || 'Erro desconhecido'}`, 'error');
         } finally {
           setIsLoading(false);
         }
@@ -101,9 +118,10 @@ export default function ShiftDetailsScreen() {
 
   const formatShiftDate = (dateString: string) => {
     try {
-      const date = new Date(dateString);
+      const date = parseISO(dateString);
       return format(date, "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
-    } catch {
+    } catch (e) {
+      console.error('Erro ao formatar data:', e);
       return 'Data inválida';
     }
   };
@@ -113,21 +131,21 @@ export default function ShiftDetailsScreen() {
       <SafeAreaView className="flex-1 bg-white">
         <StatusBar style="dark" />
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#0077B6" />
+          <ActivityIndicator size="large" color="#18cb96" />
           <Text className="mt-4 text-gray-500">Carregando detalhes do plantão...</Text>
         </View>
       </SafeAreaView>
     );
   }
 
-  if (!shift) {
+  if (error || !shift) {
     return (
       <SafeAreaView className="flex-1 bg-white">
         <StatusBar style="dark" />
         <View className="flex-1 items-center justify-center px-4">
           <Ionicons name="alert-circle-outline" size={64} color="#EF4444" />
           <Text className="mt-4 text-center text-lg font-bold text-text-dark">
-            Plantão não encontrado
+            {error || 'Plantão não encontrado'}
           </Text>
           <Text className="mt-2 text-center text-gray-500">
             Não foi possível encontrar o plantão solicitado.
@@ -152,7 +170,7 @@ export default function ShiftDetailsScreen() {
           headerRight: () => (
             <View className="flex-row">
               <TouchableOpacity onPress={handleEdit} className="mr-4">
-                <Ionicons name="create-outline" size={24} color="#0077B6" />
+                <Ionicons name="create-outline" size={24} color="#18cb96" />
               </TouchableOpacity>
               <TouchableOpacity onPress={handleDelete}>
                 <Ionicons name="trash-outline" size={24} color="#EF4444" />
@@ -258,6 +276,7 @@ function getStatusColor(status: string): string {
     case 'cancelado':
       return '#ef4444';
     case 'concluído':
+    case 'concluido':
       return '#64748b';
     default:
       return '#64748b';
