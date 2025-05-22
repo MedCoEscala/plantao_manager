@@ -143,17 +143,38 @@ export class ShiftsService {
         );
       }
 
-      const startParts = createShiftDto.startTime.split(':');
-      const endParts = createShiftDto.endTime.split(':');
-
-      const startMinutes =
-        parseInt(startParts[0]) * 60 + parseInt(startParts[1]);
-      const endMinutes = parseInt(endParts[0]) * 60 + parseInt(endParts[1]);
-
-      if (startMinutes >= endMinutes) {
+      // Validar formato de hora (HH:MM)
+      const timeRegex = /^([01]?[0-9]|2[0-3]):([0-5][0-9])$/;
+      if (
+        !timeRegex.test(createShiftDto.startTime) ||
+        !timeRegex.test(createShiftDto.endTime)
+      ) {
         throw new BadRequestException(
-          'O horário de término deve ser posterior ao horário de início',
+          'Os horários devem estar no formato HH:MM',
         );
+      }
+
+      // Preparar data base para combinar com horários
+      const shiftDate = new Date(createShiftDto.date);
+
+      // Criar objetos Date para início e fim
+      const startTime = new Date(shiftDate);
+      const endTime = new Date(shiftDate);
+
+      const [startHour, startMinute] = createShiftDto.startTime
+        .split(':')
+        .map(Number);
+      const [endHour, endMinute] = createShiftDto.endTime
+        .split(':')
+        .map(Number);
+
+      startTime.setHours(startHour, startMinute, 0, 0);
+      endTime.setHours(endHour, endMinute, 0, 0);
+
+      // Se o horário de término for antes do início, adiciona um dia ao término
+      // Isso lida com plantões noturnos (ex: 23:00 às 01:00)
+      if (endTime <= startTime) {
+        endTime.setDate(endTime.getDate() + 1);
       }
 
       const timeInfo = `Horário: ${createShiftDto.startTime} - ${createShiftDto.endTime}`;
@@ -173,14 +194,26 @@ export class ShiftsService {
 
       return this.prisma.plantao.create({
         data: {
-          date: new Date(createShiftDto.date),
+          date: shiftDate,
           value: createShiftDto.value,
+          startTime: startTime,
+          endTime: endTime,
           isFixed: createShiftDto.isFixed || false,
           paymentType: createShiftDto.paymentType,
           notes: notes,
-          userId: user.id,
-          locationId: locationId,
-          contractorId: contractorId,
+          user: {
+            connect: { id: user.id },
+          },
+          ...(locationId && {
+            location: {
+              connect: { id: locationId },
+            },
+          }),
+          ...(contractorId && {
+            contractor: {
+              connect: { id: contractorId },
+            },
+          }),
         },
         include: {
           location: true,
@@ -205,12 +238,91 @@ export class ShiftsService {
 
   async update(id: string, updateShiftDto: UpdateShiftDto): Promise<Plantao> {
     try {
-      await this.findOne(id);
+      const existingShift = await this.findOne(id);
 
       const updateData: Prisma.PlantaoUpdateInput = {};
 
       if (updateShiftDto.date !== undefined) {
         updateData.date = new Date(updateShiftDto.date);
+      }
+
+      if (
+        updateShiftDto.startTime !== undefined ||
+        updateShiftDto.endTime !== undefined
+      ) {
+        // Obter a data base atual ou a nova data se fornecida
+        const shiftDate = updateShiftDto.date
+          ? new Date(updateShiftDto.date)
+          : existingShift.date;
+
+        // Atualizar horário de início se fornecido
+        if (updateShiftDto.startTime !== undefined) {
+          const timeRegex = /^([01]?[0-9]|2[0-3]):([0-5][0-9])$/;
+          if (!timeRegex.test(updateShiftDto.startTime)) {
+            throw new BadRequestException(
+              'O horário de início deve estar no formato HH:MM',
+            );
+          }
+
+          const startTime = new Date(shiftDate);
+          const [startHour, startMinute] = updateShiftDto.startTime
+            .split(':')
+            .map(Number);
+          startTime.setHours(startHour, startMinute, 0, 0);
+
+          updateData.startTime = startTime;
+        }
+
+        // Atualizar horário de término se fornecido
+        if (updateShiftDto.endTime !== undefined) {
+          const timeRegex = /^([01]?[0-9]|2[0-3]):([0-5][0-9])$/;
+          if (!timeRegex.test(updateShiftDto.endTime)) {
+            throw new BadRequestException(
+              'O horário de término deve estar no formato HH:MM',
+            );
+          }
+
+          const endTime = new Date(shiftDate);
+          const [endHour, endMinute] = updateShiftDto.endTime
+            .split(':')
+            .map(Number);
+          endTime.setHours(endHour, endMinute, 0, 0);
+
+          // Se já tivermos um novo horário de início
+          if (updateData.startTime) {
+            // Se o fim for antes do início, adiciona um dia
+            if (endTime <= updateData.startTime) {
+              endTime.setDate(endTime.getDate() + 1);
+            }
+          }
+          // Usar o horário de início existente para comparação
+          else if (existingShift.startTime) {
+            const startTime = new Date(existingShift.startTime);
+
+            // Ajustar startTime para ter a mesma data base que endTime para comparação
+            startTime.setFullYear(
+              endTime.getFullYear(),
+              endTime.getMonth(),
+              endTime.getDate(),
+            );
+
+            // Se o fim for antes do início, adiciona um dia
+            if (endTime <= startTime) {
+              endTime.setDate(endTime.getDate() + 1);
+            }
+          }
+
+          updateData.endTime = endTime;
+        }
+
+        // Verificação final se ambos startTime e endTime estiverem sendo atualizados
+        if (updateData.startTime && updateData.endTime) {
+          if (updateData.endTime <= updateData.startTime) {
+            (updateData.endTime as Date).setDate(
+              (updateData.endTime as Date).getDate() + 1,
+            );
+          }
+        }
       }
 
       if (updateShiftDto.value !== undefined) {

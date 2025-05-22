@@ -59,6 +59,8 @@ model Contractor {
 model Plantao {
   id           String      @id @default(cuid())
   date         DateTime    @db.Date
+  startTime    DateTime    @map("start_time")
+  endTime      DateTime    @map("end_time")
   value        Float
   isFixed      Boolean     @default(false) @map("is_fixed")
   paymentType  String

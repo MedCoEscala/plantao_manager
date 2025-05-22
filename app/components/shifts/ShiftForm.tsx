@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { View, Text, ScrollView } from 'react-native';
+import { View, Text, ScrollView, Alert } from 'react-native';
 import { format, parseISO, isValid } from 'date-fns';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -11,6 +11,7 @@ import { useShiftsApi, Shift } from '@/services/shifts-api';
 import { useDialog } from '@/contexts/DialogContext';
 import { useLocationsSelector } from '@/hooks/useLocationsSelector';
 import ContractorsSelector from '@/components/contractors/ContractorsSelector';
+import { formatTime } from '@/utils/formatters';
 
 const PAYMENT_TYPE_OPTIONS = [
   { label: 'Pessoa Física (PF)', value: 'PF', icon: 'person-outline' },
@@ -20,6 +21,7 @@ const PAYMENT_TYPE_OPTIONS = [
 interface ShiftFormProps {
   shiftId?: string;
   initialDate?: Date | null;
+  initialData?: Shift | null;
   onSuccess?: () => void;
   onCancel?: () => void;
   isModal?: boolean;
@@ -28,176 +30,101 @@ interface ShiftFormProps {
 export default function ShiftForm({
   shiftId,
   initialDate,
+  initialData,
   onSuccess,
   onCancel,
   isModal = false,
 }: ShiftFormProps) {
-  const [date, setDate] = useState<Date>(initialDate || new Date());
+  console.log(
+    '[ShiftForm] Iniciando com shiftId:',
+    shiftId,
+    'initialData:',
+    initialData ? 'presente' : 'ausente'
+  );
+
+  // Estado para carregamento
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  // Estados para os campos do formulário
+  const [date, setDate] = useState<Date>(() => {
+    if (initialData?.date) {
+      try {
+        const parsedDate = parseISO(initialData.date);
+        if (isValid(parsedDate)) return parsedDate;
+      } catch (e) {
+        console.error('[ShiftForm] Erro ao processar data inicial:', e);
+      }
+    }
+    return initialDate || new Date();
+  });
+
   const [startTime, setStartTime] = useState<Date>(() => {
-    const now = new Date();
-    now.setHours(8, 0, 0, 0);
-    return now;
+    if (initialData?.startTime) {
+      try {
+        const timeStr = formatTime(initialData.startTime);
+        if (timeStr) {
+          const [hours, minutes] = timeStr.split(':').map(Number);
+          const startTimeDate = new Date();
+          startTimeDate.setHours(hours || 0, minutes || 0, 0, 0);
+          return startTimeDate;
+        }
+      } catch (e) {
+        console.error('[ShiftForm] Erro ao processar horário inicial:', e);
+      }
+    }
+
+    // Horário padrão: 8:00
+    const defaultTime = new Date();
+    defaultTime.setHours(8, 0, 0, 0);
+    return defaultTime;
   });
+
   const [endTime, setEndTime] = useState<Date>(() => {
-    const now = new Date();
-    now.setHours(14, 0, 0, 0);
-    return now;
+    if (initialData?.endTime) {
+      try {
+        const timeStr = formatTime(initialData.endTime);
+        if (timeStr) {
+          const [hours, minutes] = timeStr.split(':').map(Number);
+          const endTimeDate = new Date();
+          endTimeDate.setHours(hours || 0, minutes || 0, 0, 0);
+          return endTimeDate;
+        }
+      } catch (e) {
+        console.error('[ShiftForm] Erro ao processar horário final:', e);
+      }
+    }
+
+    // Horário padrão: 14:00
+    const defaultTime = new Date();
+    defaultTime.setHours(14, 0, 0, 0);
+    return defaultTime;
   });
-  const [locationId, setLocationId] = useState<string>('');
-  const [contractorId, setContractorId] = useState<string>('');
-  const [value, setValue] = useState<string>('');
-  const [paymentType, setPaymentType] = useState<string>('PF');
-  const [isFixed, setIsFixed] = useState<boolean>(false);
-  const [notes, setNotes] = useState<string>('');
+
+  const [locationId, setLocationId] = useState<string>(initialData?.locationId || '');
+  const [contractorId, setContractorId] = useState<string>(initialData?.contractorId || '');
+  const [value, setValue] = useState<string>(
+    initialData?.value !== undefined ? initialData.value.toString() : ''
+  );
+  const [paymentType, setPaymentType] = useState<string>(initialData?.paymentType || 'PF');
+  const [isFixed, setIsFixed] = useState<boolean>(initialData?.isFixed || false);
+  const [notes, setNotes] = useState<string>(initialData?.notes || '');
 
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [isLoadingShift, setIsLoadingShift] = useState<boolean>(Boolean(shiftId));
 
   const { showToast } = useToast();
   const { showDialog } = useDialog();
   const shiftsApi = useShiftsApi();
   const { locationOptions, isLoading: isLoadingLocations } = useLocationsSelector();
-
-  // Formatar hora para exibição
-  const formatTimeDisplay = (date: Date): string => {
-    return format(date, 'HH:mm');
-  };
-
-  // Calcular duração do plantão
-  const shiftDuration = useMemo(() => {
-    const startMinutes = startTime.getHours() * 60 + startTime.getMinutes();
-    const endMinutes = endTime.getHours() * 60 + endTime.getMinutes();
-
-    // Verificar se o horário de término é antes do início (ex: plantões noturnos)
-    const durationMinutes =
-      endMinutes >= startMinutes ? endMinutes - startMinutes : 24 * 60 - startMinutes + endMinutes;
-
-    const hours = Math.floor(durationMinutes / 60);
-    const minutes = durationMinutes % 60;
-
-    return `${hours}h${minutes > 0 ? ` ${minutes}min` : ''}`;
-  }, [startTime, endTime]);
-
-  // Adicionar um useEffect para carregar os dados de um plantão existente
-  useEffect(() => {
-    // Proteger contra múltiplas tentativas
-    if (shiftId && !isLoadingShift && componentIsMounted.current) {
-      const loadAttemptCount = useRef(0);
-
-      const loadShiftDetails = async () => {
-        // Limitar número de tentativas
-        if (loadAttemptCount.current >= 3) {
-          showToast(
-            'Não foi possível carregar os dados do plantão após várias tentativas',
-            'error'
-          );
-          setIsLoadingShift(false);
-          return;
-        }
-
-        loadAttemptCount.current += 1;
-        setIsLoadingShift(true);
-
-        try {
-          const shiftData = await shiftsApi.getShiftById(shiftId);
-
-          // Garante que não tentamos atualizar estados se o componente foi desmontado
-          if (!componentIsMounted.current) return;
-
-          // Atualiza os estados com os dados do plantão
-          if (shiftData) {
-            if (shiftData.date) {
-              try {
-                const parsedDate = parseISO(shiftData.date);
-                if (isValid(parsedDate)) {
-                  setDate(parsedDate);
-                }
-              } catch (error) {
-                console.error('Erro ao processar data do plantão:', error);
-              }
-            }
-
-            // Preenche os outros campos apenas se existirem dados válidos
-            if (shiftData.startTime) {
-              const [hours, minutes] = shiftData.startTime.split(':').map(Number);
-              const startTimeDate = new Date();
-              startTimeDate.setHours(hours || 0, minutes || 0, 0, 0);
-              setStartTime(startTimeDate);
-            }
-
-            if (shiftData.endTime) {
-              const [hours, minutes] = shiftData.endTime.split(':').map(Number);
-              const endTimeDate = new Date();
-              endTimeDate.setHours(hours || 0, minutes || 0, 0, 0);
-              setEndTime(endTimeDate);
-            }
-
-            if (shiftData.locationId) {
-              setLocationId(shiftData.locationId);
-            }
-
-            if (shiftData.contractorId) {
-              setContractorId(shiftData.contractorId);
-            }
-
-            if (typeof shiftData.value === 'number') {
-              setValue(shiftData.value.toString());
-            }
-
-            if (shiftData.paymentType) {
-              setPaymentType(shiftData.paymentType);
-            }
-
-            if (typeof shiftData.isFixed === 'boolean') {
-              setIsFixed(shiftData.isFixed);
-            }
-
-            if (shiftData.notes) {
-              setNotes(shiftData.notes);
-            }
-
-            showToast('Plantão carregado com sucesso', 'success');
-          } else {
-            showToast('Não foi possível encontrar os dados do plantão', 'error');
-          }
-        } catch (error) {
-          console.error('Erro ao carregar detalhes do plantão:', error);
-          showToast('Erro ao carregar dados do plantão', 'error');
-
-          // Se for uma falha de conexão, tenta novamente após um delay
-          if (
-            error instanceof Error &&
-            (error.message.includes('network') || error.message.includes('timeout'))
-          ) {
-            setTimeout(() => {
-              if (componentIsMounted.current) {
-                loadShiftDetails();
-              }
-            }, 3000);
-            return;
-          }
-        } finally {
-          if (componentIsMounted.current) {
-            setIsLoadingShift(false);
-          }
-        }
-      };
-
-      loadShiftDetails();
-    }
-  }, [shiftId, shiftsApi, showToast, isLoadingShift]); // Apenas dependências necessárias e estáveis
-
-  // Usar referência para evitar atualização em componentes desmontados
   const componentIsMounted = useRef(true);
 
+  // Efeito para lidar com o ciclo de vida do componente
   useEffect(() => {
-    // Configuração quando o componente é montado
     componentIsMounted.current = true;
+    console.log('[ShiftForm] Componente montado/remontado');
 
-    // Limpeza quando o componente for desmontado
     return () => {
       componentIsMounted.current = false;
+      console.log('[ShiftForm] Componente desmontando');
     };
   }, []);
 
@@ -207,6 +134,25 @@ export default function ShiftForm({
       setDate(initialDate);
     }
   }, [initialDate]);
+
+  // Formatar hora para exibição
+  const formatTimeDisplay = (date: Date | string): string => {
+    return formatTime(date);
+  };
+
+  // Calcular duração do plantão
+  const shiftDuration = useMemo(() => {
+    const startMinutes = startTime.getHours() * 60 + startTime.getMinutes();
+    const endMinutes = endTime.getHours() * 60 + endTime.getMinutes();
+
+    const durationMinutes =
+      endMinutes >= startMinutes ? endMinutes - startMinutes : 24 * 60 - startMinutes + endMinutes;
+
+    const hours = Math.floor(durationMinutes / 60);
+    const minutes = durationMinutes % 60;
+
+    return `${hours}h${minutes > 0 ? ` ${minutes}min` : ''}`;
+  }, [startTime, endTime]);
 
   // Formatação para valor monetário
   const formatValue = (text: string) => {
@@ -226,20 +172,15 @@ export default function ShiftForm({
   const validateForm = () => {
     const newErrors: { [key: string]: string } = {};
 
-    // Validar só os campos obrigatórios
     if (!value) {
       newErrors.value = 'Informe o valor do plantão';
     }
 
-    // Verificar se o horário de término é após o início (para plantões no mesmo dia)
     const startMinutes = startTime.getHours() * 60 + startTime.getMinutes();
     const endMinutes = endTime.getHours() * 60 + endTime.getMinutes();
 
     if (endMinutes <= startMinutes) {
-      // Permitimos que o horário de término seja antes do início para plantões noturnos
-      // Podemos adicionar uma confirmação em vez de considerar um erro
       if (endMinutes < startMinutes && startMinutes - endMinutes > 720) {
-        // Se a diferença for maior que 12 horas
         newErrors.endTime = 'Verifique o horário de término';
       }
     }
@@ -308,21 +249,11 @@ export default function ShiftForm({
     }
   };
 
-  // Se estiver carregando os dados do plantão, exibe um indicador
-  if (isLoadingShift) {
-    return (
-      <View className="flex-1 items-center justify-center py-10">
-        <Text className="text-center text-text-light">Carregando dados do plantão...</Text>
-      </View>
-    );
-  }
-
   return (
     <ScrollView
       className="flex-1"
       showsVerticalScrollIndicator={false}
       contentContainerClassName="pb-6">
-      {/* Seção de Data e Horário */}
       <View className="mb-6 rounded-xl bg-background-50 p-4">
         <Text className="mb-3 text-base font-bold text-text-dark">Data e Horário</Text>
 
@@ -349,7 +280,6 @@ export default function ShiftForm({
           />
         </View>
 
-        {/* Exibir duração do plantão */}
         <View className="mt-2 rounded-lg bg-primary/10 p-2">
           <Text className="text-center text-sm font-medium text-primary">
             Duração: {shiftDuration}
@@ -357,7 +287,6 @@ export default function ShiftForm({
         </View>
       </View>
 
-      {/* Seção de Local e Contratante */}
       <View className="mb-6 rounded-xl bg-background-50 p-4">
         <Text className="mb-3 text-base font-bold text-text-dark">Local e Contratante</Text>
 
@@ -379,7 +308,6 @@ export default function ShiftForm({
         />
       </View>
 
-      {/* Seção de Pagamento */}
       <View className="mb-6 rounded-xl bg-background-50 p-4">
         <Text className="mb-3 text-base font-bold text-text-dark">Pagamento</Text>
 
@@ -411,7 +339,6 @@ export default function ShiftForm({
         />
       </View>
 
-      {/* Seção de Observações */}
       <View className="mb-6 rounded-xl bg-background-50 p-4">
         <Text className="mb-3 text-base font-bold text-text-dark">Observações</Text>
 
@@ -426,7 +353,6 @@ export default function ShiftForm({
         />
       </View>
 
-      {/* Botões de Ação */}
       <View className="mt-4 flex-row space-x-3">
         {onCancel && (
           <Button variant="outline" onPress={onCancel} disabled={isLoading} className="flex-1">

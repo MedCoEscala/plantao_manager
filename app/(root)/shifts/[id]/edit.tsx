@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import { useToast } from '@/components/ui/Toast';
 import ShiftForm from '@/components/shifts/ShiftForm';
-import { useShiftsApi } from '@/services/shifts-api';
+import { useShiftsApi, Shift } from '@/services/shifts-api';
 
 export default function EditShiftScreen() {
   const router = useRouter();
@@ -14,61 +14,77 @@ export default function EditShiftScreen() {
   const shiftsApi = useShiftsApi();
 
   const [isLoading, setIsLoading] = useState(true);
-  const [shiftName, setShiftName] = useState('');
+  const [shiftData, setShiftData] = useState<Shift | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Referências para controle
   const loadAttemptRef = useRef(false);
   const isMounted = useRef(true);
 
-  // Gerenciar ciclo de vida do componente
+  console.log('[EditShiftScreen] Montando componente com ID:', shiftId);
+
   useEffect(() => {
     isMounted.current = true;
+    console.log('[EditShiftScreen] Componente montado');
     return () => {
+      console.log('[EditShiftScreen] Componente desmontando');
       isMounted.current = false;
     };
   }, []);
 
   useEffect(() => {
-    // Prevenir carregamentos duplicados
-    if (loadAttemptRef.current || !isMounted.current) return;
+    if (loadAttemptRef.current || !isMounted.current) {
+      console.log('[EditShiftScreen] Ignorando carregamento duplicado');
+      return;
+    }
 
-    // Marcar que tentou carregar
+    if (!shiftId) {
+      console.error('[EditShiftScreen] ID do plantão não fornecido');
+      setError('ID do plantão não fornecido');
+      setIsLoading(false);
+      return;
+    }
+
+    console.log('[EditShiftScreen] Iniciando carregamento do plantão:', shiftId);
     loadAttemptRef.current = true;
+    setIsLoading(true);
 
     const loadShiftInfo = async () => {
-      if (!shiftId) {
-        if (isMounted.current) {
-          setError('ID do plantão não fornecido');
-          setIsLoading(false);
-        }
-        return;
-      }
-
       try {
-        const shiftData = await shiftsApi.getShiftById(shiftId);
+        console.log('[EditShiftScreen] Buscando dados do plantão:', shiftId);
+        const data = await shiftsApi.getShiftById(shiftId);
 
-        // Verificar se o componente ainda está montado
-        if (!isMounted.current) return;
+        if (!isMounted.current) {
+          console.log('[EditShiftScreen] Componente desmontado durante carregamento');
+          return;
+        }
 
-        if (shiftData) {
-          // Formatação simplificada de título
-          setShiftName(
-            shiftData.location?.name ? `Plantão em ${shiftData.location.name}` : 'Editar Plantão'
+        if (data) {
+          console.log(
+            '[EditShiftScreen] Dados do plantão recebidos:',
+            JSON.stringify({
+              id: data.id,
+              date: data.date,
+              location: data.location?.name,
+              startTime: data.startTime,
+              endTime: data.endTime,
+            })
           );
+
+          setShiftData(data);
         } else {
+          console.error('[EditShiftScreen] Dados do plantão vazios ou inválidos');
           setError('Não foi possível carregar os dados do plantão');
         }
       } catch (error: any) {
-        console.error('Erro ao carregar informações do plantão:', error);
+        console.error('[EditShiftScreen] Erro ao carregar informações do plantão:', error);
 
-        // Verificar se o componente ainda está montado
         if (!isMounted.current) return;
 
         setError(error.message || 'Erro ao carregar informações do plantão');
         showToast('Erro ao carregar informações do plantão', 'error');
       } finally {
         if (isMounted.current) {
+          console.log('[EditShiftScreen] Finalizando carregamento, definindo isLoading=false');
           setIsLoading(false);
         }
       }
@@ -83,6 +99,7 @@ export default function EditShiftScreen() {
   };
 
   const handleRetry = () => {
+    console.log('[EditShiftScreen] Tentando novamente');
     setError(null);
     loadAttemptRef.current = false;
     setIsLoading(true);
@@ -118,6 +135,19 @@ export default function EditShiftScreen() {
     );
   }
 
+  const shiftName = shiftData?.location?.name
+    ? `Plantão em ${shiftData.location.name}`
+    : 'Editar Plantão';
+
+  console.log(
+    '[EditShiftScreen] Renderizando formulário com isLoading=',
+    isLoading,
+    'shiftId=',
+    shiftId,
+    'shiftData=',
+    shiftData ? 'disponível' : 'não disponível'
+  );
+
   return (
     <SafeAreaView className="flex-1 bg-white">
       <StatusBar barStyle="dark-content" />
@@ -140,7 +170,26 @@ export default function EditShiftScreen() {
         </View>
       ) : (
         <View className="flex-1">
-          <ShiftForm shiftId={shiftId} onSuccess={handleSuccess} />
+          {shiftData ? (
+            <ShiftForm
+              key={`shift-form-${shiftId}`}
+              shiftId={shiftId}
+              initialData={shiftData}
+              onSuccess={handleSuccess}
+            />
+          ) : (
+            <View className="flex-1 items-center justify-center p-4">
+              <Text className="mb-2 text-center text-lg font-bold text-red-500">
+                Erro inesperado
+              </Text>
+              <Text className="mb-6 text-center text-gray-500">
+                Não foi possível carregar os dados do plantão.
+              </Text>
+              <TouchableOpacity className="rounded-lg bg-primary px-6 py-3" onPress={handleRetry}>
+                <Text className="font-medium text-white">Tentar Novamente</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       )}
     </SafeAreaView>

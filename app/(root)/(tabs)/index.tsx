@@ -20,6 +20,7 @@ import { useProfile } from '@/hooks/useProfile';
 import ShiftFormModal from '@/components/shifts/ShiftFormModal';
 import { useToast } from '@/components';
 import { useShiftsApi, Shift } from '@/services/shifts-api';
+import { formatDate, formatTime, formatCurrency } from '@/utils/formatters';
 
 export default function ShiftsScreen() {
   const [shifts, setShifts] = useState<Shift[]>([]);
@@ -267,9 +268,7 @@ export default function ShiftsScreen() {
       const formatShiftDate = () => {
         try {
           if (!item.date) return 'Data inválida';
-          const date = parseISO(item.date);
-          if (!isValid(date)) return 'Data inválida';
-          return format(date, "dd 'de' MMMM", { locale: ptBR });
+          return formatDate(item.date, "dd 'de' MMMM");
         } catch (error) {
           console.error('Erro ao formatar data:', error);
           return 'Data inválida';
@@ -278,8 +277,7 @@ export default function ShiftsScreen() {
 
       const formatValue = () => {
         try {
-          if (typeof item.value !== 'number') return 'R$ --';
-          return `R$ ${item.value.toFixed(2).replace('.', ',')}`;
+          return formatCurrency(item.value);
         } catch (error) {
           console.error('Erro ao formatar valor:', error);
           return 'R$ --';
@@ -319,8 +317,8 @@ export default function ShiftsScreen() {
               <View className="flex-1">
                 <Text className="text-base font-bold text-text-dark">{formatShiftDate()}</Text>
                 <Text className="mt-2 text-sm text-text-light">
-                  {item.startTime && item.startTime.trim() !== ''
-                    ? `${item.startTime}${item.endTime && item.endTime.trim() !== '' ? ` - ${item.endTime}` : ''}`
+                  {item.startTime
+                    ? `${formatTime(item.startTime)}${item.endTime ? ` - ${formatTime(item.endTime)}` : ''}`
                     : 'Horário não definido'}
                 </Text>
                 <View className="mt-3 flex-row items-center">

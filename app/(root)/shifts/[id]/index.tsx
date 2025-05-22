@@ -9,6 +9,7 @@ import { ptBR } from 'date-fns/locale';
 import { useToast } from '@/components/ui/Toast';
 import { useDialog } from '@/contexts/DialogContext';
 import { useShiftsApi, Shift } from '@/services/shifts-api';
+import { formatDate, formatTime, formatCurrency } from '@/utils/formatters';
 
 // Função auxiliar para obter cor baseada no status
 const getStatusColor = (status: string) => {
@@ -178,29 +179,29 @@ export default function ShiftDetailsScreen() {
   };
 
   const formatShiftDate = (dateString: string) => {
-    try {
-      if (!dateString) return 'Data inválida';
-
-      const date = parseISO(dateString);
-      if (!isValid(date)) return 'Data inválida';
-
-      return format(date, "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
-    } catch (e) {
-      console.error('Erro ao formatar data:', e);
-      return 'Data inválida';
-    }
+    return formatDate(dateString, "dd 'de' MMMM 'de' yyyy");
   };
 
-  // Calcular e formatar a duração do plantão
   const getShiftDuration = () => {
     if (!shift?.startTime || !shift?.endTime) return '';
 
     try {
-      // Parse das strings de hora
-      const [startHours, startMinutes] = shift.startTime.split(':').map(Number);
-      const [endHours, endMinutes] = shift.endTime.split(':').map(Number);
+      // Limpar os horários para garantir que estejam no formato correto
+      const startTimeStr = formatTime(shift.startTime);
+      const endTimeStr = formatTime(shift.endTime);
 
-      // Calcular minutos totais
+      if (!startTimeStr || !endTimeStr) return '';
+
+      // Parse das strings de hora já formatadas
+      const [startHours, startMinutes] = startTimeStr.split(':').map(Number);
+      const [endHours, endMinutes] = endTimeStr.split(':').map(Number);
+
+      // Verificar se temos números válidos
+      if (isNaN(startHours) || isNaN(startMinutes) || isNaN(endHours) || isNaN(endMinutes)) {
+        console.error('Valores inválidos para cálculo de duração:', { startTimeStr, endTimeStr });
+        return '';
+      }
+
       let startTotalMinutes = startHours * 60 + startMinutes;
       let endTotalMinutes = endHours * 60 + endMinutes;
 
@@ -220,14 +221,12 @@ export default function ShiftDetailsScreen() {
     }
   };
 
-  // Botão para tentar novamente em caso de erro
   const handleRetry = () => {
     setError(null);
-    hasLoadedRef.current = false; // Permitir nova tentativa
+    hasLoadedRef.current = false;
     loadShiftDetails();
   };
 
-  // Tela de carregamento
   if (isLoading) {
     return (
       <SafeAreaView className="flex-1 bg-white">
@@ -240,7 +239,6 @@ export default function ShiftDetailsScreen() {
     );
   }
 
-  // Tela de erro
   if (error || !shift) {
     return (
       <SafeAreaView className="flex-1 bg-white">
@@ -311,11 +309,8 @@ export default function ShiftDetailsScreen() {
               </Text>
             </View>
             <Text className="text-text-light">
-              {shift.startTime &&
-              shift.startTime.trim() !== '' &&
-              shift.endTime &&
-              shift.endTime.trim() !== ''
-                ? `${shift.startTime} - ${shift.endTime}`
+              {shift.startTime && shift.endTime
+                ? `${formatTime(shift.startTime)} - ${formatTime(shift.endTime)}`
                 : 'Horário não definido'}
             </Text>
           </View>
@@ -344,9 +339,7 @@ export default function ShiftDetailsScreen() {
           <View className="mb-4 flex-row justify-between">
             <View>
               <Text className="text-xs text-text-light">Valor</Text>
-              <Text className="text-lg font-bold text-primary">
-                R$ {shift.value.toFixed(2).replace('.', ',')}
-              </Text>
+              <Text className="text-lg font-bold text-primary">{formatCurrency(shift.value)}</Text>
             </View>
 
             <View className="items-end">
