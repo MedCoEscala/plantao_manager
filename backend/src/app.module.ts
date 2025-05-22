@@ -7,6 +7,7 @@ import { UsersModule } from './users/users.module';
 import { ShiftsModule } from './shifts/shifts.module';
 import { ContractorsModule } from './contractors/contractors.module';
 import { LocationsModule } from './locations/location.module';
+import { PaymentsModule } from './payments/payments.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { LocationsModule } from './locations/location.module';
     ShiftsModule,
     LocationsModule,
     ContractorsModule,
+    PaymentsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
