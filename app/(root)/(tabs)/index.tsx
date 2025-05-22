@@ -18,9 +18,10 @@ import { ptBR } from 'date-fns/locale';
 import CalendarComponent from '@/components/CalendarComponent';
 import { useProfile } from '@/hooks/useProfile';
 import ShiftFormModal from '@/components/shifts/ShiftFormModal';
-import { useToast } from '@/components';
+import { Button, useToast } from '@/components';
 import { useShiftsApi, Shift } from '@/services/shifts-api';
 import { formatDate, formatTime, formatCurrency } from '@/utils/formatters';
+import { useAuth } from '@clerk/clerk-react';
 
 export default function ShiftsScreen() {
   const [shifts, setShifts] = useState<Shift[]>([]);
@@ -43,12 +44,20 @@ export default function ShiftsScreen() {
   const userName = useMemo(() => {
     if (isProfileLoading || !profile) return 'Usuário';
 
-    if (profile.firstName || profile.lastName) {
-      return ((profile.firstName || '') + ' ' + (profile.lastName || '')).trim();
+    if (profile.name || profile.name?.trim()) {
+      return profile.name.trim();
     }
 
-    if (profile.name) {
-      return profile.name;
+    const firstName = profile.firstName?.trim() || '';
+    const lastName = profile.lastName?.trim() || '';
+
+    if (firstName || lastName) {
+      return `${firstName} ${lastName}`.trim();
+    }
+
+    if (profile.email) {
+      const emailName = profile.email.split('@')[0];
+      return emailName || 'Usuário';
     }
 
     return 'Usuário';
@@ -479,6 +488,7 @@ export default function ShiftsScreen() {
         onPress={navigateToAddShift}>
         <Ionicons name="add" size={28} color="#FFFFFF" />
       </TouchableOpacity>
+      {/* Logout Button */}
 
       <ShiftFormModal
         visible={isAddModalVisible}

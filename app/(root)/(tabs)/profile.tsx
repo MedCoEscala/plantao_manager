@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, ScrollView, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
@@ -28,17 +28,17 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
       <StatusBar style="dark" />
-      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+      <View className="flex-1">
         <ProfileHeader profile={profile} isLoading={isLoading} onEditPress={handleEditProfile} />
 
-        <View className="p-4">
+        <View className="flex-1 p-4">
           <ProfileActions />
 
-          <View className="my-4">
-            <ContractorsList maxHeight={400} title="Meus Contratantes" />
+          <View className="mt-4 flex-1">
+            <ContractorsList title="Meus Contratantes" />
           </View>
         </View>
-      </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }

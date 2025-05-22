@@ -2,38 +2,46 @@ import React from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { UserProfile } from '@/hooks/useProfile';
+import { getDisplayName, getInitials } from '@/utils/userNameHelper';
 
 interface ProfileHeaderProps {
   profile: UserProfile | null;
   isLoading: boolean;
-  onEditPress: () => void;
+  onEditPress?: () => void;
+  allowEdit?: boolean;
 }
 
-const ProfileHeader: React.FC<ProfileHeaderProps> = ({ profile, isLoading, onEditPress }) => {
-  // Função para obter iniciais do nome
-  const getInitials = (name?: string) => {
-    if (!name) return '?';
-
-    const parts = name.trim().split(' ');
-    if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
-    return `${parts[0].charAt(0)}${parts[parts.length - 1].charAt(0)}`.toUpperCase();
-  };
-
-  const userInitials = profile ? getInitials(profile.firstName || profile.name) : '?';
-
+const ProfileHeader: React.FC<ProfileHeaderProps> = ({
+  profile,
+  isLoading,
+  onEditPress,
+  allowEdit = false,
+}) => {
   if (isLoading) {
     return (
       <View className="w-full items-center bg-white py-6">
         <ActivityIndicator size="large" color="#18cb96" />
+        <Text className="mt-2 text-sm text-text-light">Carregando perfil...</Text>
       </View>
     );
   }
 
-  const displayName = profile
-    ? profile.firstName
-      ? `${profile.firstName} ${profile.lastName || ''}`
-      : profile.name || 'Usuário'
-    : 'Usuário';
+  const displayName = getDisplayName(profile);
+  const userInitials = getInitials(profile);
+
+  console.log('🎨 ProfileHeader renderizando:', {
+    displayName,
+    userInitials,
+    allowEdit,
+    profile: profile
+      ? {
+          name: profile.name,
+          firstName: profile.firstName,
+          lastName: profile.lastName,
+          email: profile.email,
+        }
+      : null,
+  });
 
   return (
     <View className="w-full items-center bg-white py-6">
@@ -50,11 +58,14 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({ profile, isLoading, onEdi
           </View>
         )}
 
-        <TouchableOpacity
-          className="absolute bottom-0 right-0 h-8 w-8 items-center justify-center rounded-full bg-primary shadow-sm"
-          onPress={onEditPress}>
-          <Ionicons name="pencil-outline" size={16} color="#fff" />
-        </TouchableOpacity>
+        {allowEdit && onEditPress && (
+          <TouchableOpacity
+            className="absolute bottom-0 right-0 h-8 w-8 items-center justify-center rounded-full bg-primary shadow-sm"
+            onPress={onEditPress}
+            activeOpacity={0.8}>
+            <Ionicons name="pencil-outline" size={16} color="#fff" />
+          </TouchableOpacity>
+        )}
       </View>
 
       <Text className="mt-4 text-xl font-bold text-text-dark">{displayName}</Text>
@@ -70,6 +81,14 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({ profile, isLoading, onEdi
         <View className="mt-1 flex-row items-center">
           <Ionicons name="call-outline" size={14} color="#64748b" style={{ marginRight: 4 }} />
           <Text className="text-sm text-text-light">{profile.phoneNumber}</Text>
+        </View>
+      )}
+
+      {!allowEdit && (
+        <View className="mt-3 rounded-lg bg-gray-50 px-4 py-2">
+          <Text className="text-center text-xs text-gray-500">
+            Edição temporariamente desabilitada
+          </Text>
         </View>
       )}
     </View>

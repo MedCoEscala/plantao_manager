@@ -13,6 +13,9 @@ export interface UserProfile {
   birthDate?: string;
   gender?: string;
   imageUrl?: string;
+  clerkId?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export function useProfile() {
@@ -23,7 +26,11 @@ export function useProfile() {
   const { showToast } = useToast();
 
   const fetchProfile = async () => {
-    if (!isSignedIn) return;
+    if (!isSignedIn) {
+      setProfile(null);
+      setIsLoading(false);
+      return;
+    }
 
     setIsLoading(true);
     setError(null);
@@ -34,13 +41,32 @@ export function useProfile() {
         throw new Error('Não foi possível obter o token de autenticação');
       }
 
+      console.log('buscando perfil de usuario');
       const response = await apiClient.get('/users/me', {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
 
-      setProfile(response.data);
+      const userData = response.data;
+
+      const processedProfile: UserProfile = {
+        id: userData.id,
+        email: userData.email,
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        name: userData.name,
+        phoneNumber: userData.phoneNumber,
+        birthDate: userData.birthDate,
+        gender: userData.gender,
+        imageUrl: userData.imageUrl,
+        clerkId: userData.clerkId,
+        createdAt: userData.createdAt,
+        updatedAt: userData.updatedAt,
+      };
+
+      setProfile(processedProfile);
+      console.log('perfil processado e definido: ', userData);
     } catch (err: any) {
       console.error('Erro ao buscar perfil:', err);
       setError(err.message || 'Erro ao buscar dados do perfil');
@@ -53,6 +79,9 @@ export function useProfile() {
   useEffect(() => {
     if (isSignedIn) {
       fetchProfile();
+    } else {
+      setProfile(null);
+      setIsLoading(false);
     }
   }, [isSignedIn]);
 
@@ -71,9 +100,26 @@ export function useProfile() {
         },
       });
 
-      setProfile(response.data);
+      const updatedData = response.data;
+
+      const processedProfile: UserProfile = {
+        id: updatedData.id,
+        email: updatedData.email,
+        firstName: updatedData.firstName,
+        lastName: updatedData.lastName,
+        name: updatedData.name,
+        phoneNumber: updatedData.phoneNumber,
+        birthDate: updatedData.birthDate,
+        gender: updatedData.gender,
+        imageUrl: updatedData.imageUrl,
+        clerkId: updatedData.clerkId,
+        createdAt: updatedData.createdAt,
+        updatedAt: updatedData.updatedAt,
+      };
+
+      setProfile(processedProfile);
       showToast('Perfil atualizado com sucesso', 'success');
-      return response.data;
+      return processedProfile;
     } catch (err: any) {
       console.error('Erro ao atualizar perfil:', err);
       showToast('Erro ao atualizar perfil', 'error');

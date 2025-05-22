@@ -4,29 +4,18 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-// Comentando DTOs não utilizados por enquanto
-// import { CreateUserDto } from './dto/create-user.dto';
-// import { UpdateUserDto } from './dto/update-user.dto';
-// import { SyncUserDto } from './dto/sync-user.dto'; // Também comentar este
 import { PrismaService } from '../prisma/prisma.service';
-import { User } from '@prisma/client'; // Importar tipo User do Prisma
-import clerkClient from '@clerk/clerk-sdk-node'; // Importar clerkClient
-// Temporariamente usando Record<string, any> para claims. O guard já valida.
-// import { SessionClaims } from '@clerk/clerk-sdk-node';
-import { UpdateProfileDto } from './users.controller'; // Importar o DTO (ou de dto/update-profile.dto.ts)
-import { Prisma } from '@prisma/client'; // Import Prisma type
+import { User } from '@prisma/client';
+import clerkClient from '@clerk/clerk-sdk-node';
+import { UpdateProfileDto } from './users.controller';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class UsersService {
   private readonly logger = new Logger(UsersService.name);
 
-  constructor(private prisma: PrismaService) {} // Injetar PrismaService
+  constructor(private prisma: PrismaService) {}
 
-  /**
-   * Garante que um usuário exista no DB local com base no token do Clerk.
-   * Busca o email verificado diretamente do Clerk.
-   * Chamado após login ou verificação de email inicial.
-   */
   async syncUserWithClerk(tokenPayload: Record<string, any>): Promise<User> {
     const clerkId = tokenPayload?.sub;
     if (!clerkId) {
@@ -36,16 +25,15 @@ export class UsersService {
       );
     }
 
-    this.logger.log(`syncUser (básico) iniciado para Clerk ID: ${clerkId}`);
-    let email: string | undefined | null = undefined;
+    this.logger.log(`syncUser iniciado para Clerk ID: ${clerkId}`);
 
     try {
-      // Buscar usuário no Clerk para pegar o email primário/verificado
       const clerkUser = await clerkClient.users.getUser(clerkId);
+
       const primaryEmailObject = clerkUser.emailAddresses.find(
         (e) => e.id === clerkUser.primaryEmailAddressId,
       );
-      email =
+      const email =
         primaryEmailObject?.emailAddress ||
         clerkUser.emailAddresses[0]?.emailAddress;
 
@@ -59,36 +47,48 @@ export class UsersService {
         );
       }
 
-      this.logger.log(`Upsert básico para ${clerkId} com email ${email}`);
+      const firstName = clerkUser.firstName || '';
+      const lastName = clerkUser.lastName || '';
+      const fullName = `${firstName} ${lastName}`.trim() || email.split('@')[0];
+
+      const imageUrl = clerkUser.imageUrl || null;
+      const phoneNumber = clerkUser.phoneNumbers?.[0]?.phoneNumber || null;
+
+      this.logger.log(
+        `Sincronizando ${clerkId} com dados: nome="${fullName}", email="${email}"`,
+      );
+
       const user = await this.prisma.user.upsert({
         where: { clerkId: clerkId },
         update: {
-          email: email, // Garante que o email está atualizado com o do Clerk
+          email: email,
+          firstName: firstName || null,
+          lastName: lastName || null,
+          name: fullName,
+          imageUrl: imageUrl,
+          phoneNumber: phoneNumber,
         },
         create: {
           clerkId: clerkId,
           email: email,
-          // Outros campos (nome, etc.) serão preenchidos via PATCH /users/me
+          firstName: firstName || null,
+          lastName: lastName || null,
+          name: fullName,
+          imageUrl: imageUrl,
+          phoneNumber: phoneNumber,
         },
-        select: { id: true, clerkId: true, email: true }, // Selecionar apenas campos básicos
       });
 
       this.logger.log(
-        `Usuário básico sincronizado: DB ID ${user.id}, Clerk ID ${user.clerkId}`,
+        `Usuário sincronizado: DB ID ${user.id}, nome: "${user.name}"`,
       );
-      // Retornar o usuário básico encontrado/criado
-      // Precisamos buscar o usuário completo para retornar o tipo User correto
-      // Ou ajustar o tipo de retorno para Partial<User> ou um tipo específico
-      // Por simplicidade agora, buscamos o usuário completo
-      return await this.findOne(user.id);
+
+      return user;
     } catch (error: any) {
-      this.logger.error(
-        `Falha ao sincronizar usuário básico ${clerkId}:`,
-        error,
-      );
-      // Reutilizar tratamento de erro P2002 e genérico
+      this.logger.error(`Falha ao sincronizar usuário ${clerkId}:`, error);
+
       if (error.code === 'P2002' && error.meta?.target?.includes('email')) {
-        this.logger.error(`Email '${email || 'N/A'}' já existe (P2002).`);
+        this.logger.error(`Email já existe (P2002).`);
         throw new InternalServerErrorException(`Email já cadastrado.`);
       } else if (error.code === 'P2002') {
         this.logger.error(
@@ -97,7 +97,112 @@ export class UsersService {
         throw new InternalServerErrorException(`Erro de constraint único.`);
       }
       throw new InternalServerErrorException(
-        'Falha na sincronização básica do usuário.',
+        'Falha na sincronização do usuário.',
+      );
+    }
+  }
+
+  async findOneByClerkId(clerkId: string): Promise<User> {
+    this.logger.log(`Buscando usuário com Clerk ID: ${clerkId}`);
+    try {
+      const user = await this.prisma.user.findUnique({ where: { clerkId } });
+      if (!user) {
+        this.logger.warn(`Usuário com Clerk ID ${clerkId} não encontrado.`);
+        throw new NotFoundException(
+          `Usuário com Clerk ID ${clerkId} não encontrado.`,
+        );
+      }
+      return user;
+    } catch (error) {
+      if (error instanceof NotFoundException) throw error;
+      this.logger.error(
+        `Falha ao buscar usuário por Clerk ID ${clerkId}:`,
+        error,
+      );
+      throw new InternalServerErrorException(
+        'Falha ao buscar usuário por Clerk ID.',
+      );
+    }
+  }
+
+  async updateProfileByClerkId(
+    clerkId: string,
+    data: UpdateProfileDto,
+  ): Promise<User> {
+    this.logger.log(`Atualizando perfil para Clerk ID: ${clerkId}`);
+
+    const currentUser = await this.findOneByClerkId(clerkId);
+
+    let birthDateForUpdate: Date | undefined = undefined;
+    if (data.birthDate) {
+      try {
+        const parsedDate = new Date(data.birthDate);
+        if (!isNaN(parsedDate.getTime())) {
+          birthDateForUpdate = parsedDate;
+        }
+      } catch {}
+    }
+
+    const updateData: Prisma.UserUpdateInput = {};
+
+    if (data.phoneNumber !== undefined)
+      updateData.phoneNumber = data.phoneNumber;
+    if (data.gender !== undefined) updateData.gender = data.gender;
+    if (data.imageUrl !== undefined) updateData.imageUrl = data.imageUrl;
+    if (birthDateForUpdate !== undefined)
+      updateData.birthDate = birthDateForUpdate;
+
+    let needsNameUpdate = false;
+    let newFirstName = currentUser.firstName || '';
+    let newLastName = currentUser.lastName || '';
+
+    if (data.firstName !== undefined) {
+      newFirstName = data.firstName;
+      needsNameUpdate = true;
+    }
+    if (data.lastName !== undefined) {
+      newLastName = data.lastName;
+      needsNameUpdate = true;
+    }
+
+    if (needsNameUpdate) {
+      updateData.firstName = newFirstName;
+      updateData.lastName = newLastName;
+      updateData.name =
+        `${newFirstName} ${newLastName}`.trim() ||
+        currentUser.email.split('@')[0];
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      this.logger.log(
+        `Nenhum dado fornecido para atualizar o perfil de ${clerkId}.`,
+      );
+      return currentUser;
+    }
+
+    try {
+      const user = await this.prisma.user.update({
+        where: { clerkId: clerkId },
+        data: updateData,
+      });
+
+      this.logger.log(
+        `Perfil atualizado: DB ID ${user.id}, nome: "${user.name}"`,
+      );
+      return user;
+    } catch (error: any) {
+      if (error.code === 'P2025') {
+        this.logger.error(
+          `Usuário com Clerk ID ${clerkId} não encontrado para atualização.`,
+        );
+        throw new NotFoundException(`Usuário não encontrado.`);
+      }
+      this.logger.error(
+        `Falha ao atualizar perfil para Clerk ID ${clerkId}:`,
+        error,
+      );
+      throw new InternalServerErrorException(
+        'Falha ao atualizar perfil do usuário.',
       );
     }
   }
@@ -140,29 +245,6 @@ export class UsersService {
     }
   }
 
-  async findOneByClerkId(clerkId: string): Promise<User> {
-    this.logger.log(`Buscando usuário com Clerk ID: ${clerkId}`);
-    try {
-      const user = await this.prisma.user.findUnique({ where: { clerkId } });
-      if (!user) {
-        this.logger.warn(`Usuário com Clerk ID ${clerkId} não encontrado.`);
-        throw new NotFoundException(
-          `Usuário com Clerk ID ${clerkId} não encontrado.`,
-        );
-      }
-      return user;
-    } catch (error) {
-      if (error instanceof NotFoundException) throw error;
-      this.logger.error(
-        `Falha ao buscar usuário por Clerk ID ${clerkId}:`,
-        error,
-      );
-      throw new InternalServerErrorException(
-        'Falha ao buscar usuário por Clerk ID.',
-      );
-    }
-  }
-
   async update(id: string, updateUserDto: any): Promise<User> {
     this.logger.log(`Atualizando usuário com ID (DB): ${id}`);
     try {
@@ -187,76 +269,6 @@ export class UsersService {
       if (error instanceof NotFoundException) throw error;
       this.logger.error(`Falha ao remover usuário ${id}:`, error);
       throw new InternalServerErrorException('Falha ao remover usuário.');
-    }
-  }
-
-  /**
-   * NOVO: Atualiza o perfil de um usuário baseado no seu Clerk ID.
-   * Recebe o DTO vindo do Controller.
-   */
-  async updateProfileByClerkId(
-    clerkId: string,
-    data: UpdateProfileDto,
-  ): Promise<User> {
-    this.logger.log(`Atualizando perfil para Clerk ID: ${clerkId}`);
-
-    let birthDateForUpdate: Date | undefined = undefined;
-    if (data.birthDate) {
-      // Checar se birthDate existe no DTO
-      try {
-        const parsedDate = new Date(data.birthDate); // Tentar converter a string
-        if (!isNaN(parsedDate.getTime())) {
-          birthDateForUpdate = parsedDate;
-        }
-      } catch {
-        /* Ignorar erro de parsing */
-      }
-    }
-
-    // Construir objeto de dados para Prisma SOMENTE com valores definidos
-    const updateData: Prisma.UserUpdateInput = {}; // Usar tipo Prisma para clareza
-    if (data.firstName !== undefined) updateData.firstName = data.firstName;
-    if (data.lastName !== undefined) updateData.lastName = data.lastName;
-    if (data.phoneNumber !== undefined)
-      updateData.phoneNumber = data.phoneNumber;
-    if (data.gender !== undefined) updateData.gender = data.gender;
-    if (data.imageUrl !== undefined) updateData.imageUrl = data.imageUrl;
-    if (birthDateForUpdate !== undefined)
-      updateData.birthDate = birthDateForUpdate;
-
-    // Verificar se há dados para atualizar
-    if (Object.keys(updateData).length === 0) {
-      this.logger.log(
-        `Nenhum dado válido fornecido para atualizar o perfil de ${clerkId}.`,
-      );
-      // O que fazer aqui? Retornar o usuário existente ou lançar erro?
-      // Por ora, buscamos e retornamos o usuário existente.
-      const existingUser = await this.findOneByClerkId(clerkId); // Reusa método existente
-      return existingUser;
-    }
-
-    try {
-      const user = await this.prisma.user.update({
-        where: { clerkId: clerkId },
-        data: updateData, // Passar objeto apenas com dados definidos
-      });
-      this.logger.log(`Perfil atualizado com sucesso para DB ID: ${user.id}`);
-      return user;
-    } catch (error: any) {
-      // Tratar erro P2025 (Record to update not found)
-      if (error.code === 'P2025') {
-        this.logger.error(
-          `Usuário com Clerk ID ${clerkId} não encontrado para atualização.`,
-        );
-        throw new NotFoundException(`Usuário não encontrado.`);
-      }
-      this.logger.error(
-        `Falha ao atualizar perfil para Clerk ID ${clerkId}:`,
-        error,
-      );
-      throw new InternalServerErrorException(
-        'Falha ao atualizar perfil do usuário.',
-      );
     }
   }
 }

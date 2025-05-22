@@ -8,14 +8,10 @@ import { useContractorsApi, Contractor } from '@/services/contractors-api';
 import { useContractorsSelector } from '@/hooks/useContractorsSelector';
 
 interface ContractorsListProps {
-  maxHeight?: number;
   title?: string;
 }
 
-const ContractorsList: React.FC<ContractorsListProps> = ({
-  maxHeight = 400,
-  title = 'Contratantes',
-}) => {
+const ContractorsList: React.FC<ContractorsListProps> = ({ title = 'Contratantes' }) => {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [selectedContractor, setSelectedContractor] = useState<Contractor | null>(null);
 
@@ -127,7 +123,7 @@ const ContractorsList: React.FC<ContractorsListProps> = ({
   );
 
   return (
-    <View className="rounded-lg bg-background-50 p-4">
+    <View className="flex-1 rounded-lg bg-background-50 p-4">
       <View className="mb-4 flex-row items-center justify-between">
         <Text className="text-lg font-bold text-text-dark">{title}</Text>
 
@@ -163,8 +159,8 @@ const ContractorsList: React.FC<ContractorsListProps> = ({
           keyExtractor={(item) => item.id}
           ListEmptyComponent={renderEmptyComponent}
           showsVerticalScrollIndicator={true}
-          style={{ maxHeight }}
-          contentContainerStyle={{ paddingBottom: 8 }}
+          style={{ flex: 1 }}
+          contentContainerStyle={{ flexGrow: 1, paddingBottom: 8 }}
         />
       )}
 

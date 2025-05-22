@@ -22,12 +22,19 @@ export class SyncUserDto {
 
   @IsOptional()
   @IsString()
-  // Adicione validações mais específicas para telefone se necessário
   phoneNumber?: string;
 
   @IsOptional()
   @Matches(/^\d{4}-\d{2}-\d{2}$/, {
     message: 'Formato de data de nascimento inválido. Use YYYY-MM-DD.',
   })
-  birthDate?: string; // Recebe como string YYYY-MM-DD
+  birthDate?: string;
+
+  @IsOptional()
+  @IsString()
+  imageUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  clerkId?: string;
 }
