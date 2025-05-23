@@ -87,11 +87,11 @@ export default function PaymentsScreen() {
     }).start();
   }, [showFilters, filtersHeight]);
 
-  const loadShifts = useCallback(async () => {
-    if (refreshing || isLoading) return;
-
+  const loadShifts = async (isRefresh = false) => {
+    if (!isRefresh) {
+      setIsLoading(true);
+    }
     setRefreshing(true);
-    setIsLoading(true);
 
     try {
       const startDate = startOfMonth(selectedMonth);
@@ -124,29 +124,24 @@ export default function PaymentsScreen() {
       setShifts(shiftsWithPaymentInfo);
       setFilteredShifts(shiftsWithPaymentInfo);
 
-      if (refreshing) {
+      if (isRefresh) {
         showToast('Dados atualizados com sucesso', 'success');
       }
     } catch (error: any) {
-      console.error('Erro ao carregar plantões:', error);
       showToast(`Erro ao carregar plantões: ${error.message || 'Erro desconhecido'}`, 'error');
     } finally {
       setRefreshing(false);
       setIsLoading(false);
     }
-  }, [
-    showToast,
-    refreshing,
-    isLoading,
-    shiftsApi,
-    paymentsApi,
-    selectedMonth,
-    selectedLocationId,
-    selectedContractorId,
-  ]);
+  };
 
+  const handleRefresh = useCallback(async () => {
+    await loadShifts(true);
+  }, []);
+
+  // Carregar dados quando filtros mudam (incluindo carregamento inicial)
   useEffect(() => {
-    loadShifts();
+    loadShifts(false);
   }, [selectedMonth, selectedLocationId, selectedContractorId]);
 
   useEffect(() => {
@@ -199,7 +194,6 @@ export default function PaymentsScreen() {
             if (shift && !shift.isPaid) {
               await paymentsApi.createPayment({
                 shiftId: shift.id,
-                amount: shift.value,
                 paymentDate: format(new Date(), 'yyyy-MM-dd'),
                 method: 'transferencia',
                 paid: true,
@@ -209,14 +203,14 @@ export default function PaymentsScreen() {
           showToast('Plantões marcados como pagos', 'success');
           setSelectedShifts(new Set());
           setIsSelectionMode(false);
-          loadShifts();
+          await loadShifts(false);
         } catch (error: any) {
           console.error('Erro ao marcar como pago:', error);
           showToast('Erro ao processar pagamentos', 'error');
         }
       },
     });
-  }, [selectedShifts, shifts, paymentsApi, showDialog, showToast, loadShifts]);
+  }, [selectedShifts, shifts, paymentsApi, showDialog, showToast]);
 
   const handleMarkAsUnpaid = useCallback(async () => {
     if (selectedShifts.size === 0) {
@@ -240,14 +234,14 @@ export default function PaymentsScreen() {
           showToast('Plantões marcados como não pagos', 'success');
           setSelectedShifts(new Set());
           setIsSelectionMode(false);
-          loadShifts();
+          await loadShifts(false);
         } catch (error: any) {
           console.error('Erro ao marcar como não pago:', error);
           showToast('Erro ao processar alterações', 'error');
         }
       },
     });
-  }, [selectedShifts, shifts, paymentsApi, showDialog, showToast, loadShifts]);
+  }, [selectedShifts, shifts, paymentsApi, showDialog, showToast]);
 
   const toggleSearch = useCallback(() => {
     if (showSearch && searchQuery) {
@@ -406,7 +400,7 @@ export default function PaymentsScreen() {
 
             <TouchableOpacity
               className="h-9 w-9 items-center justify-center rounded-full bg-background-100"
-              onPress={loadShifts}
+              onPress={handleRefresh}
               disabled={refreshing}>
               {refreshing ? (
                 <ActivityIndicator size="small" color="#18cb96" />
@@ -562,7 +556,7 @@ export default function PaymentsScreen() {
           keyExtractor={(item) => item.id}
           contentContainerClassName="px-4 pb-20"
           showsVerticalScrollIndicator={false}
-          onRefresh={loadShifts}
+          onRefresh={handleRefresh}
           refreshing={refreshing}
         />
       ) : (

@@ -28,7 +28,6 @@ interface PaymentFormProps {
 export default function PaymentForm({ paymentId, shiftId, onSuccess, onCancel }: PaymentFormProps) {
   // Estados do formulário
   const [selectedShiftId, setSelectedShiftId] = useState(shiftId || '');
-  const [amount, setAmount] = useState('');
   const [paymentDate, setPaymentDate] = useState<Date>(new Date());
   const [method, setMethod] = useState('');
   const [notes, setNotes] = useState('');
@@ -87,13 +86,6 @@ export default function PaymentForm({ paymentId, shiftId, onSuccess, onCancel }:
 
         if (payment) {
           setSelectedShiftId(payment.shiftId || '');
-          // Formatar o valor para exibição
-          setAmount(
-            payment.amount.toLocaleString('pt-BR', {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })
-          );
           // Definir a data do pagamento
           if (payment.date) {
             setPaymentDate(new Date(payment.date));
@@ -113,32 +105,12 @@ export default function PaymentForm({ paymentId, shiftId, onSuccess, onCancel }:
     loadPaymentData();
   }, [paymentId, paymentsApi, showToast]);
 
-  // Formatação do valor monetário
-  const formatAmount = (text: string) => {
-    // Remove caracteres não numéricos
-    const numbers = text.replace(/[^\d]/g, '');
-
-    // Formata como moeda brasileira (R$)
-    if (numbers) {
-      const amount = parseInt(numbers, 10) / 100;
-      return amount.toLocaleString('pt-BR', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      });
-    }
-    return '';
-  };
-
   // Validação do formulário
   const validateForm = () => {
     const newErrors: { [key: string]: string } = {};
 
     if (!selectedShiftId) {
       newErrors.shiftId = 'Selecione o plantão relacionado';
-    }
-
-    if (!amount) {
-      newErrors.amount = 'Informe o valor do pagamento';
     }
 
     if (!method) {
@@ -159,13 +131,9 @@ export default function PaymentForm({ paymentId, shiftId, onSuccess, onCancel }:
     setIsLoading(true);
 
     try {
-      // Formatar valor para envio (string para número)
-      const formattedAmount = amount.replace(/\./g, '').replace(',', '.');
-
       // Dados para enviar para API
       const formData = {
         shiftId: selectedShiftId,
-        amount: parseFloat(formattedAmount),
         paymentDate: format(paymentDate, 'yyyy-MM-dd'),
         method,
         notes: notes || undefined,
@@ -207,17 +175,6 @@ export default function PaymentForm({ paymentId, shiftId, onSuccess, onCancel }:
         required
         error={errors.shiftId}
         isLoading={isLoadingShifts}
-      />
-
-      <Input
-        label="Valor"
-        value={amount}
-        onChangeText={(text) => setAmount(formatAmount(text))}
-        placeholder="0,00"
-        keyboardType="numeric"
-        leftIcon="cash-outline"
-        required
-        error={errors.amount}
       />
 
       <DateField

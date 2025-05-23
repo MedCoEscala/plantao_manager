@@ -139,7 +139,7 @@ export class PaymentsService {
     try {
       // Verificar se o plantão existe e pertence ao usuário
       const plantao = await this.prisma.plantao.findUnique({
-        where: { id: createPaymentDto.plantaoId },
+        where: { id: createPaymentDto.shiftId },
         include: {
           user: {
             select: {
@@ -151,7 +151,7 @@ export class PaymentsService {
 
       if (!plantao) {
         throw new NotFoundException(
-          `Plantão com ID ${createPaymentDto.plantaoId} não encontrado`,
+          `Plantão com ID ${createPaymentDto.shiftId} não encontrado`,
         );
       }
 
@@ -163,7 +163,7 @@ export class PaymentsService {
 
       // Verificar se já existe pagamento para este plantão
       const existingPayment = await this.prisma.payment.findFirst({
-        where: { plantaoId: createPaymentDto.plantaoId },
+        where: { plantaoId: createPaymentDto.shiftId },
       });
 
       if (existingPayment) {
@@ -175,7 +175,7 @@ export class PaymentsService {
       // Criar o pagamento
       return this.prisma.payment.create({
         data: {
-          plantaoId: createPaymentDto.plantaoId,
+          plantaoId: createPaymentDto.shiftId,
           paymentDate: createPaymentDto.paymentDate
             ? new Date(createPaymentDto.paymentDate)
             : null,

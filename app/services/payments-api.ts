@@ -17,7 +17,6 @@ export interface Payment {
 
 export interface CreatePaymentData {
   shiftId: string;
-  amount: number;
   paymentDate: string;
   method: string;
   notes?: string;
@@ -26,7 +25,6 @@ export interface CreatePaymentData {
 
 export interface UpdatePaymentData {
   shiftId?: string;
-  amount?: number;
   paymentDate?: string;
   method?: string;
   notes?: string;

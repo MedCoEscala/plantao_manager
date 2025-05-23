@@ -9,7 +9,7 @@ import {
 export class CreatePaymentDto {
   @IsString()
   @IsNotEmpty({ message: 'ID do plantão é obrigatório' })
-  plantaoId: string;
+  shiftId: string;
 
   @IsDateString()
   @IsOptional()
