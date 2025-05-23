@@ -23,6 +23,12 @@ import { useLocationsSelector } from '@/hooks/useLocationsSelector';
 import { useContractorsSelector } from '@/hooks/useContractorsSelector';
 import MonthYearPicker from '@/components/ui/MonthYearPicker';
 
+// IMPORTAR OS NOVOS COMPONENTES E HOOKS
+import { useSelection } from '@/hooks/useSelection';
+import { SelectableListItem } from '@/components/SelectableListItem';
+import { Checkbox } from '@/components/ui/CheckBox';
+import { PAYMENT_MESSAGES, PAYMENT_COLORS, PAYMENT_ANIMATIONS } from '@/utils/consts';
+
 const formatCurrency = (value: number): string => {
   return value.toLocaleString('pt-BR', {
     style: 'currency',
@@ -42,7 +48,6 @@ const formatDate = (dateString: string): string => {
 interface ShiftWithPayment extends Shift {
   isPaid: boolean;
   paymentId?: string;
-  isSelected?: boolean;
 }
 
 export default function PaymentsScreen() {
@@ -56,12 +61,11 @@ export default function PaymentsScreen() {
   const [showMonthPicker, setShowMonthPicker] = useState(false);
   const [selectedLocationId, setSelectedLocationId] = useState<string>('');
   const [selectedContractorId, setSelectedContractorId] = useState<string>('');
-  const [selectedShifts, setSelectedShifts] = useState<Set<string>>(new Set());
-  const [isSelectionMode, setIsSelectionMode] = useState(false);
 
   const fadeAnim = useState(new Animated.Value(0))[0];
   const [showFilters, setShowFilters] = useState(false);
   const filtersHeight = useState(new Animated.Value(0))[0];
+  const selectionBarAnim = useState(new Animated.Value(0))[0];
 
   const { showDialog } = useDialog();
   const { showToast } = useToast();
@@ -71,21 +75,47 @@ export default function PaymentsScreen() {
   const { locationOptions } = useLocationsSelector();
   const { contractorOptions } = useContractorsSelector();
 
+  // USAR O HOOK DE SELEÇÃO
+  const {
+    selectedItems,
+    isSelectionMode,
+    selectionCount,
+    isAllSelected,
+    isSelected,
+    handlePress,
+    handleLongPress,
+    toggleSelectAll,
+    exitSelectionMode,
+    clearSelection,
+  } = useSelection({
+    items: filteredShifts,
+    keyExtractor: (shift) => shift.id,
+  });
+
+  // Animações
   useEffect(() => {
     Animated.timing(fadeAnim, {
       toValue: showSearch ? 1 : 0,
-      duration: 300,
+      duration: PAYMENT_ANIMATIONS.FADE_DURATION,
       useNativeDriver: false,
     }).start();
   }, [showSearch, fadeAnim]);
 
   useEffect(() => {
     Animated.timing(filtersHeight, {
-      toValue: showFilters ? 120 : 0,
-      duration: 200,
+      toValue: showFilters ? 160 : 0,
+      duration: PAYMENT_ANIMATIONS.SLIDE_DURATION,
       useNativeDriver: false,
     }).start();
   }, [showFilters, filtersHeight]);
+
+  useEffect(() => {
+    Animated.timing(selectionBarAnim, {
+      toValue: isSelectionMode ? 1 : 0,
+      duration: PAYMENT_ANIMATIONS.SELECTION_DURATION,
+      useNativeDriver: true,
+    }).start();
+  }, [isSelectionMode, selectionBarAnim]);
 
   const loadShifts = async (isRefresh = false) => {
     if (!isRefresh) {
@@ -104,11 +134,13 @@ export default function PaymentsScreen() {
         contractorId: selectedContractorId || undefined,
       };
 
-      const shiftsData = await shiftsApi.getShifts(filters);
-      const paymentsData = await paymentsApi.getPayments({
-        startDate: filters.startDate,
-        endDate: filters.endDate,
-      });
+      const [shiftsData, paymentsData] = await Promise.all([
+        shiftsApi.getShifts(filters),
+        paymentsApi.getPayments({
+          startDate: filters.startDate,
+          endDate: filters.endDate,
+        }),
+      ]);
 
       // Mapear plantões com informações de pagamento
       const shiftsWithPaymentInfo = shiftsData.map((shift) => {
@@ -117,7 +149,6 @@ export default function PaymentsScreen() {
           ...shift,
           isPaid: payment?.status === 'completed' || false,
           paymentId: payment?.id,
-          isSelected: false,
         };
       });
 
@@ -125,10 +156,13 @@ export default function PaymentsScreen() {
       setFilteredShifts(shiftsWithPaymentInfo);
 
       if (isRefresh) {
-        showToast('Dados atualizados com sucesso', 'success');
+        showToast(PAYMENT_MESSAGES.TOAST_UPDATE_SUCCESS, 'success');
       }
     } catch (error: any) {
-      showToast(`Erro ao carregar plantões: ${error.message || 'Erro desconhecido'}`, 'error');
+      showToast(
+        `${PAYMENT_MESSAGES.TOAST_LOAD_ERROR}: ${error.message || 'Erro desconhecido'}`,
+        'error'
+      );
     } finally {
       setRefreshing(false);
       setIsLoading(false);
@@ -139,11 +173,12 @@ export default function PaymentsScreen() {
     await loadShifts(true);
   }, []);
 
-  // Carregar dados quando filtros mudam (incluindo carregamento inicial)
+  // Carregar dados quando filtros mudam
   useEffect(() => {
     loadShifts(false);
   }, [selectedMonth, selectedLocationId, selectedContractorId]);
 
+  // Filtro de pesquisa
   useEffect(() => {
     const timer = setTimeout(() => {
       let filtered = shifts;
@@ -164,84 +199,97 @@ export default function PaymentsScreen() {
     return () => clearTimeout(timer);
   }, [searchQuery, shifts]);
 
-  const toggleShiftSelection = useCallback((shiftId: string) => {
-    setSelectedShifts((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(shiftId)) {
-        newSet.delete(shiftId);
-      } else {
-        newSet.add(shiftId);
-      }
-      return newSet;
-    });
-  }, []);
-
   const handleMarkAsPaid = useCallback(async () => {
-    if (selectedShifts.size === 0) {
-      showToast('Selecione pelo menos um plantão', 'warning');
+    if (selectionCount === 0) {
+      showToast(PAYMENT_MESSAGES.TOAST_SELECT_WARNING, 'warning');
       return;
     }
 
+    const totalValue = selectedItems.reduce((sum, shift) => sum + shift.value, 0);
+
     showDialog({
-      title: 'Confirmar Pagamento',
-      message: `Marcar ${selectedShifts.size} plantão(ões) como pago(s)?`,
+      title: PAYMENT_MESSAGES.DIALOG_CONFIRM_PAYMENT_TITLE,
+      message: PAYMENT_MESSAGES.DIALOG_CONFIRM_PAYMENT_MESSAGE(
+        selectionCount,
+        formatCurrency(totalValue)
+      ),
       type: 'confirm',
-      confirmText: 'Confirmar',
+      confirmText: PAYMENT_MESSAGES.ACTION_CONFIRM,
       onConfirm: async () => {
         try {
-          for (const shiftId of selectedShifts) {
-            const shift = shifts.find((s) => s.id === shiftId);
-            if (shift && !shift.isPaid) {
-              await paymentsApi.createPayment({
-                shiftId: shift.id,
-                paymentDate: format(new Date(), 'yyyy-MM-dd'),
-                method: 'transferencia',
-                paid: true,
-              });
+          setIsLoading(true);
+          let successCount = 0;
+
+          for (const shift of selectedItems) {
+            if (!shift.isPaid) {
+              try {
+                await paymentsApi.createPayment({
+                  shiftId: shift.id,
+                  paymentDate: format(new Date(), 'yyyy-MM-dd'),
+                  method: 'transferencia',
+                  paid: true,
+                });
+                successCount++;
+              } catch (error) {
+                console.error(`Erro ao marcar plantão ${shift.id} como pago:`, error);
+              }
             }
           }
-          showToast('Plantões marcados como pagos', 'success');
-          setSelectedShifts(new Set());
-          setIsSelectionMode(false);
+
+          if (successCount > 0) {
+            showToast(PAYMENT_MESSAGES.TOAST_MARK_PAID_SUCCESS(successCount), 'success');
+          }
+
+          clearSelection();
           await loadShifts(false);
         } catch (error: any) {
           console.error('Erro ao marcar como pago:', error);
-          showToast('Erro ao processar pagamentos', 'error');
+          showToast(PAYMENT_MESSAGES.TOAST_PAYMENT_ERROR, 'error');
         }
       },
     });
-  }, [selectedShifts, shifts, paymentsApi, showDialog, showToast]);
+  }, [selectedItems, selectionCount, paymentsApi, showDialog, showToast, clearSelection]);
 
   const handleMarkAsUnpaid = useCallback(async () => {
-    if (selectedShifts.size === 0) {
-      showToast('Selecione pelo menos um plantão', 'warning');
+    if (selectionCount === 0) {
+      showToast(PAYMENT_MESSAGES.TOAST_SELECT_WARNING, 'warning');
       return;
     }
 
     showDialog({
-      title: 'Confirmar Remoção',
-      message: `Marcar ${selectedShifts.size} plantão(ões) como não pago(s)?`,
+      title: PAYMENT_MESSAGES.DIALOG_REMOVE_PAYMENT_TITLE,
+      message: PAYMENT_MESSAGES.DIALOG_REMOVE_PAYMENT_MESSAGE(selectionCount),
       type: 'confirm',
-      confirmText: 'Confirmar',
+      confirmText: PAYMENT_MESSAGES.ACTION_CONFIRM,
       onConfirm: async () => {
         try {
-          for (const shiftId of selectedShifts) {
-            const shift = shifts.find((s) => s.id === shiftId);
-            if (shift?.isPaid && shift.paymentId) {
-              await paymentsApi.deletePayment(shift.paymentId);
+          setIsLoading(true);
+          let successCount = 0;
+
+          for (const shift of selectedItems) {
+            if (shift.isPaid && shift.paymentId) {
+              try {
+                await paymentsApi.deletePayment(shift.paymentId);
+                successCount++;
+              } catch (error) {
+                console.error(`Erro ao marcar plantão ${shift.id} como não pago:`, error);
+              }
             }
           }
-          showToast('Plantões marcados como não pagos', 'success');
-          setSelectedShifts(new Set());
-          setIsSelectionMode(false);
+
+          if (successCount > 0) {
+            showToast(PAYMENT_MESSAGES.TOAST_MARK_UNPAID_SUCCESS(successCount), 'success');
+          }
+
+          clearSelection();
           await loadShifts(false);
         } catch (error: any) {
           console.error('Erro ao marcar como não pago:', error);
-          showToast('Erro ao processar alterações', 'error');
+          showToast(PAYMENT_MESSAGES.TOAST_PAYMENT_ERROR, 'error');
         }
       },
     });
-  }, [selectedShifts, shifts, paymentsApi, showDialog, showToast]);
+  }, [selectedItems, selectionCount, paymentsApi, showDialog, showToast, clearSelection]);
 
   const toggleSearch = useCallback(() => {
     if (showSearch && searchQuery) {
@@ -254,113 +302,79 @@ export default function PaymentsScreen() {
     setShowFilters(!showFilters);
   }, [showFilters]);
 
-  const handleSelectAll = useCallback(() => {
-    if (selectedShifts.size === filteredShifts.length) {
-      setSelectedShifts(new Set());
-    } else {
-      setSelectedShifts(new Set(filteredShifts.map((s) => s.id)));
-    }
-  }, [selectedShifts, filteredShifts]);
+  const handleItemPress = useCallback(
+    (shift: ShiftWithPayment) => {
+      router.push(`/shifts/${shift.id}`);
+    },
+    [router]
+  );
 
   const renderShiftItem = useCallback(
     ({ item, index }: { item: ShiftWithPayment; index: number }) => {
-      const translateY = new Animated.Value(50);
-      const opacity = new Animated.Value(0);
-
-      Animated.parallel([
-        Animated.timing(translateY, {
-          toValue: 0,
-          duration: 300,
-          delay: index * 50,
-          useNativeDriver: true,
-        }),
-        Animated.timing(opacity, {
-          toValue: 1,
-          duration: 300,
-          delay: index * 50,
-          useNativeDriver: true,
-        }),
-      ]).start();
-
-      const isSelected = selectedShifts.has(item.id);
-
       return (
-        <Animated.View
-          style={{
-            transform: [{ translateY }],
-            opacity,
-          }}>
-          <TouchableOpacity
-            className={`mb-3 overflow-hidden rounded-xl shadow-sm ${
-              isSelected ? 'bg-primary/10' : 'bg-white'
-            }`}
-            activeOpacity={0.7}
-            onPress={() => {
-              if (isSelectionMode) {
-                toggleShiftSelection(item.id);
-              } else {
-                router.push(`/shifts/${item.id}`);
-              }
-            }}
-            onLongPress={() => {
-              setIsSelectionMode(true);
-              toggleShiftSelection(item.id);
-            }}>
-            <View className="p-4">
-              <View className="flex-row justify-between">
-                <View className="mr-2 flex-1">
-                  <View className="flex-row items-center">
-                    {isSelectionMode && (
-                      <View
-                        className={`mr-3 h-6 w-6 items-center justify-center rounded-full border-2 ${
-                          isSelected ? 'border-primary bg-primary' : 'border-gray-300 bg-white'
-                        }`}>
-                        {isSelected && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
-                      </View>
-                    )}
-                    <View className="flex-1">
-                      <Text className="text-base font-semibold text-text-dark">
-                        {formatDate(item.date)}
-                      </Text>
-                      <View className="mt-1 flex-row items-center">
-                        <View
-                          className="mr-1 h-3 w-3 rounded-full"
-                          style={{ backgroundColor: item.location?.color || '#64748b' }}
-                        />
-                        <Text className="text-xs text-text-light">
-                          {item.location?.name || 'Local não informado'}
-                        </Text>
-                      </View>
-                      {item.contractor && (
-                        <Text className="mt-1 text-xs text-text-light">{item.contractor.name}</Text>
-                      )}
-                    </View>
-                  </View>
-                </View>
-
-                <View className="items-end">
-                  <Text className="text-base font-bold text-primary">
-                    {formatCurrency(item.value)}
+        <SelectableListItem
+          isSelected={isSelected(item)}
+          isSelectionMode={isSelectionMode}
+          onPress={() => handlePress(item, handleItemPress)}
+          onLongPress={() => handleLongPress(item)}
+          index={index}
+          animationDelay={PAYMENT_ANIMATIONS.LIST_ITEM_DELAY}>
+          <View className="flex-row items-start justify-between">
+            {/* Informações do plantão */}
+            <View className="mr-3 flex-1">
+              <View className="mb-2">
+                <Text className="text-base font-semibold text-text-dark">
+                  {formatDate(item.date)}
+                </Text>
+                {item.startTime && item.endTime && (
+                  <Text className="mt-1 text-xs text-text-light">
+                    {item.startTime} - {item.endTime}
                   </Text>
-                  <View
-                    className={`mt-1 rounded-full px-2 py-0.5 ${
-                      item.isPaid ? 'bg-success/20' : 'bg-warning/20'
-                    }`}>
-                    <Text
-                      className={`text-xs font-medium ${
-                        item.isPaid ? 'text-success' : 'text-warning'
-                      }`}>
-                      {item.isPaid ? 'Pago' : 'Pendente'}
-                    </Text>
-                  </View>
+                )}
+              </View>
+
+              <View className="mb-2 flex-row items-center">
+                <View
+                  className="mr-2 h-3 w-3 rounded-full"
+                  style={{ backgroundColor: item.location?.color || PAYMENT_COLORS.TEXT_LIGHT }}
+                />
+                <Text className="flex-1 text-sm text-text-dark" numberOfLines={1}>
+                  {item.location?.name || PAYMENT_MESSAGES.PLACEHOLDER_NO_LOCATION}
+                </Text>
+              </View>
+
+              {item.contractor && (
+                <View className="flex-row items-center">
+                  <Ionicons name="briefcase-outline" size={14} color={PAYMENT_COLORS.TEXT_LIGHT} />
+                  <Text className="ml-1 text-xs text-text-light" numberOfLines={1}>
+                    {item.contractor.name}
+                  </Text>
                 </View>
+              )}
+            </View>
+
+            {/* Valor e status */}
+            <View className="items-end">
+              <Text className="mb-2 text-lg font-bold text-primary">
+                {formatCurrency(item.value)}
+              </Text>
+              <View
+                className={`rounded-full px-3 py-1 ${
+                  item.isPaid ? 'bg-success/20' : 'bg-warning/20'
+                }`}>
+                <Text
+                  className={`text-xs font-medium ${
+                    item.isPaid ? 'text-success' : 'text-warning'
+                  }`}>
+                  {item.isPaid ? PAYMENT_MESSAGES.STATUS_PAID : PAYMENT_MESSAGES.STATUS_PENDING}
+                </Text>
               </View>
             </View>
-          </TouchableOpacity>
-        </Animated.View>
+          </View>
+        </SelectableListItem>
       );
     },
-    [selectedShifts, isSelectionMode, toggleShiftSelection, router]
+    [isSelected, isSelectionMode, handlePress, handleLongPress, handleItemPress]
   );
 
   // Calcular resumo
@@ -373,39 +387,45 @@ export default function PaymentsScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-background">
+    <SafeAreaView className="flex-1 bg-background" edges={['top']}>
       <StatusBar style="dark" />
 
       {/* Header */}
       <View className="z-10 border-b border-background-300 bg-white px-4 py-3">
         <View className="flex-row items-center justify-between">
-          <Text className="text-xl font-bold text-text-dark">Controle de Pagamentos</Text>
+          <Text className="text-xl font-bold text-text-dark">{PAYMENT_MESSAGES.SCREEN_TITLE}</Text>
 
           <View className="flex-row">
             <TouchableOpacity
               className="mr-2 h-9 w-9 items-center justify-center rounded-full bg-background-100"
-              onPress={toggleSearch}>
+              onPress={toggleSearch}
+              accessibilityLabel={PAYMENT_MESSAGES.A11Y_SEARCH_BUTTON}>
               <Ionicons
                 name={showSearch ? 'close-outline' : 'search-outline'}
                 size={20}
-                color="#1e293b"
+                color={PAYMENT_COLORS.TEXT_DARK}
               />
             </TouchableOpacity>
 
             <TouchableOpacity
               className="mr-2 h-9 w-9 items-center justify-center rounded-full bg-background-100"
-              onPress={toggleFilters}>
-              <Ionicons name="filter-outline" size={18} color="#1e293b" />
+              onPress={toggleFilters}
+              accessibilityLabel={PAYMENT_MESSAGES.A11Y_FILTER_BUTTON}>
+              <Ionicons name="options-outline" size={20} color={PAYMENT_COLORS.TEXT_DARK} />
+              {(selectedLocationId || selectedContractorId) && (
+                <View className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-primary" />
+              )}
             </TouchableOpacity>
 
             <TouchableOpacity
               className="h-9 w-9 items-center justify-center rounded-full bg-background-100"
               onPress={handleRefresh}
-              disabled={refreshing}>
+              disabled={refreshing}
+              accessibilityLabel={PAYMENT_MESSAGES.A11Y_REFRESH_BUTTON}>
               {refreshing ? (
-                <ActivityIndicator size="small" color="#18cb96" />
+                <ActivityIndicator size="small" color={PAYMENT_COLORS.PRIMARY} />
               ) : (
-                <Ionicons name="refresh-outline" size={18} color="#1e293b" />
+                <Ionicons name="refresh-outline" size={18} color={PAYMENT_COLORS.TEXT_DARK} />
               )}
             </TouchableOpacity>
           </View>
@@ -426,17 +446,17 @@ export default function PaymentsScreen() {
             overflow: 'hidden',
           }}>
           <View className="flex-row items-center rounded-lg bg-background-100 px-3">
-            <Ionicons name="search-outline" size={16} color="#64748b" />
+            <Ionicons name="search-outline" size={16} color={PAYMENT_COLORS.TEXT_LIGHT} />
             <TextInput
               className="ml-2 h-10 flex-1 text-text-dark"
-              placeholder="Buscar plantão..."
+              placeholder={PAYMENT_MESSAGES.PLACEHOLDER_SEARCH}
               value={searchQuery}
               onChangeText={setSearchQuery}
               autoCapitalize="none"
             />
             {searchQuery.length > 0 && (
               <TouchableOpacity onPress={() => setSearchQuery('')}>
-                <Ionicons name="close-circle" size={16} color="#64748b" />
+                <Ionicons name="close-circle" size={16} color={PAYMENT_COLORS.TEXT_LIGHT} />
               </TouchableOpacity>
             )}
           </View>
@@ -451,36 +471,46 @@ export default function PaymentsScreen() {
             overflow: 'hidden',
           }}>
           <TouchableOpacity
-            className="mb-2 rounded-lg bg-primary/10 p-3"
+            className="mb-3 rounded-lg bg-primary/10 p-3"
             onPress={() => setShowMonthPicker(true)}>
             <View className="flex-row items-center justify-between">
               <Text className="text-sm font-medium text-primary">
                 {format(selectedMonth, 'MMMM yyyy', { locale: ptBR })}
               </Text>
-              <Ionicons name="calendar-outline" size={18} color="#18cb96" />
+              <Ionicons name="calendar-outline" size={18} color={PAYMENT_COLORS.PRIMARY} />
             </View>
           </TouchableOpacity>
 
-          <SelectField
-            label=""
-            value={selectedLocationId}
-            onValueChange={setSelectedLocationId}
-            options={[
-              { value: '', label: 'Todos os locais', icon: 'business-outline' },
-              ...locationOptions,
-            ]}
-            placeholder="Filtrar por local"
-          />
+          <View className="mb-2">
+            <SelectField
+              label=""
+              value={selectedLocationId}
+              onValueChange={setSelectedLocationId}
+              options={[
+                {
+                  value: '',
+                  label: PAYMENT_MESSAGES.FILTER_ALL_LOCATIONS,
+                  icon: 'business-outline',
+                },
+                ...locationOptions,
+              ]}
+              placeholder={PAYMENT_MESSAGES.FILTER_BY_LOCATION}
+            />
+          </View>
 
           <SelectField
             label=""
             value={selectedContractorId}
             onValueChange={setSelectedContractorId}
             options={[
-              { value: '', label: 'Todos os contratantes', icon: 'briefcase-outline' },
+              {
+                value: '',
+                label: PAYMENT_MESSAGES.FILTER_ALL_CONTRACTORS,
+                icon: 'briefcase-outline',
+              },
               ...contractorOptions,
             ]}
-            placeholder="Filtrar por contratante"
+            placeholder={PAYMENT_MESSAGES.FILTER_BY_CONTRACTOR}
           />
         </Animated.View>
       </View>
@@ -488,65 +518,97 @@ export default function PaymentsScreen() {
       {/* Resumo */}
       <View className="mx-4 my-3 rounded-xl bg-white p-4 shadow-sm">
         <Text className="mb-3 text-base font-bold text-text-dark">
-          Resumo de {format(selectedMonth, 'MMMM yyyy', { locale: ptBR })}
+          {PAYMENT_MESSAGES.SUMMARY_TITLE} {format(selectedMonth, 'MMMM yyyy', { locale: ptBR })}
         </Text>
 
+        <View className="mb-3">
+          <View className="mb-2 flex-row items-center justify-between">
+            <Text className="text-sm text-text-light">{PAYMENT_MESSAGES.LABEL_TOTAL}</Text>
+            <Text className="text-xl font-bold text-text-dark">
+              {formatCurrency(summary.total)}
+            </Text>
+          </View>
+
+          <View className="h-2 overflow-hidden rounded-full bg-gray-200">
+            <View
+              className="h-full bg-success"
+              style={{ width: `${summary.total > 0 ? (summary.paid / summary.total) * 100 : 0}%` }}
+            />
+          </View>
+        </View>
+
         <View className="flex-row justify-between">
+          <View className="mr-4 flex-1">
+            <View className="mb-1 flex-row items-center">
+              <View className="mr-2 h-3 w-3 rounded-full bg-success" />
+              <Text className="text-xs text-text-light">{PAYMENT_MESSAGES.LABEL_RECEIVED}</Text>
+            </View>
+            <Text className="font-semibold text-success">{formatCurrency(summary.paid)}</Text>
+            <Text className="text-xs text-text-light">
+              {summary.paidCount} {PAYMENT_MESSAGES.LABEL_SHIFTS}
+            </Text>
+          </View>
+
           <View className="flex-1">
-            <View className="mb-2">
-              <Text className="text-xs text-text-light">Total</Text>
-              <Text className="text-lg font-bold text-text-dark">
-                {formatCurrency(summary.total)}
-              </Text>
+            <View className="mb-1 flex-row items-center">
+              <View className="mr-2 h-3 w-3 rounded-full bg-warning" />
+              <Text className="text-xs text-text-light">{PAYMENT_MESSAGES.LABEL_PENDING}</Text>
             </View>
-
-            <View className="flex-row justify-between">
-              <View className="mr-4">
-                <Text className="text-xs text-text-light">Pagos</Text>
-                <Text className="font-medium text-success">{formatCurrency(summary.paid)}</Text>
-                <Text className="text-xs text-text-light">{summary.paidCount} plantões</Text>
-              </View>
-
-              <View>
-                <Text className="text-xs text-text-light">Pendentes</Text>
-                <Text className="font-medium text-warning">{formatCurrency(summary.pending)}</Text>
-                <Text className="text-xs text-text-light">{summary.pendingCount} plantões</Text>
-              </View>
-            </View>
+            <Text className="font-semibold text-warning">{formatCurrency(summary.pending)}</Text>
+            <Text className="text-xs text-text-light">
+              {summary.pendingCount} {PAYMENT_MESSAGES.LABEL_SHIFTS}
+            </Text>
           </View>
         </View>
       </View>
 
-      {/* Modo de seleção */}
-      {isSelectionMode && (
-        <View className="mx-4 mb-2 flex-row items-center justify-between rounded-lg bg-primary/10 p-3">
-          <Text className="text-sm font-medium text-primary">
-            {selectedShifts.size} selecionado(s)
-          </Text>
-          <View className="flex-row">
+      {/* Barra de seleção */}
+      <Animated.View
+        style={{
+          opacity: selectionBarAnim,
+          transform: [
+            {
+              translateY: selectionBarAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [-50, 0],
+              }),
+            },
+          ],
+        }}
+        className="mx-4 mb-2">
+        {isSelectionMode && (
+          <View className="flex-row items-center justify-between rounded-lg bg-primary/10 p-3">
+            <View className="flex-row items-center">
+              <TouchableOpacity className="mr-3" onPress={toggleSelectAll}>
+                <Checkbox
+                  checked={isAllSelected}
+                  size={24}
+                  checkedColor={PAYMENT_COLORS.PRIMARY}
+                  uncheckedColor="#d1d5db"
+                />
+              </TouchableOpacity>
+              <Text className="text-sm font-medium text-primary">
+                {selectionCount === 0
+                  ? PAYMENT_MESSAGES.ACTION_SELECT_ALL
+                  : `${selectionCount} selecionado(s)`}
+              </Text>
+            </View>
+
             <TouchableOpacity
-              className="mr-2 rounded-md bg-primary px-3 py-1"
-              onPress={handleSelectAll}>
+              className="rounded-full bg-text-light px-3 py-1"
+              onPress={exitSelectionMode}>
               <Text className="text-xs font-medium text-white">
-                {selectedShifts.size === filteredShifts.length ? 'Desmarcar' : 'Selecionar'} Todos
+                {PAYMENT_MESSAGES.ACTION_CANCEL}
               </Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              className="rounded-md bg-text-light px-3 py-1"
-              onPress={() => {
-                setIsSelectionMode(false);
-                setSelectedShifts(new Set());
-              }}>
-              <Text className="text-xs font-medium text-white">Cancelar</Text>
-            </TouchableOpacity>
           </View>
-        </View>
-      )}
+        )}
+      </Animated.View>
 
       {/* Lista de plantões */}
       {isLoading ? (
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#18cb96" />
+          <ActivityIndicator size="large" color={PAYMENT_COLORS.PRIMARY} />
           <Text className="mt-4 text-gray-500">Carregando plantões...</Text>
         </View>
       ) : filteredShifts.length > 0 ? (
@@ -554,39 +616,62 @@ export default function PaymentsScreen() {
           data={filteredShifts}
           renderItem={renderShiftItem}
           keyExtractor={(item) => item.id}
-          contentContainerClassName="px-4 pb-20"
+          contentContainerClassName="px-4 pb-24"
           showsVerticalScrollIndicator={false}
           onRefresh={handleRefresh}
           refreshing={refreshing}
+          ListHeaderComponent={() =>
+            !isSelectionMode && (
+              <Text className="mb-2 text-xs text-text-light">
+                {PAYMENT_MESSAGES.INSTRUCTION_LONG_PRESS}
+              </Text>
+            )
+          }
         />
       ) : (
         <View className="flex-1 items-center justify-center px-6">
           <Ionicons name="calendar-clear-outline" size={64} color="#cbd5e1" />
           <Text className="mt-4 text-center text-lg font-bold text-text-dark">
-            Nenhum plantão encontrado
+            {PAYMENT_MESSAGES.EMPTY_STATE_TITLE}
           </Text>
           <Text className="mt-2 text-center text-sm text-text-light">
-            Não há plantões registrados para o período selecionado.
+            {PAYMENT_MESSAGES.EMPTY_STATE_MESSAGE}
           </Text>
         </View>
       )}
 
       {/* Botões de ação flutuantes */}
-      {isSelectionMode && selectedShifts.size > 0 && (
-        <View className="absolute bottom-6 left-6 right-6 flex-row justify-center space-x-3">
-          <TouchableOpacity
-            className="flex-1 flex-row items-center justify-center rounded-full bg-success py-3 shadow-lg"
-            onPress={handleMarkAsPaid}>
-            <Ionicons name="checkmark-circle-outline" size={20} color="#FFFFFF" />
-            <Text className="ml-2 font-medium text-white">Marcar como Pago</Text>
-          </TouchableOpacity>
+      {isSelectionMode && selectionCount > 0 && (
+        <View
+          className="absolute bottom-6 left-6 right-6"
+          style={{
+            elevation: 5,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.25,
+            shadowRadius: 4,
+          }}>
+          <View className="flex-row space-x-3">
+            <TouchableOpacity
+              className="flex-1 flex-row items-center justify-center rounded-full bg-success py-4"
+              onPress={handleMarkAsPaid}
+              style={{ elevation: 2 }}>
+              <Ionicons name="checkmark-circle-outline" size={20} color="#FFFFFF" />
+              <Text className="ml-2 font-medium text-white">
+                {PAYMENT_MESSAGES.ACTION_MARK_PAID}
+              </Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            className="flex-1 flex-row items-center justify-center rounded-full bg-warning py-3 shadow-lg"
-            onPress={handleMarkAsUnpaid}>
-            <Ionicons name="close-circle-outline" size={20} color="#FFFFFF" />
-            <Text className="ml-2 font-medium text-white">Marcar como Pendente</Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              className="flex-1 flex-row items-center justify-center rounded-full bg-warning py-4"
+              onPress={handleMarkAsUnpaid}
+              style={{ elevation: 2 }}>
+              <Ionicons name="close-circle-outline" size={20} color="#FFFFFF" />
+              <Text className="ml-2 font-medium text-white">
+                {PAYMENT_MESSAGES.ACTION_MARK_UNPAID}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
       )}
 
