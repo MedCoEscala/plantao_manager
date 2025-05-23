@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Pressable, Animated, ViewStyle } from 'react-native';
-import Checkbox from './ui/CheckBox';
+import Checkbox from './CheckBox';
 
 interface SelectableListItemProps {
   isSelected: boolean;

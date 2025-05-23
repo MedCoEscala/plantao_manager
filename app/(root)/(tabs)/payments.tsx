@@ -23,11 +23,14 @@ import { useLocationsSelector } from '@/hooks/useLocationsSelector';
 import { useContractorsSelector } from '@/hooks/useContractorsSelector';
 import MonthYearPicker from '@/components/ui/MonthYearPicker';
 
-// IMPORTAR OS NOVOS COMPONENTES E HOOKS
 import { useSelection } from '@/hooks/useSelection';
-import { SelectableListItem } from '@/components/SelectableListItem';
+import { SelectableListItem } from '@/components/ui/SelectableListItem';
 import { Checkbox } from '@/components/ui/CheckBox';
-import { PAYMENT_MESSAGES, PAYMENT_COLORS, PAYMENT_ANIMATIONS } from '@/utils/consts';
+import {
+  PAYMENT_MESSAGES,
+  PAYMENT_COLORS,
+  PAYMENT_ANIMATIONS,
+} from '@/constants/payment-constants';
 
 const formatCurrency = (value: number): string => {
   return value.toLocaleString('pt-BR', {
@@ -75,7 +78,6 @@ export default function PaymentsScreen() {
   const { locationOptions } = useLocationsSelector();
   const { contractorOptions } = useContractorsSelector();
 
-  // USAR O HOOK DE SELEÇÃO
   const {
     selectedItems,
     isSelectionMode,
