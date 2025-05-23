@@ -31,6 +31,7 @@ import {
   PAYMENT_COLORS,
   PAYMENT_ANIMATIONS,
 } from '@/constants/payment-constants';
+import { formatTime } from '@/utils/formatters';
 
 const formatCurrency = (value: number): string => {
   return value.toLocaleString('pt-BR', {
@@ -64,6 +65,7 @@ export default function PaymentsScreen() {
   const [showMonthPicker, setShowMonthPicker] = useState(false);
   const [selectedLocationId, setSelectedLocationId] = useState<string>('');
   const [selectedContractorId, setSelectedContractorId] = useState<string>('');
+  const [filterContentHeight, setFilterContentHeight] = useState(0);
 
   const fadeAnim = useState(new Animated.Value(0))[0];
   const [showFilters, setShowFilters] = useState(false);
@@ -105,11 +107,11 @@ export default function PaymentsScreen() {
 
   useEffect(() => {
     Animated.timing(filtersHeight, {
-      toValue: showFilters ? 160 : 0,
+      toValue: showFilters ? filterContentHeight : 0,
       duration: PAYMENT_ANIMATIONS.SLIDE_DURATION,
       useNativeDriver: false,
     }).start();
-  }, [showFilters, filtersHeight]);
+  }, [showFilters, filtersHeight, filterContentHeight]);
 
   useEffect(() => {
     Animated.timing(selectionBarAnim, {
@@ -136,6 +138,7 @@ export default function PaymentsScreen() {
         contractorId: selectedContractorId || undefined,
       };
 
+      // Buscar dados em paralelo para melhor performance
       const [shiftsData, paymentsData] = await Promise.all([
         shiftsApi.getShifts(filters),
         paymentsApi.getPayments({
@@ -144,23 +147,47 @@ export default function PaymentsScreen() {
         }),
       ]);
 
+      // Criar um Map para lookup rápido de pagamentos
+      const paymentsMap = new Map<string, any>();
+      paymentsData.forEach((payment) => {
+        if (payment.shiftId) {
+          paymentsMap.set(payment.shiftId, payment);
+        }
+      });
+
       // Mapear plantões com informações de pagamento
       const shiftsWithPaymentInfo = shiftsData.map((shift) => {
-        const payment = paymentsData.find((p) => p.shiftId === shift.id);
+        const payment = paymentsMap.get(shift.id);
+
         return {
           ...shift,
           isPaid: payment?.status === 'completed' || false,
           paymentId: payment?.id,
+          // Garantir que os horários sejam passados corretamente
+          startTime: shift.startTime || '',
+          endTime: shift.endTime || '',
+          // Garantir que outros campos importantes existam
+          location: shift.location || null,
+          contractor: shift.contractor || null,
+          value: shift.value || 0,
         };
       });
 
-      setShifts(shiftsWithPaymentInfo);
-      setFilteredShifts(shiftsWithPaymentInfo);
+      // Ordenar por data mais recente primeiro
+      shiftsWithPaymentInfo.sort((a, b) => {
+        const dateA = new Date(a.date).getTime();
+        const dateB = new Date(b.date).getTime();
+        return dateB - dateA;
+      });
+
+      setShifts(shiftsWithPaymentInfo as ShiftWithPayment[]);
+      setFilteredShifts(shiftsWithPaymentInfo as ShiftWithPayment[]);
 
       if (isRefresh) {
         showToast(PAYMENT_MESSAGES.TOAST_UPDATE_SUCCESS, 'success');
       }
     } catch (error: any) {
+      console.error('Erro ao carregar plantões:', error);
       showToast(
         `${PAYMENT_MESSAGES.TOAST_LOAD_ERROR}: ${error.message || 'Erro desconhecido'}`,
         'error'
@@ -219,8 +246,15 @@ export default function PaymentsScreen() {
       confirmText: PAYMENT_MESSAGES.ACTION_CONFIRM,
       onConfirm: async () => {
         try {
+          // Mostrar loading enquanto processa
           setIsLoading(true);
+
+          // Limpar seleção primeiro para dar feedback visual imediato
+          const selectedShiftIds = selectedItems.map((shift) => shift.id);
+          clearSelection();
+
           let successCount = 0;
+          const errors: string[] = [];
 
           for (const shift of selectedItems) {
             if (!shift.isPaid) {
@@ -232,25 +266,44 @@ export default function PaymentsScreen() {
                   paid: true,
                 });
                 successCount++;
-              } catch (error) {
+              } catch (error: any) {
                 console.error(`Erro ao marcar plantão ${shift.id} como pago:`, error);
+                errors.push(shift.location?.name || 'Plantão sem local');
               }
             }
           }
 
+          // Recarregar dados com force refresh
+          await loadShifts(true);
+
+          // Mostrar feedback
           if (successCount > 0) {
             showToast(PAYMENT_MESSAGES.TOAST_MARK_PAID_SUCCESS(successCount), 'success');
           }
 
-          clearSelection();
-          await loadShifts(false);
+          if (errors.length > 0) {
+            showToast(`Erro ao marcar ${errors.length} plantão(ões) como pago(s)`, 'error');
+          }
+
+          setIsLoading(false);
         } catch (error: any) {
           console.error('Erro ao marcar como pago:', error);
           showToast(PAYMENT_MESSAGES.TOAST_PAYMENT_ERROR, 'error');
+          setIsLoading(false);
+          // Recarregar mesmo com erro para garantir consistência
+          await loadShifts(true);
         }
       },
     });
-  }, [selectedItems, selectionCount, paymentsApi, showDialog, showToast, clearSelection]);
+  }, [
+    selectedItems,
+    selectionCount,
+    paymentsApi,
+    showDialog,
+    showToast,
+    clearSelection,
+    loadShifts,
+  ]);
 
   const handleMarkAsUnpaid = useCallback(async () => {
     if (selectionCount === 0) {
@@ -265,33 +318,59 @@ export default function PaymentsScreen() {
       confirmText: PAYMENT_MESSAGES.ACTION_CONFIRM,
       onConfirm: async () => {
         try {
+          // Mostrar loading enquanto processa
           setIsLoading(true);
+
+          // Limpar seleção primeiro para dar feedback visual imediato
+          const selectedShiftIds = selectedItems.map((shift) => shift.id);
+          clearSelection();
+
           let successCount = 0;
+          const errors: string[] = [];
 
           for (const shift of selectedItems) {
             if (shift.isPaid && shift.paymentId) {
               try {
                 await paymentsApi.deletePayment(shift.paymentId);
                 successCount++;
-              } catch (error) {
+              } catch (error: any) {
                 console.error(`Erro ao marcar plantão ${shift.id} como não pago:`, error);
+                errors.push(shift.location?.name || 'Plantão sem local');
               }
             }
           }
 
+          // Recarregar dados com force refresh
+          await loadShifts(true);
+
+          // Mostrar feedback
           if (successCount > 0) {
             showToast(PAYMENT_MESSAGES.TOAST_MARK_UNPAID_SUCCESS(successCount), 'success');
           }
 
-          clearSelection();
-          await loadShifts(false);
+          if (errors.length > 0) {
+            showToast(`Erro ao desmarcar ${errors.length} plantão(ões) como pago(s)`, 'error');
+          }
+
+          setIsLoading(false);
         } catch (error: any) {
           console.error('Erro ao marcar como não pago:', error);
           showToast(PAYMENT_MESSAGES.TOAST_PAYMENT_ERROR, 'error');
+          setIsLoading(false);
+          // Recarregar mesmo com erro para garantir consistência
+          await loadShifts(true);
         }
       },
     });
-  }, [selectedItems, selectionCount, paymentsApi, showDialog, showToast, clearSelection]);
+  }, [
+    selectedItems,
+    selectionCount,
+    paymentsApi,
+    showDialog,
+    showToast,
+    clearSelection,
+    loadShifts,
+  ]);
 
   const toggleSearch = useCallback(() => {
     if (showSearch && searchQuery) {
@@ -313,6 +392,11 @@ export default function PaymentsScreen() {
 
   const renderShiftItem = useCallback(
     ({ item, index }: { item: ShiftWithPayment; index: number }) => {
+      const formatTimeDisplay = (time: string | Date | null | undefined): string => {
+        if (!time) return '';
+        return formatTime(time);
+      };
+
       return (
         <SelectableListItem
           isSelected={isSelected(item)}
@@ -330,7 +414,7 @@ export default function PaymentsScreen() {
                 </Text>
                 {item.startTime && item.endTime && (
                   <Text className="mt-1 text-xs text-text-light">
-                    {item.startTime} - {item.endTime}
+                    {formatTimeDisplay(item.startTime)} - {formatTimeDisplay(item.endTime)}
                   </Text>
                 )}
               </View>
@@ -472,48 +556,56 @@ export default function PaymentsScreen() {
             marginTop: showFilters ? 8 : 0,
             overflow: 'hidden',
           }}>
-          <TouchableOpacity
-            className="mb-3 rounded-lg bg-primary/10 p-3"
-            onPress={() => setShowMonthPicker(true)}>
-            <View className="flex-row items-center justify-between">
-              <Text className="text-sm font-medium text-primary">
-                {format(selectedMonth, 'MMMM yyyy', { locale: ptBR })}
-              </Text>
-              <Ionicons name="calendar-outline" size={18} color={PAYMENT_COLORS.PRIMARY} />
+          <View
+            onLayout={(event) => {
+              const { height } = event.nativeEvent.layout;
+              setFilterContentHeight(height + 16); // +16 para padding
+            }}>
+            <TouchableOpacity
+              className="mb-3 rounded-lg bg-primary/10 p-3"
+              onPress={() => setShowMonthPicker(true)}>
+              <View className="flex-row items-center justify-between">
+                <Text className="text-sm font-medium text-primary">
+                  {format(selectedMonth, 'MMMM yyyy', { locale: ptBR })}
+                </Text>
+                <Ionicons name="calendar-outline" size={18} color={PAYMENT_COLORS.PRIMARY} />
+              </View>
+            </TouchableOpacity>
+
+            <View className="mb-3">
+              <SelectField
+                label=""
+                value={selectedLocationId}
+                onValueChange={setSelectedLocationId}
+                options={[
+                  {
+                    value: '',
+                    label: PAYMENT_MESSAGES.FILTER_ALL_LOCATIONS,
+                    icon: 'business-outline',
+                  },
+                  ...locationOptions,
+                ]}
+                placeholder={PAYMENT_MESSAGES.FILTER_BY_LOCATION}
+              />
             </View>
-          </TouchableOpacity>
 
-          <View className="mb-2">
-            <SelectField
-              label=""
-              value={selectedLocationId}
-              onValueChange={setSelectedLocationId}
-              options={[
-                {
-                  value: '',
-                  label: PAYMENT_MESSAGES.FILTER_ALL_LOCATIONS,
-                  icon: 'business-outline',
-                },
-                ...locationOptions,
-              ]}
-              placeholder={PAYMENT_MESSAGES.FILTER_BY_LOCATION}
-            />
+            <View className="mb-2">
+              <SelectField
+                label=""
+                value={selectedContractorId}
+                onValueChange={setSelectedContractorId}
+                options={[
+                  {
+                    value: '',
+                    label: PAYMENT_MESSAGES.FILTER_ALL_CONTRACTORS,
+                    icon: 'briefcase-outline',
+                  },
+                  ...contractorOptions,
+                ]}
+                placeholder={PAYMENT_MESSAGES.FILTER_BY_CONTRACTOR}
+              />
+            </View>
           </View>
-
-          <SelectField
-            label=""
-            value={selectedContractorId}
-            onValueChange={setSelectedContractorId}
-            options={[
-              {
-                value: '',
-                label: PAYMENT_MESSAGES.FILTER_ALL_CONTRACTORS,
-                icon: 'briefcase-outline',
-              },
-              ...contractorOptions,
-            ]}
-            placeholder={PAYMENT_MESSAGES.FILTER_BY_CONTRACTOR}
-          />
         </Animated.View>
       </View>
 
