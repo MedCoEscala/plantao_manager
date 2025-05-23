@@ -13,6 +13,7 @@ export interface Payment {
   locationName?: string;
   locationColor?: string;
   shiftId?: string;
+  paid?: boolean;
 }
 
 export interface CreatePaymentData {
@@ -68,14 +69,15 @@ export const usePaymentsApi = () => {
         description: payment.plantao?.location?.name
           ? `Plantão ${payment.plantao.location.name} - ${new Date(payment.plantao.date).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })}`
           : `Pagamento de ${new Date(payment.paymentDate || payment.createdAt).toLocaleDateString()}`,
-        amount: payment.paid ? payment.plantao?.value || 0 : 0,
+        amount: payment.plantao?.value || 0,
         date: payment.paymentDate || payment.createdAt,
         status: payment.paid ? 'completed' : 'pending',
         method: payment.method || 'Não informado',
         shiftTitle: `Plantão ${new Date(payment.plantao?.date || '').toLocaleDateString()}`,
         locationName: payment.plantao?.location?.name || 'Local não informado',
         locationColor: payment.plantao?.location?.color || '#64748b',
-        shiftId: payment.plantao?.id,
+        shiftId: payment.shiftId || payment.plantao?.id,
+        paid: payment.paid,
       }));
     } catch (error) {
       console.error('Erro ao buscar pagamentos:', error);
@@ -100,14 +102,15 @@ export const usePaymentsApi = () => {
         description: payment.plantao?.location?.name
           ? `Plantão ${payment.plantao.location.name} - ${new Date(payment.plantao.date).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })}`
           : `Pagamento de ${new Date(payment.paymentDate || payment.createdAt).toLocaleDateString()}`,
-        amount: payment.paid ? payment.plantao?.value || 0 : 0,
+        amount: payment.plantao?.value || 0,
         date: payment.paymentDate || payment.createdAt,
         status: payment.paid ? 'completed' : 'pending',
         method: payment.method || 'Não informado',
         shiftTitle: `Plantão ${new Date(payment.plantao?.date || '').toLocaleDateString()}`,
         locationName: payment.plantao?.location?.name || 'Local não informado',
         locationColor: payment.plantao?.location?.color || '#64748b',
-        shiftId: payment.plantao?.id,
+        shiftId: payment.shiftId || payment.plantao?.id,
+        paid: payment.paid,
       };
     } catch (error) {
       console.error(`Erro ao buscar pagamento ${id}:`, error);
