@@ -161,7 +161,7 @@ export default function PaymentsScreen() {
 
         return {
           ...shift,
-          isPaid: payment?.paid === true || false,
+          isPaid: payment?.status === 'completed' || false,
           paymentId: payment?.id,
           // Garantir que os horários sejam passados corretamente
           startTime: shift.startTime || '',
@@ -234,31 +234,12 @@ export default function PaymentsScreen() {
       return;
     }
 
-    // Filtrar apenas plantões não pagos
-    const unpaidShifts = selectedItems.filter((shift) => !shift.isPaid);
-    const alreadyPaidShifts = selectedItems.filter((shift) => shift.isPaid);
-
-    // Se todos os plantões já estão pagos, mostrar aviso
-    if (unpaidShifts.length === 0) {
-      showToast('Todos os plantões selecionados já estão marcados como pagos', 'warning');
-      clearSelection();
-      return;
-    }
-
-    // Se alguns já estão pagos, mostrar aviso
-    if (alreadyPaidShifts.length > 0) {
-      showToast(
-        `${alreadyPaidShifts.length} plantão(ões) já estão pagos e serão ignorados`,
-        'info'
-      );
-    }
-
-    const totalValue = unpaidShifts.reduce((sum, shift) => sum + shift.value, 0);
+    const totalValue = selectedItems.reduce((sum, shift) => sum + shift.value, 0);
 
     showDialog({
       title: PAYMENT_MESSAGES.DIALOG_CONFIRM_PAYMENT_TITLE,
       message: PAYMENT_MESSAGES.DIALOG_CONFIRM_PAYMENT_MESSAGE(
-        unpaidShifts.length,
+        selectionCount,
         formatCurrency(totalValue)
       ),
       type: 'confirm',
@@ -269,31 +250,24 @@ export default function PaymentsScreen() {
           setIsLoading(true);
 
           // Limpar seleção primeiro para dar feedback visual imediato
+          const selectedShiftIds = selectedItems.map((shift) => shift.id);
           clearSelection();
 
           let successCount = 0;
           const errors: string[] = [];
 
-          for (const shift of unpaidShifts) {
-            try {
-              await paymentsApi.createPayment({
-                shiftId: shift.id,
-                paymentDate: format(new Date(), 'yyyy-MM-dd'),
-                method: 'transferencia',
-                paid: true,
-              });
-              successCount++;
-            } catch (error: any) {
-              console.error(`Erro ao marcar plantão ${shift.id} como pago:`, error);
-
-              // Verificar se é erro de plantão já pago
-              if (
-                error.response?.status === 400 &&
-                error.response?.data?.message?.includes('Já existe um pagamento')
-              ) {
-                // Ignorar este erro silenciosamente pois já verificamos antes
-                console.log(`Plantão ${shift.id} já possui pagamento registrado`);
-              } else {
+          for (const shift of selectedItems) {
+            if (!shift.isPaid) {
+              try {
+                await paymentsApi.createPayment({
+                  shiftId: shift.id,
+                  paymentDate: format(new Date(), 'yyyy-MM-dd'),
+                  method: 'transferencia',
+                  paid: true,
+                });
+                successCount++;
+              } catch (error: any) {
+                console.error(`Erro ao marcar plantão ${shift.id} como pago:`, error);
                 errors.push(shift.location?.name || 'Plantão sem local');
               }
             }
@@ -337,28 +311,9 @@ export default function PaymentsScreen() {
       return;
     }
 
-    // Filtrar apenas plantões pagos
-    const paidShifts = selectedItems.filter((shift) => shift.isPaid && shift.paymentId);
-    const alreadyUnpaidShifts = selectedItems.filter((shift) => !shift.isPaid);
-
-    // Se todos os plantões já estão não pagos, mostrar aviso
-    if (paidShifts.length === 0) {
-      showToast('Todos os plantões selecionados já estão marcados como não pagos', 'warning');
-      clearSelection();
-      return;
-    }
-
-    // Se alguns já estão não pagos, mostrar aviso
-    if (alreadyUnpaidShifts.length > 0) {
-      showToast(
-        `${alreadyUnpaidShifts.length} plantão(ões) já estão marcados como não pagos e serão ignorados`,
-        'info'
-      );
-    }
-
     showDialog({
       title: PAYMENT_MESSAGES.DIALOG_REMOVE_PAYMENT_TITLE,
-      message: PAYMENT_MESSAGES.DIALOG_REMOVE_PAYMENT_MESSAGE(paidShifts.length),
+      message: PAYMENT_MESSAGES.DIALOG_REMOVE_PAYMENT_MESSAGE(selectionCount),
       type: 'confirm',
       confirmText: PAYMENT_MESSAGES.ACTION_CONFIRM,
       onConfirm: async () => {
@@ -367,18 +322,21 @@ export default function PaymentsScreen() {
           setIsLoading(true);
 
           // Limpar seleção primeiro para dar feedback visual imediato
+          const selectedShiftIds = selectedItems.map((shift) => shift.id);
           clearSelection();
 
           let successCount = 0;
           const errors: string[] = [];
 
-          for (const shift of paidShifts) {
-            try {
-              await paymentsApi.deletePayment(shift.paymentId!);
-              successCount++;
-            } catch (error: any) {
-              console.error(`Erro ao marcar plantão ${shift.id} como não pago:`, error);
-              errors.push(shift.location?.name || 'Plantão sem local');
+          for (const shift of selectedItems) {
+            if (shift.isPaid && shift.paymentId) {
+              try {
+                await paymentsApi.deletePayment(shift.paymentId);
+                successCount++;
+              } catch (error: any) {
+                console.error(`Erro ao marcar plantão ${shift.id} como não pago:`, error);
+                errors.push(shift.location?.name || 'Plantão sem local');
+              }
             }
           }
 

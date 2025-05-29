@@ -1,7 +1,6 @@
 import axios from 'axios';
 import { API_URL } from '@/config';
 
-// Mapa para registrar requisições
 const activeRequests = new Map<string, number>();
 
 const apiClient = axios.create({
@@ -12,7 +11,6 @@ const apiClient = axios.create({
   },
 });
 
-// Interceptor para requisições
 apiClient.interceptors.request.use(
   (config) => {
     // Gera uma chave única para a requisição
@@ -69,6 +67,10 @@ apiClient.interceptors.response.use(
     if (error.response) {
       console.error('Status:', error.response.status);
       console.error('Dados:', error.response.data);
+    } else if (error.request) {
+      console.error('Erro de rede - Requisição foi feita mas sem resposta');
+    } else {
+      console.error('Erro ao configurar requisição');
     }
 
     return Promise.reject(error);

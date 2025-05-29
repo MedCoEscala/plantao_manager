@@ -81,7 +81,6 @@ export class PaymentsService {
         locationColor: payment.plantao?.location?.color || '#64748b',
         shiftId: payment.plantao?.id,
         plantao: payment.plantao,
-        paid: payment.paid,
       }));
     } catch (error) {
       this.logger.error(

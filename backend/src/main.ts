@@ -28,7 +28,10 @@ async function bootstrap() {
   );
 
   const port = process.env.PORT || 3000;
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
   console.log(`Servidor rodando na porta ${port}`);
+  console.log(`🌐 Servidor acessível em:`);
+  console.log(`   - Local: http://localhost:${port}/api`);
+  console.log(`   - Rede: http://192.168.109.10:${port}/api`);
 }
 bootstrap();
