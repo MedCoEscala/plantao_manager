@@ -135,3 +135,10 @@ export function useProfile() {
     updateProfile,
   };
 }
+
+// Default export para resolver warning do React Router
+const profileHook = {
+  useProfile,
+};
+
+export default profileHook;

@@ -56,4 +56,8 @@ export class ClerkPrismaAuthService extends ClerkAuthService {
   // Outros métodos específicos que interagem com Prisma podem ser adicionados aqui
 }
 */
-export {}; // Export vazio
+
+// Default export para resolver warning do React Router
+const clerkPrismaAuthService = {};
+
+export default clerkPrismaAuthService;

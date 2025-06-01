@@ -7,12 +7,12 @@ export interface Payment {
   amount: number;
   date: string;
   status: 'pending' | 'completed' | 'failed';
-  // Campos adicionais úteis para UI
   method?: string;
   shiftTitle?: string;
   locationName?: string;
   locationColor?: string;
   shiftId?: string;
+  paid: boolean;
 }
 
 export interface CreatePaymentData {
@@ -56,29 +56,44 @@ export const usePaymentsApi = () => {
         queryParams = `?${params.toString()}`;
       }
 
+      console.log('🔄 Buscando pagamentos do backend:', queryParams);
+
       const response = await apiClient.get(`/payments${queryParams}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
 
+      console.log('📊 Dados de pagamentos recebidos:', response.data);
+
       // Transformar dados do backend para o formato esperado pela UI
-      return response.data.map((payment: any) => ({
-        id: payment.id,
-        description: payment.plantao?.location?.name
-          ? `Plantão ${payment.plantao.location.name} - ${new Date(payment.plantao.date).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })}`
-          : `Pagamento de ${new Date(payment.paymentDate || payment.createdAt).toLocaleDateString()}`,
-        amount: payment.paid ? payment.plantao?.value || 0 : 0,
-        date: payment.paymentDate || payment.createdAt,
-        status: payment.paid ? 'completed' : 'pending',
-        method: payment.method || 'Não informado',
-        shiftTitle: `Plantão ${new Date(payment.plantao?.date || '').toLocaleDateString()}`,
-        locationName: payment.plantao?.location?.name || 'Local não informado',
-        locationColor: payment.plantao?.location?.color || '#64748b',
-        shiftId: payment.plantao?.id,
-      }));
+      return response.data.map((payment: any) => {
+        const isPaid = Boolean(payment.paid || payment.status === 'completed'); // Usar campo paid primeiro, fallback para status
+        const status = isPaid ? 'completed' : 'pending';
+
+        console.log(
+          `💳 Processando pagamento ${payment.id}: paid=${payment.paid}, status=${status}, shiftId=${payment.shiftId}`
+        );
+
+        return {
+          id: payment.id,
+          description: payment.plantao?.location?.name
+            ? `Plantão ${payment.plantao.location.name} - ${new Date(payment.plantao.date).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })}`
+            : `Pagamento de ${new Date(payment.paymentDate || payment.createdAt).toLocaleDateString()}`,
+          amount: isPaid ? payment.amount || payment.plantao?.value || 0 : 0,
+          date: payment.date || payment.paymentDate || payment.createdAt,
+          status,
+          method: payment.method || 'Não informado',
+          shiftTitle: `Plantão ${new Date(payment.plantao?.date || '').toLocaleDateString()}`,
+          locationName:
+            payment.locationName || payment.plantao?.location?.name || 'Local não informado',
+          locationColor: payment.locationColor || payment.plantao?.location?.color || '#64748b',
+          shiftId: payment.shiftId || payment.plantao?.id,
+          paid: payment.paid,
+        };
+      });
     } catch (error) {
-      console.error('Erro ao buscar pagamentos:', error);
+      console.error('❌ Erro ao buscar pagamentos:', error);
       throw error;
     }
   };
@@ -108,6 +123,7 @@ export const usePaymentsApi = () => {
         locationName: payment.plantao?.location?.name || 'Local não informado',
         locationColor: payment.plantao?.location?.color || '#64748b',
         shiftId: payment.plantao?.id,
+        paid: payment.paid,
       };
     } catch (error) {
       console.error(`Erro ao buscar pagamento ${id}:`, error);
@@ -119,15 +135,37 @@ export const usePaymentsApi = () => {
     try {
       const token = await getToken();
 
+      console.log('💳 Criando pagamento:', data);
+
       const response = await apiClient.post('/payments', data, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
 
-      return response.data;
+      console.log('✅ Pagamento criado:', response.data);
+
+      // Transformar dados para o formato esperado
+      const payment = response.data;
+      const isPaid = Boolean(payment.paid);
+
+      return {
+        id: payment.id,
+        description: payment.plantao?.location?.name
+          ? `Plantão ${payment.plantao.location.name} - ${new Date(payment.plantao.date).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })}`
+          : `Pagamento de ${new Date(payment.paymentDate || payment.createdAt).toLocaleDateString()}`,
+        amount: isPaid ? payment.plantao?.value || 0 : 0,
+        date: payment.paymentDate || payment.createdAt,
+        status: isPaid ? 'completed' : 'pending',
+        method: payment.method || 'Não informado',
+        shiftTitle: `Plantão ${new Date(payment.plantao?.date || '').toLocaleDateString()}`,
+        locationName: payment.plantao?.location?.name || 'Local não informado',
+        locationColor: payment.plantao?.location?.color || '#64748b',
+        shiftId: payment.plantao?.id,
+        paid: payment.paid,
+      };
     } catch (error) {
-      console.error('Erro ao criar pagamento:', error);
+      console.error('❌ Erro ao criar pagamento:', error);
       throw error;
     }
   };
@@ -174,3 +212,10 @@ export const usePaymentsApi = () => {
     deletePayment,
   };
 };
+
+// Default export para resolver warning do React Router
+const paymentsApi = {
+  usePaymentsApi,
+};
+
+export default paymentsApi;

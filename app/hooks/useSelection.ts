@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 
 interface UseSelectionOptions<T> {
   items: T[];
@@ -14,23 +14,45 @@ export function useSelection<T>({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isSelectionMode, setIsSelectionMode] = useState(false);
 
-  // Itens selecionados
+  // Cache para evitar recalcular keyExtractor
+  const itemKeysMapRef = useRef(new Map<T, string>());
+
+  // Função otimizada para obter chave do item
+  const getItemKey = useCallback(
+    (item: T): string => {
+      if (!itemKeysMapRef.current.has(item)) {
+        itemKeysMapRef.current.set(item, keyExtractor(item));
+      }
+      return itemKeysMapRef.current.get(item)!;
+    },
+    [keyExtractor]
+  );
+
+  // Limpar cache quando items mudam
+  const itemsRef = useRef(items);
+  if (itemsRef.current !== items) {
+    itemKeysMapRef.current.clear();
+    itemsRef.current = items;
+  }
+
+  // Itens selecionados memoizados
   const selectedItems = useMemo(() => {
-    return items.filter((item) => selectedIds.has(keyExtractor(item)));
-  }, [items, selectedIds, keyExtractor]);
+    if (selectedIds.size === 0) return [];
+
+    return items.filter((item) => selectedIds.has(getItemKey(item)));
+  }, [items, selectedIds, getItemKey]);
 
   // Verificar se um item está selecionado
   const isSelected = useCallback(
-    (item: T) => {
-      return selectedIds.has(keyExtractor(item));
-    },
-    [selectedIds, keyExtractor]
+    (item: T) => selectedIds.has(getItemKey(item)),
+    [selectedIds, getItemKey]
   );
 
   // Alternar seleção de um item
   const toggleSelection = useCallback(
     (item: T) => {
-      const id = keyExtractor(item);
+      const id = getItemKey(item);
+
       setSelectedIds((prev) => {
         const newSet = new Set(prev);
 
@@ -49,42 +71,43 @@ export function useSelection<T>({
           setIsSelectionMode(false);
         }
 
-        // Callback de mudança
-        if (onSelectionChange) {
-          const selected = items.filter((item) => newSet.has(keyExtractor(item)));
-          onSelectionChange(selected);
-        }
-
         return newSet;
       });
     },
-    [keyExtractor, isSelectionMode, items, onSelectionChange]
+    [getItemKey, isSelectionMode]
   );
+
+  // Callback de mudança otimizado
+  const notifySelectionChange = useCallback(() => {
+    if (onSelectionChange) {
+      const selected = items.filter((item) => selectedIds.has(getItemKey(item)));
+      onSelectionChange(selected);
+    }
+  }, [items, selectedIds, getItemKey, onSelectionChange]);
+
+  // Chamar callback quando seleção muda
+  const prevSelectedCountRef = useRef(selectedIds.size);
+  if (prevSelectedCountRef.current !== selectedIds.size) {
+    prevSelectedCountRef.current = selectedIds.size;
+    notifySelectionChange();
+  }
 
   // Selecionar todos os itens
   const selectAll = useCallback(() => {
-    const allIds = new Set(items.map(keyExtractor));
+    const allIds = new Set(items.map(getItemKey));
     setSelectedIds(allIds);
     setIsSelectionMode(true);
-
-    if (onSelectionChange) {
-      onSelectionChange(items);
-    }
-  }, [items, keyExtractor, onSelectionChange]);
+  }, [items, getItemKey]);
 
   // Desselecionar todos os itens
   const clearSelection = useCallback(() => {
     setSelectedIds(new Set());
     setIsSelectionMode(false);
-
-    if (onSelectionChange) {
-      onSelectionChange([]);
-    }
-  }, [onSelectionChange]);
+  }, []);
 
   // Alternar seleção de todos
   const toggleSelectAll = useCallback(() => {
-    if (selectedIds.size === items.length) {
+    if (selectedIds.size === items.length && items.length > 0) {
       clearSelection();
     } else {
       selectAll();
@@ -125,13 +148,18 @@ export function useSelection<T>({
     [isSelectionMode, toggleSelection]
   );
 
+  // Calcular isAllSelected de forma otimizada
+  const isAllSelected = useMemo(() => {
+    return selectedIds.size === items.length && items.length > 0;
+  }, [selectedIds.size, items.length]);
+
   return {
     // Estado
     selectedIds,
     selectedItems,
     isSelectionMode,
     selectionCount: selectedIds.size,
-    isAllSelected: selectedIds.size === items.length && items.length > 0,
+    isAllSelected,
 
     // Métodos
     isSelected,

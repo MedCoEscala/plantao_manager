@@ -46,3 +46,11 @@ export const useAuthenticatedFetch = () => {
 
   return { fetchAuth };
 };
+
+// Default export para resolver warning do React Router
+const authUtils = {
+  fetchWithAuth,
+  useAuthenticatedFetch,
+};
+
+export default authUtils;

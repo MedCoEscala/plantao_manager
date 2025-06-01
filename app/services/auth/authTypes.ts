@@ -19,4 +19,8 @@ export interface AuthService {
   // Se você estiver usando APENAS Clerk no frontend, muitos métodos podem não ser necessários aqui
 }
 */
-export {}; // Export vazio
+
+// Default export para resolver warning do React Router
+const authTypes = {};
+
+export default authTypes;

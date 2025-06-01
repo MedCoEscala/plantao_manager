@@ -9,7 +9,10 @@
     "prebuild": "expo prebuild",
     "lint": "eslint \"**/*.{js,jsx,ts,tsx}\" && prettier -c \"**/*.{js,jsx,ts,tsx,json}\"",
     "format": "eslint \"**/*.{js,jsx,ts,tsx}\" --fix && prettier \"**/*.{js,jsx,ts,tsx,json}\" --write",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "config:localhost": "node scripts/configure-network.js --localhost",
+    "config:ip": "node scripts/configure-network.js --ip",
+    "config:status": "cat .env && echo '\\n🌐 Backend rodando em:' && curl -s http://localhost:3000/api || echo '❌ Backend não está rodando'"
   },
   "dependencies": {
     "@clerk/clerk-expo": "^2.9.6",

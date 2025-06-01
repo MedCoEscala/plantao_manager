@@ -42,3 +42,6 @@ export function FieldWrapper({
     </View>
   );
 }
+
+// Default export para resolver warning do React Router
+export default FieldWrapper;

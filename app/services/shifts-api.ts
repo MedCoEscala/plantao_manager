@@ -169,3 +169,10 @@ export const useShiftsApi = () => {
     deleteShift,
   };
 };
+
+// Default export para resolver warning do React Router
+const shiftsApi = {
+  useShiftsApi,
+};
+
+export default shiftsApi;

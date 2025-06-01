@@ -1,6 +1,25 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
+import { networkInterfaces } from 'os';
+
+function getNetworkIP(): string {
+  const nets = networkInterfaces();
+
+  for (const name of Object.keys(nets)) {
+    const networkList = nets[name];
+    if (!networkList) continue;
+
+    for (const net of networkList) {
+      // Skip over non-IPv4 and internal (i.e. 127.0.0.1) addresses
+      if (net.family === 'IPv4' && !net.internal) {
+        return net.address;
+      }
+    }
+  }
+
+  return 'localhost';
+}
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -28,10 +47,12 @@ async function bootstrap() {
   );
 
   const port = process.env.PORT || 3000;
+  const networkIP = getNetworkIP();
+
   await app.listen(port, '0.0.0.0');
   console.log(`Servidor rodando na porta ${port}`);
   console.log(`🌐 Servidor acessível em:`);
   console.log(`   - Local: http://localhost:${port}/api`);
-  console.log(`   - Rede: http://192.168.109.10:${port}/api`);
+  console.log(`   - Rede: http://${networkIP}:${port}/api`);
 }
 bootstrap();

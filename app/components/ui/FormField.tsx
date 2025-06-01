@@ -422,3 +422,15 @@ export function ButtonGroup({
     </View>
   );
 }
+
+// Default export para resolver warning do React Router
+const FormFields = {
+  TextField,
+  DateField,
+  SelectField,
+  SwitchField,
+  ColorField,
+  ButtonGroup,
+};
+
+export default FormFields;

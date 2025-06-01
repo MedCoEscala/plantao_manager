@@ -126,3 +126,10 @@ export const useContractorsApi = () => {
     deleteContractor,
   };
 };
+
+// Default export para resolver warning do React Router
+const contractorsApi = {
+  useContractorsApi,
+};
+
+export default contractorsApi;

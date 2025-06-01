@@ -64,3 +64,12 @@ export const formatCurrency = (value: number | string | null | undefined): strin
     return 'R$ --';
   }
 };
+
+// Default export para resolver warning do React Router
+const formatters = {
+  formatDate,
+  formatTime,
+  formatCurrency,
+};
+
+export default formatters;

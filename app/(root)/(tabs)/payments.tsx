@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -22,6 +22,7 @@ import { SelectField } from '@/components/form/SelectField';
 import { useLocationsSelector } from '@/hooks/useLocationsSelector';
 import { useContractorsSelector } from '@/hooks/useContractorsSelector';
 import MonthYearPicker from '@/components/ui/MonthYearPicker';
+import { useFocusEffect } from '@react-navigation/native';
 
 import { useSelection } from '@/hooks/useSelection';
 import { SelectableListItem } from '@/components/ui/SelectableListItem';
@@ -54,24 +55,47 @@ interface ShiftWithPayment extends Shift {
   paymentId?: string;
 }
 
+// Hook debounce otimizado
+const useDebounce = (value: string, delay: number) => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => clearTimeout(timer);
+  }, [value, delay]);
+
+  return debouncedValue;
+};
+
 export default function PaymentsScreen() {
   const [shifts, setShifts] = useState<ShiftWithPayment[]>([]);
-  const [filteredShifts, setFilteredShifts] = useState<ShiftWithPayment[]>([]);
-  const [refreshing, setRefreshing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(new Date());
   const [showMonthPicker, setShowMonthPicker] = useState(false);
   const [selectedLocationId, setSelectedLocationId] = useState<string>('');
   const [selectedContractorId, setSelectedContractorId] = useState<string>('');
+  const [showFilters, setShowFilters] = useState(false);
   const [filterContentHeight, setFilterContentHeight] = useState(0);
 
-  const fadeAnim = useState(new Animated.Value(0))[0];
-  const [showFilters, setShowFilters] = useState(false);
-  const filtersHeight = useState(new Animated.Value(0))[0];
-  const selectionBarAnim = useState(new Animated.Value(0))[0];
+  // Animações
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const filtersHeight = useRef(new Animated.Value(0)).current;
+  const selectionBarAnim = useRef(new Animated.Value(0)).current;
 
+  // Refs para controle rigoroso de carregamento
+  const lastLoadTimeRef = useRef(0);
+  const isLoadingRef = useRef(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const currentFiltersRef = useRef<string>('');
+  const loadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // APIs e hooks
   const { showDialog } = useDialog();
   const { showToast } = useToast();
   const router = useRouter();
@@ -80,6 +104,32 @@ export default function PaymentsScreen() {
   const { locationOptions } = useLocationsSelector();
   const { contractorOptions } = useContractorsSelector();
 
+  // Debounce para pesquisa
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
+
+  // String de filtros para comparação (evita re-execução desnecessária)
+  const filtersString = useMemo(() => {
+    const startDate = format(startOfMonth(selectedMonth), 'yyyy-MM-dd');
+    const endDate = format(endOfMonth(selectedMonth), 'yyyy-MM-dd');
+    return `${startDate}|${endDate}|${selectedLocationId}|${selectedContractorId}`;
+  }, [selectedMonth, selectedLocationId, selectedContractorId]);
+
+  // Plantões filtrados por pesquisa
+  const filteredShifts = useMemo(() => {
+    if (!debouncedSearchQuery.trim()) {
+      return shifts;
+    }
+
+    const query = debouncedSearchQuery.toLowerCase();
+    return shifts.filter(
+      (shift) =>
+        shift.location?.name.toLowerCase().includes(query) ||
+        shift.contractor?.name.toLowerCase().includes(query) ||
+        shift.notes?.toLowerCase().includes(query)
+    );
+  }, [shifts, debouncedSearchQuery]);
+
+  // Hook de seleção
   const {
     selectedItems,
     isSelectionMode,
@@ -95,6 +145,359 @@ export default function PaymentsScreen() {
     items: filteredShifts,
     keyExtractor: (shift) => shift.id,
   });
+
+  // Função de carregamento completamente refatorada
+  const loadShifts = useCallback(
+    async (forceReload = false) => {
+      const now = Date.now();
+
+      // Controle rigoroso para evitar múltiplas chamadas
+      if (isLoadingRef.current && !forceReload) {
+        console.log('🚫 Carregamento já em andamento, ignorando...');
+        return;
+      }
+
+      // Evitar chamadas muito frequentes
+      if (!forceReload && now - lastLoadTimeRef.current < 2000) {
+        console.log('🚫 Carregamento muito frequente, ignorando...');
+        return;
+      }
+
+      // Verificar se os filtros realmente mudaram
+      if (!forceReload && currentFiltersRef.current === filtersString) {
+        console.log('🚫 Filtros não mudaram, ignorando...');
+        return;
+      }
+
+      // Cancelar requisição anterior
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+
+      // Cancelar timeout de carregamento anterior
+      if (loadTimeoutRef.current) {
+        clearTimeout(loadTimeoutRef.current);
+        loadTimeoutRef.current = null;
+      }
+
+      // Marcar como carregando
+      isLoadingRef.current = true;
+      lastLoadTimeRef.current = now;
+      currentFiltersRef.current = filtersString;
+
+      try {
+        setIsLoading(!forceReload);
+        if (forceReload) setRefreshing(true);
+
+        const filters = {
+          startDate: format(startOfMonth(selectedMonth), 'yyyy-MM-dd'),
+          endDate: format(endOfMonth(selectedMonth), 'yyyy-MM-dd'),
+          locationId: selectedLocationId || undefined,
+          contractorId: selectedContractorId || undefined,
+        };
+
+        console.log('🔄 Carregando plantões:', filters);
+
+        // Nova abortController para esta requisição
+        abortControllerRef.current = new AbortController();
+
+        const [shiftsData, paymentsData] = await Promise.all([
+          shiftsApi.getShifts(filters),
+          paymentsApi.getPayments({
+            startDate: filters.startDate,
+            endDate: filters.endDate,
+          }),
+        ]);
+
+        console.log('📊 Dados carregados:', {
+          shiftsCount: shiftsData.length,
+          paymentsCount: paymentsData.length,
+        });
+
+        // Processar dados de forma otimizada
+        const paymentsMap = new Map<string, any>();
+        paymentsData.forEach((payment) => {
+          if (payment.shiftId) {
+            paymentsMap.set(payment.shiftId, payment);
+          }
+        });
+
+        const shiftsWithPaymentInfo = shiftsData
+          .map((shift) => {
+            const payment = paymentsMap.get(shift.id);
+            const isPaid = Boolean(payment?.paid) || payment?.status === 'completed';
+
+            return {
+              ...shift,
+              isPaid,
+              paymentId: payment?.id,
+              startTime: shift.startTime || '',
+              endTime: shift.endTime || '',
+              location: shift.location || null,
+              contractor: shift.contractor || null,
+              value: shift.value || 0,
+            };
+          })
+          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+        setShifts(shiftsWithPaymentInfo as ShiftWithPayment[]);
+
+        if (forceReload) {
+          showToast(PAYMENT_MESSAGES.TOAST_UPDATE_SUCCESS, 'success');
+        }
+      } catch (error: any) {
+        if (error.name === 'AbortError') {
+          console.log('🔄 Requisição cancelada');
+          return;
+        }
+
+        console.error('❌ Erro ao carregar plantões:', error);
+        const errorMessage = error.message?.includes('timeout')
+          ? 'Timeout na requisição. Verifique sua conexão.'
+          : error.message || 'Erro desconhecido';
+
+        showToast(`${PAYMENT_MESSAGES.TOAST_LOAD_ERROR}: ${errorMessage}`, 'error');
+      } finally {
+        setIsLoading(false);
+        setRefreshing(false);
+        isLoadingRef.current = false;
+      }
+    },
+    [
+      filtersString,
+      selectedMonth,
+      selectedLocationId,
+      selectedContractorId,
+      shiftsApi,
+      paymentsApi,
+      showToast,
+    ]
+  );
+
+  // Carregamento inicial apenas no foco
+  useFocusEffect(
+    useCallback(() => {
+      if (shifts.length === 0 && !isLoadingRef.current) {
+        console.log('👁️ Carregamento inicial por foco');
+        loadShifts(false);
+      }
+    }, [loadShifts]) // loadShifts como dependência é seguro aqui
+  );
+
+  // Monitorar mudanças de filtros de forma controlada
+  useEffect(() => {
+    // Só executar se já fizemos carregamento inicial
+    if (lastLoadTimeRef.current === 0) return;
+
+    // Cancelar timeout anterior
+    if (loadTimeoutRef.current) {
+      clearTimeout(loadTimeoutRef.current);
+    }
+
+    // Verificar se filtros realmente mudaram
+    if (currentFiltersRef.current === filtersString) {
+      return;
+    }
+
+    console.log('📋 Filtros detectaram mudança, agendando carregamento...');
+
+    // Agendar carregamento com debounce
+    loadTimeoutRef.current = setTimeout(() => {
+      if (!isLoadingRef.current) {
+        loadShifts(false);
+      }
+    }, 1000); // Debounce de 1 segundo
+
+    return () => {
+      if (loadTimeoutRef.current) {
+        clearTimeout(loadTimeoutRef.current);
+        loadTimeoutRef.current = null;
+      }
+    };
+  }, [filtersString]); // Apenas filtersString como dependência
+
+  // Função de refresh manual
+  const handleRefresh = useCallback(async () => {
+    console.log('🔄 Refresh manual solicitado');
+    await loadShifts(true);
+  }, [loadShifts]);
+
+  // Função para atualizar status local
+  const updateShiftPaymentStatus = useCallback(
+    (shiftId: string, isPaid: boolean, paymentId?: string) => {
+      setShifts((prevShifts) =>
+        prevShifts.map((shift) => (shift.id === shiftId ? { ...shift, isPaid, paymentId } : shift))
+      );
+    },
+    []
+  );
+
+  // Função para marcar como pago
+  const handleMarkAsPaid = useCallback(async () => {
+    if (selectionCount === 0) {
+      showToast(PAYMENT_MESSAGES.TOAST_SELECT_WARNING, 'warning');
+      return;
+    }
+
+    const totalValue = selectedItems.reduce((sum, shift) => sum + shift.value, 0);
+
+    showDialog({
+      title: PAYMENT_MESSAGES.DIALOG_CONFIRM_PAYMENT_TITLE,
+      message: PAYMENT_MESSAGES.DIALOG_CONFIRM_PAYMENT_MESSAGE(
+        selectionCount,
+        formatCurrency(totalValue)
+      ),
+      type: 'confirm',
+      confirmText: PAYMENT_MESSAGES.ACTION_CONFIRM,
+      onConfirm: async () => {
+        try {
+          console.log('💳 Marcando como pago:', selectionCount, 'plantões');
+
+          // Updates otimistas
+          selectedItems.forEach((shift) => {
+            if (!shift.isPaid) {
+              updateShiftPaymentStatus(shift.id, true, 'temp-' + shift.id);
+            }
+          });
+
+          clearSelection();
+
+          let successCount = 0;
+          const errors: string[] = [];
+
+          for (const shift of selectedItems) {
+            if (!shift.isPaid) {
+              try {
+                const payment = await paymentsApi.createPayment({
+                  shiftId: shift.id,
+                  paymentDate: format(new Date(), 'yyyy-MM-dd'),
+                  method: 'transferencia',
+                  paid: true,
+                });
+
+                updateShiftPaymentStatus(shift.id, true, payment.id);
+                successCount++;
+              } catch (error: any) {
+                console.error(`❌ Erro ao marcar plantão ${shift.id}:`, error);
+                updateShiftPaymentStatus(shift.id, false);
+                errors.push(shift.location?.name || 'Plantão sem local');
+              }
+            }
+          }
+
+          // Sincronização após operação (com delay maior)
+          setTimeout(() => handleRefresh(), 3000);
+
+          if (successCount > 0) {
+            showToast(PAYMENT_MESSAGES.TOAST_MARK_PAID_SUCCESS(successCount), 'success');
+          }
+          if (errors.length > 0) {
+            showToast(`Erro ao marcar ${errors.length} plantão(ões)`, 'error');
+          }
+        } catch (error: any) {
+          console.error('❌ Erro geral:', error);
+          showToast(PAYMENT_MESSAGES.TOAST_PAYMENT_ERROR, 'error');
+          handleRefresh();
+        }
+      },
+    });
+  }, [
+    selectedItems,
+    selectionCount,
+    paymentsApi,
+    showDialog,
+    showToast,
+    clearSelection,
+    updateShiftPaymentStatus,
+    handleRefresh,
+  ]);
+
+  // Função para marcar como não pago
+  const handleMarkAsUnpaid = useCallback(async () => {
+    if (selectionCount === 0) {
+      showToast(PAYMENT_MESSAGES.TOAST_SELECT_WARNING, 'warning');
+      return;
+    }
+
+    showDialog({
+      title: PAYMENT_MESSAGES.DIALOG_REMOVE_PAYMENT_TITLE,
+      message: PAYMENT_MESSAGES.DIALOG_REMOVE_PAYMENT_MESSAGE(selectionCount),
+      type: 'confirm',
+      confirmText: PAYMENT_MESSAGES.ACTION_CONFIRM,
+      onConfirm: async () => {
+        try {
+          console.log('🗑️ Removendo pagamentos:', selectionCount, 'plantões');
+
+          // Updates otimistas
+          selectedItems.forEach((shift) => {
+            if (shift.isPaid) {
+              updateShiftPaymentStatus(shift.id, false);
+            }
+          });
+
+          clearSelection();
+
+          let successCount = 0;
+          const errors: string[] = [];
+
+          for (const shift of selectedItems) {
+            if (shift.isPaid && shift.paymentId) {
+              try {
+                await paymentsApi.deletePayment(shift.paymentId);
+                successCount++;
+              } catch (error: any) {
+                console.error(`❌ Erro ao remover pagamento ${shift.paymentId}:`, error);
+                updateShiftPaymentStatus(shift.id, true, shift.paymentId);
+                errors.push(shift.location?.name || 'Plantão sem local');
+              }
+            }
+          }
+
+          // Sincronização após operação (com delay maior)
+          setTimeout(() => handleRefresh(), 3000);
+
+          if (successCount > 0) {
+            showToast(PAYMENT_MESSAGES.TOAST_MARK_UNPAID_SUCCESS(successCount), 'success');
+          }
+          if (errors.length > 0) {
+            showToast(`Erro ao desmarcar ${errors.length} plantão(ões)`, 'error');
+          }
+        } catch (error: any) {
+          console.error('❌ Erro geral:', error);
+          showToast(PAYMENT_MESSAGES.TOAST_PAYMENT_ERROR, 'error');
+          handleRefresh();
+        }
+      },
+    });
+  }, [
+    selectedItems,
+    selectionCount,
+    paymentsApi,
+    showDialog,
+    showToast,
+    clearSelection,
+    updateShiftPaymentStatus,
+    handleRefresh,
+  ]);
+
+  // Handlers de UI
+  const toggleSearch = useCallback(() => {
+    if (showSearch && searchQuery) {
+      setSearchQuery('');
+    }
+    setShowSearch(!showSearch);
+  }, [showSearch, searchQuery]);
+
+  const toggleFilters = useCallback(() => {
+    setShowFilters(!showFilters);
+  }, [showFilters]);
+
+  const handleItemPress = useCallback(
+    (shift: ShiftWithPayment) => {
+      router.push(`/shifts/${shift.id}`);
+    },
+    [router]
+  );
 
   // Animações
   useEffect(() => {
@@ -121,275 +524,7 @@ export default function PaymentsScreen() {
     }).start();
   }, [isSelectionMode, selectionBarAnim]);
 
-  const loadShifts = async (isRefresh = false) => {
-    if (!isRefresh) {
-      setIsLoading(true);
-    }
-    setRefreshing(true);
-
-    try {
-      const startDate = startOfMonth(selectedMonth);
-      const endDate = endOfMonth(selectedMonth);
-
-      const filters = {
-        startDate: format(startDate, 'yyyy-MM-dd'),
-        endDate: format(endDate, 'yyyy-MM-dd'),
-        locationId: selectedLocationId || undefined,
-        contractorId: selectedContractorId || undefined,
-      };
-
-      // Buscar dados em paralelo para melhor performance
-      const [shiftsData, paymentsData] = await Promise.all([
-        shiftsApi.getShifts(filters),
-        paymentsApi.getPayments({
-          startDate: filters.startDate,
-          endDate: filters.endDate,
-        }),
-      ]);
-
-      // Criar um Map para lookup rápido de pagamentos
-      const paymentsMap = new Map<string, any>();
-      paymentsData.forEach((payment) => {
-        if (payment.shiftId) {
-          paymentsMap.set(payment.shiftId, payment);
-        }
-      });
-
-      // Mapear plantões com informações de pagamento
-      const shiftsWithPaymentInfo = shiftsData.map((shift) => {
-        const payment = paymentsMap.get(shift.id);
-
-        return {
-          ...shift,
-          isPaid: payment?.status === 'completed' || false,
-          paymentId: payment?.id,
-          // Garantir que os horários sejam passados corretamente
-          startTime: shift.startTime || '',
-          endTime: shift.endTime || '',
-          // Garantir que outros campos importantes existam
-          location: shift.location || null,
-          contractor: shift.contractor || null,
-          value: shift.value || 0,
-        };
-      });
-
-      // Ordenar por data mais recente primeiro
-      shiftsWithPaymentInfo.sort((a, b) => {
-        const dateA = new Date(a.date).getTime();
-        const dateB = new Date(b.date).getTime();
-        return dateB - dateA;
-      });
-
-      setShifts(shiftsWithPaymentInfo as ShiftWithPayment[]);
-      setFilteredShifts(shiftsWithPaymentInfo as ShiftWithPayment[]);
-
-      if (isRefresh) {
-        showToast(PAYMENT_MESSAGES.TOAST_UPDATE_SUCCESS, 'success');
-      }
-    } catch (error: any) {
-      console.error('Erro ao carregar plantões:', error);
-      showToast(
-        `${PAYMENT_MESSAGES.TOAST_LOAD_ERROR}: ${error.message || 'Erro desconhecido'}`,
-        'error'
-      );
-    } finally {
-      setRefreshing(false);
-      setIsLoading(false);
-    }
-  };
-
-  const handleRefresh = useCallback(async () => {
-    await loadShifts(true);
-  }, []);
-
-  // Carregar dados quando filtros mudam
-  useEffect(() => {
-    loadShifts(false);
-  }, [selectedMonth, selectedLocationId, selectedContractorId]);
-
-  // Filtro de pesquisa
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      let filtered = shifts;
-
-      if (searchQuery.trim() !== '') {
-        const query = searchQuery.toLowerCase();
-        filtered = filtered.filter(
-          (shift) =>
-            shift.location?.name.toLowerCase().includes(query) ||
-            shift.contractor?.name.toLowerCase().includes(query) ||
-            shift.notes?.toLowerCase().includes(query)
-        );
-      }
-
-      setFilteredShifts(filtered);
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [searchQuery, shifts]);
-
-  const handleMarkAsPaid = useCallback(async () => {
-    if (selectionCount === 0) {
-      showToast(PAYMENT_MESSAGES.TOAST_SELECT_WARNING, 'warning');
-      return;
-    }
-
-    const totalValue = selectedItems.reduce((sum, shift) => sum + shift.value, 0);
-
-    showDialog({
-      title: PAYMENT_MESSAGES.DIALOG_CONFIRM_PAYMENT_TITLE,
-      message: PAYMENT_MESSAGES.DIALOG_CONFIRM_PAYMENT_MESSAGE(
-        selectionCount,
-        formatCurrency(totalValue)
-      ),
-      type: 'confirm',
-      confirmText: PAYMENT_MESSAGES.ACTION_CONFIRM,
-      onConfirm: async () => {
-        try {
-          // Mostrar loading enquanto processa
-          setIsLoading(true);
-
-          // Limpar seleção primeiro para dar feedback visual imediato
-          const selectedShiftIds = selectedItems.map((shift) => shift.id);
-          clearSelection();
-
-          let successCount = 0;
-          const errors: string[] = [];
-
-          for (const shift of selectedItems) {
-            if (!shift.isPaid) {
-              try {
-                await paymentsApi.createPayment({
-                  shiftId: shift.id,
-                  paymentDate: format(new Date(), 'yyyy-MM-dd'),
-                  method: 'transferencia',
-                  paid: true,
-                });
-                successCount++;
-              } catch (error: any) {
-                console.error(`Erro ao marcar plantão ${shift.id} como pago:`, error);
-                errors.push(shift.location?.name || 'Plantão sem local');
-              }
-            }
-          }
-
-          // Recarregar dados com force refresh
-          await loadShifts(true);
-
-          // Mostrar feedback
-          if (successCount > 0) {
-            showToast(PAYMENT_MESSAGES.TOAST_MARK_PAID_SUCCESS(successCount), 'success');
-          }
-
-          if (errors.length > 0) {
-            showToast(`Erro ao marcar ${errors.length} plantão(ões) como pago(s)`, 'error');
-          }
-
-          setIsLoading(false);
-        } catch (error: any) {
-          console.error('Erro ao marcar como pago:', error);
-          showToast(PAYMENT_MESSAGES.TOAST_PAYMENT_ERROR, 'error');
-          setIsLoading(false);
-          // Recarregar mesmo com erro para garantir consistência
-          await loadShifts(true);
-        }
-      },
-    });
-  }, [
-    selectedItems,
-    selectionCount,
-    paymentsApi,
-    showDialog,
-    showToast,
-    clearSelection,
-    loadShifts,
-  ]);
-
-  const handleMarkAsUnpaid = useCallback(async () => {
-    if (selectionCount === 0) {
-      showToast(PAYMENT_MESSAGES.TOAST_SELECT_WARNING, 'warning');
-      return;
-    }
-
-    showDialog({
-      title: PAYMENT_MESSAGES.DIALOG_REMOVE_PAYMENT_TITLE,
-      message: PAYMENT_MESSAGES.DIALOG_REMOVE_PAYMENT_MESSAGE(selectionCount),
-      type: 'confirm',
-      confirmText: PAYMENT_MESSAGES.ACTION_CONFIRM,
-      onConfirm: async () => {
-        try {
-          // Mostrar loading enquanto processa
-          setIsLoading(true);
-
-          // Limpar seleção primeiro para dar feedback visual imediato
-          const selectedShiftIds = selectedItems.map((shift) => shift.id);
-          clearSelection();
-
-          let successCount = 0;
-          const errors: string[] = [];
-
-          for (const shift of selectedItems) {
-            if (shift.isPaid && shift.paymentId) {
-              try {
-                await paymentsApi.deletePayment(shift.paymentId);
-                successCount++;
-              } catch (error: any) {
-                console.error(`Erro ao marcar plantão ${shift.id} como não pago:`, error);
-                errors.push(shift.location?.name || 'Plantão sem local');
-              }
-            }
-          }
-
-          // Recarregar dados com force refresh
-          await loadShifts(true);
-
-          // Mostrar feedback
-          if (successCount > 0) {
-            showToast(PAYMENT_MESSAGES.TOAST_MARK_UNPAID_SUCCESS(successCount), 'success');
-          }
-
-          if (errors.length > 0) {
-            showToast(`Erro ao desmarcar ${errors.length} plantão(ões) como pago(s)`, 'error');
-          }
-
-          setIsLoading(false);
-        } catch (error: any) {
-          console.error('Erro ao marcar como não pago:', error);
-          showToast(PAYMENT_MESSAGES.TOAST_PAYMENT_ERROR, 'error');
-          setIsLoading(false);
-          // Recarregar mesmo com erro para garantir consistência
-          await loadShifts(true);
-        }
-      },
-    });
-  }, [
-    selectedItems,
-    selectionCount,
-    paymentsApi,
-    showDialog,
-    showToast,
-    clearSelection,
-    loadShifts,
-  ]);
-
-  const toggleSearch = useCallback(() => {
-    if (showSearch && searchQuery) {
-      setSearchQuery('');
-    }
-    setShowSearch(!showSearch);
-  }, [showSearch, searchQuery]);
-
-  const toggleFilters = useCallback(() => {
-    setShowFilters(!showFilters);
-  }, [showFilters]);
-
-  const handleItemPress = useCallback(
-    (shift: ShiftWithPayment) => {
-      router.push(`/shifts/${shift.id}`);
-    },
-    [router]
-  );
-
+  // Renderizador de item memoizado
   const renderShiftItem = useCallback(
     ({ item, index }: { item: ShiftWithPayment; index: number }) => {
       const formatTimeDisplay = (time: string | Date | null | undefined): string => {
@@ -399,6 +534,7 @@ export default function PaymentsScreen() {
 
       return (
         <SelectableListItem
+          key={item.id}
           isSelected={isSelected(item)}
           isSelectionMode={isSelectionMode}
           onPress={() => handlePress(item, handleItemPress)}
@@ -463,14 +599,38 @@ export default function PaymentsScreen() {
     [isSelected, isSelectionMode, handlePress, handleLongPress, handleItemPress]
   );
 
-  // Calcular resumo
-  const summary = {
-    total: filteredShifts.reduce((sum, shift) => sum + shift.value, 0),
-    paid: filteredShifts.filter((s) => s.isPaid).reduce((sum, shift) => sum + shift.value, 0),
-    pending: filteredShifts.filter((s) => !s.isPaid).reduce((sum, shift) => sum + shift.value, 0),
-    paidCount: filteredShifts.filter((s) => s.isPaid).length,
-    pendingCount: filteredShifts.filter((s) => !s.isPaid).length,
-  };
+  // Cálculo do resumo memoizado
+  const summary = useMemo(() => {
+    const total = filteredShifts.reduce((sum, shift) => sum + shift.value, 0);
+    const paid = filteredShifts
+      .filter((s) => s.isPaid)
+      .reduce((sum, shift) => sum + shift.value, 0);
+    const pending = filteredShifts
+      .filter((s) => !s.isPaid)
+      .reduce((sum, shift) => sum + shift.value, 0);
+    const paidCount = filteredShifts.filter((s) => s.isPaid).length;
+    const pendingCount = filteredShifts.filter((s) => !s.isPaid).length;
+
+    return {
+      total,
+      paid,
+      pending,
+      paidCount,
+      pendingCount,
+    };
+  }, [filteredShifts]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      if (loadTimeoutRef.current) {
+        clearTimeout(loadTimeoutRef.current);
+      }
+    };
+  }, []);
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
@@ -559,7 +719,7 @@ export default function PaymentsScreen() {
           <View
             onLayout={(event) => {
               const { height } = event.nativeEvent.layout;
-              setFilterContentHeight(height + 16); // +16 para padding
+              setFilterContentHeight(height + 16);
             }}>
             <TouchableOpacity
               className="mb-3 rounded-lg bg-primary/10 p-3"

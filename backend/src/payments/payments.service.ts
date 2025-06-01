@@ -74,6 +74,7 @@ export class PaymentsService {
           : `Pagamento de plantão`,
         amount: payment.plantao?.value || 0,
         date: payment.paymentDate || payment.createdAt,
+        paid: payment.paid,
         status: payment.paid ? 'completed' : 'pending',
         method: payment.method || 'Não informado',
         shiftTitle: `Plantão ${new Date(payment.plantao?.date || '').toLocaleDateString()}`,

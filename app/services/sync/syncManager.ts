@@ -152,4 +152,8 @@ export async function getSyncStats(): Promise<SyncStats> {
 // TODO: Adicionar lógica para enfileirar operações (addSyncOperation)
 // que seria chamada pelos repositórios quando offline.
 */
-export {}; // Export vazio
+
+// Default export para resolver warning do React Router
+const syncManager = {};
+
+export default syncManager;

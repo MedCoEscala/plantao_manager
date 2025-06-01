@@ -41,3 +41,10 @@ export const useUserSync = () => {
 
   return { syncUser, isSyncing };
 };
+
+// Default export para resolver warning do React Router
+const userSyncHook = {
+  useUserSync,
+};
+
+export default userSyncHook;

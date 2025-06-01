@@ -12,32 +12,52 @@ interface LocationOption {
 export function useLocationsSelector() {
   const [locations, setLocations] = useState<Location[]>([]);
   const [locationOptions, setLocationOptions] = useState<LocationOption[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Refs para controle de carregamento
   const isLoadingRef = useRef(false);
   const dataLoadedRef = useRef(false);
+  const lastLoadTimeRef = useRef(0);
 
   const locationsApi = useLocationsApi();
   const { showToast } = useToast();
 
   const loadLocations = useCallback(
     async (force = false) => {
-      // Evitar múltiplas requisições simultâneas
-      if (isLoadingRef.current && !force) return;
+      const now = Date.now();
 
-      // Não recarregar se já temos dados, a menos que force=true
-      if (dataLoadedRef.current && locations.length > 0 && !force) return;
+      // Evitar múltiplas requisições simultâneas
+      if (isLoadingRef.current && !force) {
+        console.log('[Locations] Carregamento já em andamento');
+        return;
+      }
+
+      // Não recarregar se já temos dados recentes, a menos que force=true
+      if (
+        dataLoadedRef.current &&
+        locations.length > 0 &&
+        !force &&
+        now - lastLoadTimeRef.current < 300000
+      ) {
+        // 5 minutos
+        console.log('[Locations] Dados já carregados e recentes');
+        return;
+      }
 
       isLoadingRef.current = true;
       setIsLoading(true);
       setError(null);
+      lastLoadTimeRef.current = now;
 
       try {
+        console.log('[Locations] Carregando locais...');
         const data = await locationsApi.getLocations();
+
         setLocations(data);
         dataLoadedRef.current = true;
 
-        // Transformar em opções para select
+        // Transformar em opções para select de forma otimizada
         const options = data.map((location) => ({
           value: location.id,
           label: location.name,
@@ -46,10 +66,15 @@ export function useLocationsSelector() {
         }));
 
         setLocationOptions(options);
+        console.log(`[Locations] ${data.length} locais carregados`);
       } catch (error: any) {
-        console.error('Erro ao carregar locais:', error);
+        console.error('[Locations] Erro ao carregar:', error);
         setError(error.message || 'Erro ao carregar locais');
-        showToast('Erro ao carregar lista de locais', 'error');
+
+        // Só mostra toast se não for uma tentativa automática
+        if (force) {
+          showToast('Erro ao carregar lista de locais', 'error');
+        }
       } finally {
         setIsLoading(false);
         isLoadingRef.current = false;
@@ -58,12 +83,13 @@ export function useLocationsSelector() {
     [locationsApi, showToast, locations.length]
   );
 
+  // Carregamento inicial mais controlado
   useEffect(() => {
-    // Apenas carregar dados se ainda não tivermos dados e não estivermos carregando
+    // Apenas carregar dados se ainda não tivermos carregado
     if (!dataLoadedRef.current && !isLoadingRef.current) {
-      loadLocations();
+      loadLocations(false);
     }
-  }, [loadLocations]);
+  }, []); // Dependências vazias para carregar apenas uma vez
 
   const getLocationById = useCallback(
     (id: string): Location | undefined => {
@@ -72,12 +98,24 @@ export function useLocationsSelector() {
     [locations]
   );
 
+  // Função para forçar reload quando necessário
+  const reloadLocations = useCallback(() => {
+    loadLocations(true);
+  }, [loadLocations]);
+
   return {
     locations,
     locationOptions,
     isLoading,
     error,
-    loadLocations,
+    loadLocations: reloadLocations, // Expor apenas a versão que força reload
     getLocationById,
   };
 }
+
+// Default export para resolver warning do React Router
+const locationsSelectorHook = {
+  useLocationsSelector,
+};
+
+export default locationsSelectorHook;

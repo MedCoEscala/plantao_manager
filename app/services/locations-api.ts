@@ -129,3 +129,10 @@ export const useLocationsApi = () => {
     deleteLocation,
   };
 };
+
+// Default export para resolver warning do React Router
+const locationsApi = {
+  useLocationsApi,
+};
+
+export default locationsApi;

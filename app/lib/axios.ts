@@ -1,11 +1,11 @@
 import axios from 'axios';
-import { API_URL } from '@/config';
+import { API_URL } from '../config';
 
 const activeRequests = new Map<string, number>();
 
 const apiClient = axios.create({
   baseURL: API_URL,
-  timeout: 15000,
+  timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -22,6 +22,7 @@ apiClient.interceptors.request.use(
     activeRequests.set(requestKey, Date.now());
 
     console.log(`🚀 Requisição para: ${config.url}`);
+    (config as any).startTime = Date.now();
     return config;
   },
   (error) => {
@@ -61,16 +62,19 @@ apiClient.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    console.error(`❌ Erro na requisição: ${error.config?.url || 'URL desconhecida'}`);
-    console.error('Mensagem:', error.message);
+    console.error('❌ Erro na requisição:', error.config?.url);
 
-    if (error.response) {
+    if (error.code === 'ECONNABORTED') {
+      console.error('Mensagem: timeout of ' + error.config?.timeout + 'ms exceeded');
+      console.error('Erro de rede - Requisição foi feita mas sem resposta');
+    } else if (error.response) {
+      console.error('Mensagem:', error.response.data?.message || error.message);
       console.error('Status:', error.response.status);
-      console.error('Dados:', error.response.data);
     } else if (error.request) {
       console.error('Erro de rede - Requisição foi feita mas sem resposta');
+      console.error('Mensagem:', error.message);
     } else {
-      console.error('Erro ao configurar requisição');
+      console.error('Erro:', error.message);
     }
 
     return Promise.reject(error);

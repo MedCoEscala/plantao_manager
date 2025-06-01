@@ -45,4 +45,8 @@ export class ClerkAuthService implements AuthService {
   // mas geralmente os hooks do Clerk são suficientes no frontend.
 }
 */
-export {}; // Export vazio
+
+// Default export para resolver warning do React Router
+const clerkAuthService = {};
+
+export default clerkAuthService;
