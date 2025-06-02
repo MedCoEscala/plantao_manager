@@ -10,6 +10,22 @@ import { Plantao, Prisma } from '@prisma/client';
 import { CreateShiftDto } from './dto/create-shift.dto';
 import { UpdateShiftDto } from './dto/update-shift.dto';
 import { GetShiftsFilterDto } from './dto/get-shifts-filter.dto';
+import {
+  CreateShiftsBatchDto,
+  CreateShiftBatchItemDto,
+} from './dto/create-shifts-batch.dto';
+
+export interface BatchCreateResult {
+  created: Plantao[];
+  skipped: CreateShiftBatchItemDto[];
+  failed: { shift: CreateShiftBatchItemDto; error: string }[];
+  summary: {
+    total: number;
+    created: number;
+    skipped: number;
+    failed: number;
+  };
+}
 
 @Injectable()
 export class ShiftsService {
@@ -416,5 +432,201 @@ export class ShiftsService {
         `Erro ao remover plantão: ${error.message}`,
       );
     }
+  }
+
+  async createBatch(
+    clerkId: string,
+    createShiftsBatchDto: CreateShiftsBatchDto,
+  ): Promise<BatchCreateResult> {
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: { clerkId },
+        select: { id: true },
+      });
+
+      if (!user) {
+        throw new NotFoundException(
+          `Usuário com Clerk ID ${clerkId} não encontrado`,
+        );
+      }
+
+      const result: BatchCreateResult = {
+        created: [],
+        skipped: [],
+        failed: [],
+        summary: {
+          total: createShiftsBatchDto.shifts.length,
+          created: 0,
+          skipped: 0,
+          failed: 0,
+        },
+      };
+
+      // Se skipConflicts for true, verificar conflitos existentes
+      const existingShifts = createShiftsBatchDto.skipConflicts
+        ? await this.findExistingShifts(
+            user.id,
+            createShiftsBatchDto.shifts.map((s) => s.date),
+          )
+        : [];
+
+      for (const shiftData of createShiftsBatchDto.shifts) {
+        try {
+          // Verificar se já existe plantão na mesma data
+          if (createShiftsBatchDto.skipConflicts) {
+            const existingShift = existingShifts.find(
+              (existing) =>
+                existing.date.toISOString().split('T')[0] === shiftData.date,
+            );
+
+            if (existingShift) {
+              result.skipped.push(shiftData);
+              result.summary.skipped++;
+              continue;
+            }
+          }
+
+          // Validar formato de hora
+          const timeRegex = /^([01]?[0-9]|2[0-3]):([0-5][0-9])$/;
+          if (
+            !timeRegex.test(shiftData.startTime) ||
+            !timeRegex.test(shiftData.endTime)
+          ) {
+            throw new BadRequestException(
+              `Os horários devem estar no formato HH:MM`,
+            );
+          }
+
+          // Preparar data e horários
+          const shiftDate = new Date(shiftData.date);
+          const startTime = new Date(shiftDate);
+          const endTime = new Date(shiftDate);
+
+          const [startHour, startMinute] = shiftData.startTime
+            .split(':')
+            .map(Number);
+          const [endHour, endMinute] = shiftData.endTime.split(':').map(Number);
+
+          startTime.setHours(startHour, startMinute, 0, 0);
+          endTime.setHours(endHour, endMinute, 0, 0);
+
+          // Se o horário de término for antes do início, adiciona um dia
+          if (endTime <= startTime) {
+            endTime.setDate(endTime.getDate() + 1);
+          }
+
+          // Preparar dados para criação
+          const timeInfo = `Horário: ${shiftData.startTime} - ${shiftData.endTime}`;
+          const notes = shiftData.notes
+            ? `${shiftData.notes}\n${timeInfo}`
+            : timeInfo;
+
+          const locationId =
+            shiftData.locationId && shiftData.locationId.trim() !== ''
+              ? shiftData.locationId
+              : undefined;
+
+          const contractorId =
+            shiftData.contractorId && shiftData.contractorId.trim() !== ''
+              ? shiftData.contractorId
+              : undefined;
+
+          // Criar plantão
+          const createdShift = await this.prisma.plantao.create({
+            data: {
+              date: shiftDate,
+              value: shiftData.value,
+              startTime: startTime,
+              endTime: endTime,
+              isFixed: shiftData.isFixed || false,
+              paymentType: shiftData.paymentType,
+              notes: notes,
+              user: {
+                connect: { id: user.id },
+              },
+              ...(locationId && {
+                location: {
+                  connect: { id: locationId },
+                },
+              }),
+              ...(contractorId && {
+                contractor: {
+                  connect: { id: contractorId },
+                },
+              }),
+            },
+            include: {
+              location: true,
+              contractor: true,
+            },
+          });
+
+          result.created.push(createdShift);
+          result.summary.created++;
+        } catch (error) {
+          this.logger.error(
+            `Erro ao criar plantão para data ${shiftData.date}: ${error.message}`,
+          );
+
+          result.failed.push({
+            shift: shiftData,
+            error: error.message || 'Erro desconhecido',
+          });
+          result.summary.failed++;
+
+          // Se continueOnError for false, parar o processo
+          if (!createShiftsBatchDto.continueOnError) {
+            throw error;
+          }
+        }
+      }
+
+      this.logger.log(
+        `Criação em lote concluída. Criados: ${result.summary.created}, Pulados: ${result.summary.skipped}, Falharam: ${result.summary.failed}`,
+      );
+
+      return result;
+    } catch (error) {
+      this.logger.error(
+        `Erro na criação em lote de plantões: ${error.message}`,
+        error.stack,
+      );
+
+      if (
+        error instanceof BadRequestException ||
+        error instanceof NotFoundException
+      ) {
+        throw error;
+      }
+
+      throw new InternalServerErrorException(
+        `Erro na criação em lote: ${error.message}`,
+      );
+    }
+  }
+
+  private async findExistingShifts(
+    userId: string,
+    dates: string[],
+  ): Promise<{ id: string; date: Date; startTime: Date; endTime: Date }[]> {
+    const dateObjects = dates.map((date) => new Date(date));
+    const minDate = new Date(Math.min(...dateObjects.map((d) => d.getTime())));
+    const maxDate = new Date(Math.max(...dateObjects.map((d) => d.getTime())));
+
+    return this.prisma.plantao.findMany({
+      where: {
+        userId,
+        date: {
+          gte: minDate,
+          lte: maxDate,
+        },
+      },
+      select: {
+        id: true,
+        date: true,
+        startTime: true,
+        endTime: true,
+      },
+    });
   }
 }

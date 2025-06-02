@@ -1,78 +1,40 @@
-import React from "react";
-import { View, Text, TouchableOpacity, ViewProps } from "react-native";
+import React from 'react';
+import { View, ViewProps } from 'react-native';
+import { cn } from '@/utils/cn';
 
 interface CardProps extends ViewProps {
-  title?: string;
-  footer?: React.ReactNode;
-  onPress?: () => void;
-  variant?: "default" | "elevated" | "outlined" | "flat";
   children: React.ReactNode;
+  variant?: 'default' | 'outlined' | 'elevated';
+  padding?: 'none' | 'sm' | 'md' | 'lg';
 }
 
-export const Card: React.FC<CardProps> = ({
-  title,
-  footer,
-  onPress,
-  variant = "default",
+export default function Card({
   children,
-  className = "",
+  variant = 'elevated',
+  padding = 'md',
+  className,
   ...props
-}) => {
-  // Classes base para todos os cards
-  const getCardClasses = () => {
-    let classes = "rounded-lg overflow-hidden ";
+}: CardProps) {
+  const baseStyles = 'bg-white rounded-2xl';
 
-    // Aplicar estilos com base na variante
-    switch (variant) {
-      case "elevated":
-        classes += "bg-white shadow-md border border-gray-100 ";
-        break;
-      case "outlined":
-        classes += "bg-white border border-gray-200 ";
-        break;
-      case "flat":
-        classes += "bg-background-100 ";
-        break;
-      case "default":
-      default:
-        classes += "bg-white ";
-        break;
-    }
-
-    return classes + className;
+  const variantStyles = {
+    default: '',
+    outlined: 'border border-gray-200',
+    elevated: 'shadow-sm shadow-gray-100',
   };
 
-  // Componente interno do Card
-  const CardContent = () => (
-    <View className={getCardClasses()} {...props}>
-      {title && (
-        <View className="px-4 py-3 border-b border-gray-100">
-          <Text className="font-medium text-base text-text-dark">{title}</Text>
-        </View>
-      )}
-      <View className="p-4">{children}</View>
-      {footer && (
-        <View className="px-4 py-3 border-t border-gray-100">{footer}</View>
-      )}
+  const paddingStyles = {
+    none: '',
+    sm: 'p-3',
+    md: 'p-6',
+    lg: 'p-8',
+  };
+
+  return (
+    <View
+      className={cn(baseStyles, variantStyles[variant], paddingStyles[padding], className)}
+      {...props}>
+      {children}
     </View>
   );
-
-  // Se tiver onPress, envolve com TouchableOpacity
-  if (onPress) {
-    return (
-      <TouchableOpacity
-        onPress={onPress}
-        style={{ opacity: 1 }}
-        className="overflow-hidden"
-      >
-        <CardContent />
-      </TouchableOpacity>
-    );
-  }
-
-  // Caso contrário, retorna apenas o conteúdo
-  return <CardContent />;
-};
-
-// Exportação default para o expo-router
-export default Card;
+}

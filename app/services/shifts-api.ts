@@ -36,6 +36,24 @@ export interface CreateShiftData {
   contractorId?: string;
 }
 
+export interface CreateShiftsBatchData {
+  shifts: CreateShiftData[];
+  skipConflicts?: boolean;
+  continueOnError?: boolean;
+}
+
+export interface BatchCreateResult {
+  created: Shift[];
+  skipped: CreateShiftData[];
+  failed: { shift: CreateShiftData; error: string }[];
+  summary: {
+    total: number;
+    created: number;
+    skipped: number;
+    failed: number;
+  };
+}
+
 export interface UpdateShiftData {
   date?: string;
   startTime?: string;
@@ -127,6 +145,23 @@ export const useShiftsApi = () => {
     }
   };
 
+  const createShiftsBatch = async (data: CreateShiftsBatchData): Promise<BatchCreateResult> => {
+    try {
+      const token = await getToken();
+
+      const response = await apiClient.post('/shifts/batch', data, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao criar plantões em lote:', error);
+      throw error;
+    }
+  };
+
   const updateShift = async (id: string, data: UpdateShiftData): Promise<Shift> => {
     try {
       const token = await getToken();
@@ -165,6 +200,7 @@ export const useShiftsApi = () => {
     getShifts,
     getShiftById,
     createShift,
+    createShiftsBatch,
     updateShift,
     deleteShift,
   };

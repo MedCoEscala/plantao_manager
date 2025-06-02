@@ -1,17 +1,22 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { View, Text, ScrollView, Alert } from 'react-native';
+import React, { useState, useCallback, useMemo } from 'react';
+import { View, Text, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { format, parseISO, isValid } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { useToast } from '@/components/ui/Toast';
 import DateField from '@/components/form/DateField';
 import SelectField from '@/components/form/SelectField';
 import SwitchField from '@/components/form/SwitchField';
+import Card from '@/components/ui/Card';
+import SectionHeader from '@/components/ui/SectionHeader';
 import { useShiftsApi, Shift } from '@/services/shifts-api';
-import { useDialog } from '@/contexts/DialogContext';
 import { useLocationsSelector } from '@/hooks/useLocationsSelector';
 import ContractorsSelector from '@/components/contractors/ContractorsSelector';
 import { formatTime } from '@/utils/formatters';
+import { RecurrenceConfig } from '@/types/recurrence';
+import { RecurrenceCalculator } from '@/utils/recurrence';
+import RecurrenceSelector from '@/components/shifts/RecurrenceSelector';
 
 const PAYMENT_TYPE_OPTIONS = [
   { label: 'Pessoa Física (PF)', value: 'PF', icon: 'person-outline' },
@@ -27,6 +32,18 @@ interface ShiftFormProps {
   isModal?: boolean;
 }
 
+interface FormData {
+  date: Date;
+  startTime: Date;
+  endTime: Date;
+  locationId: string;
+  contractorId: string;
+  value: string;
+  paymentType: string;
+  isFixed: boolean;
+  notes: string;
+}
+
 export default function ShiftForm({
   shiftId,
   initialDate,
@@ -35,129 +52,83 @@ export default function ShiftForm({
   onCancel,
   isModal = false,
 }: ShiftFormProps) {
-  console.log(
-    '[ShiftForm] Iniciando com shiftId:',
-    shiftId,
-    'initialData:',
-    initialData ? 'presente' : 'ausente'
-  );
-
-  // Estado para carregamento
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-
-  // Estados para os campos do formulário
-  const [date, setDate] = useState<Date>(() => {
-    if (initialData?.date) {
-      try {
-        const parsedDate = parseISO(initialData.date);
-        if (isValid(parsedDate)) return parsedDate;
-      } catch (e) {
-        console.error('[ShiftForm] Erro ao processar data inicial:', e);
-      }
-    }
-    return initialDate || new Date();
-  });
-
-  const [startTime, setStartTime] = useState<Date>(() => {
-    if (initialData?.startTime) {
-      try {
-        const timeStr = formatTime(initialData.startTime);
-        if (timeStr) {
-          const [hours, minutes] = timeStr.split(':').map(Number);
-          const startTimeDate = new Date();
-          startTimeDate.setHours(hours || 0, minutes || 0, 0, 0);
-          return startTimeDate;
-        }
-      } catch (e) {
-        console.error('[ShiftForm] Erro ao processar horário inicial:', e);
-      }
-    }
-
-    // Horário padrão: 8:00
-    const defaultTime = new Date();
-    defaultTime.setHours(8, 0, 0, 0);
-    return defaultTime;
-  });
-
-  const [endTime, setEndTime] = useState<Date>(() => {
-    if (initialData?.endTime) {
-      try {
-        const timeStr = formatTime(initialData.endTime);
-        if (timeStr) {
-          const [hours, minutes] = timeStr.split(':').map(Number);
-          const endTimeDate = new Date();
-          endTimeDate.setHours(hours || 0, minutes || 0, 0, 0);
-          return endTimeDate;
-        }
-      } catch (e) {
-        console.error('[ShiftForm] Erro ao processar horário final:', e);
-      }
-    }
-
-    // Horário padrão: 14:00
-    const defaultTime = new Date();
-    defaultTime.setHours(14, 0, 0, 0);
-    return defaultTime;
-  });
-
-  const [locationId, setLocationId] = useState<string>(initialData?.locationId || '');
-  const [contractorId, setContractorId] = useState<string>(initialData?.contractorId || '');
-  const [value, setValue] = useState<string>(
-    initialData?.value !== undefined ? initialData.value.toString() : ''
-  );
-  const [paymentType, setPaymentType] = useState<string>(initialData?.paymentType || 'PF');
-  const [isFixed, setIsFixed] = useState<boolean>(initialData?.isFixed || false);
-  const [notes, setNotes] = useState<string>(initialData?.notes || '');
-
-  const [errors, setErrors] = useState<{ [key: string]: string }>({});
-
   const { showToast } = useToast();
-  const { showDialog } = useDialog();
   const shiftsApi = useShiftsApi();
   const { locationOptions, isLoading: isLoadingLocations } = useLocationsSelector();
-  const componentIsMounted = useRef(true);
 
-  // Efeito para lidar com o ciclo de vida do componente
-  useEffect(() => {
-    componentIsMounted.current = true;
-    console.log('[ShiftForm] Componente montado/remontado');
+  // Estado do formulário
+  const [formData, setFormData] = useState<FormData>(() => {
+    const now = new Date();
+    const defaultStart = new Date(now);
+    defaultStart.setHours(8, 0, 0, 0);
+    const defaultEnd = new Date(now);
+    defaultEnd.setHours(14, 0, 0, 0);
 
-    return () => {
-      componentIsMounted.current = false;
-      console.log('[ShiftForm] Componente desmontando');
+    return {
+      date: initialDate || (initialData?.date ? parseISO(initialData.date) : new Date()),
+      startTime: initialData?.startTime
+        ? (() => {
+            const timeStr = formatTime(initialData.startTime);
+            if (timeStr) {
+              const [hours, minutes] = timeStr.split(':').map(Number);
+              const time = new Date();
+              time.setHours(hours || 0, minutes || 0, 0, 0);
+              return time;
+            }
+            return defaultStart;
+          })()
+        : defaultStart,
+      endTime: initialData?.endTime
+        ? (() => {
+            const timeStr = formatTime(initialData.endTime);
+            if (timeStr) {
+              const [hours, minutes] = timeStr.split(':').map(Number);
+              const time = new Date();
+              time.setHours(hours || 0, minutes || 0, 0, 0);
+              return time;
+            }
+            return defaultEnd;
+          })()
+        : defaultEnd,
+      locationId: initialData?.locationId || '',
+      contractorId: initialData?.contractorId || '',
+      value: initialData?.value?.toString() || '',
+      paymentType: initialData?.paymentType || 'PF',
+      isFixed: initialData?.isFixed || false,
+      notes: initialData?.notes || '',
     };
-  }, []);
+  });
 
-  // Atualizar data quando mudar initialDate (por exemplo: ao selecionar no calendário)
-  useEffect(() => {
-    if (initialDate) {
-      setDate(initialDate);
-    }
-  }, [initialDate]);
+  const [recurrenceConfig, setRecurrenceConfig] = useState<RecurrenceConfig | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Formatar hora para exibição
-  const formatTimeDisplay = (date: Date | string): string => {
-    return formatTime(date);
-  };
+  // Atualizar campo do formulário
+  const updateField = useCallback(
+    <K extends keyof FormData>(field: K, value: FormData[K]) => {
+      setFormData((prev) => ({ ...prev, [field]: value }));
+      if (errors[field]) {
+        setErrors((prev) => ({ ...prev, [field]: '' }));
+      }
+    },
+    [errors]
+  );
 
   // Calcular duração do plantão
   const shiftDuration = useMemo(() => {
-    const startMinutes = startTime.getHours() * 60 + startTime.getMinutes();
-    const endMinutes = endTime.getHours() * 60 + endTime.getMinutes();
-
+    const startMinutes = formData.startTime.getHours() * 60 + formData.startTime.getMinutes();
+    const endMinutes = formData.endTime.getHours() * 60 + formData.endTime.getMinutes();
     const durationMinutes =
       endMinutes >= startMinutes ? endMinutes - startMinutes : 24 * 60 - startMinutes + endMinutes;
 
     const hours = Math.floor(durationMinutes / 60);
     const minutes = durationMinutes % 60;
-
     return `${hours}h${minutes > 0 ? ` ${minutes}min` : ''}`;
-  }, [startTime, endTime]);
+  }, [formData.startTime, formData.endTime]);
 
-  // Formatação para valor monetário
-  const formatValue = (text: string) => {
+  // Formatação de valor monetário
+  const formatValue = useCallback((text: string) => {
     const numbers = text.replace(/[^\d]/g, '');
-
     if (numbers) {
       const amount = parseInt(numbers, 10) / 100;
       return amount.toLocaleString('pt-BR', {
@@ -166,113 +137,198 @@ export default function ShiftForm({
       });
     }
     return '';
-  };
+  }, []);
 
   // Validação do formulário
-  const validateForm = () => {
-    const newErrors: { [key: string]: string } = {};
+  const validateForm = useCallback((): boolean => {
+    const newErrors: Record<string, string> = {};
 
-    if (!value) {
+    if (!formData.value || formData.value === '0,00') {
       newErrors.value = 'Informe o valor do plantão';
     }
 
-    const startMinutes = startTime.getHours() * 60 + startTime.getMinutes();
-    const endMinutes = endTime.getHours() * 60 + endTime.getMinutes();
+    const startMinutes = formData.startTime.getHours() * 60 + formData.startTime.getMinutes();
+    const endMinutes = formData.endTime.getHours() * 60 + formData.endTime.getMinutes();
 
-    if (endMinutes <= startMinutes) {
-      if (endMinutes < startMinutes && startMinutes - endMinutes > 720) {
-        newErrors.endTime = 'Verifique o horário de término';
+    if (endMinutes === startMinutes) {
+      newErrors.endTime = 'Horário de término deve ser diferente do início';
+    }
+
+    if (recurrenceConfig && !shiftId) {
+      try {
+        const validation = RecurrenceCalculator.validatePattern(recurrenceConfig.pattern);
+        if (!validation.isValid) {
+          newErrors.recurrence = validation.errors.join(', ');
+        }
+      } catch {
+        newErrors.recurrence = 'Configuração de recorrência inválida';
       }
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  };
+  }, [formData.value, formData.startTime, formData.endTime, recurrenceConfig, shiftId]);
 
-  // Salvar o formulário
-  const handleSubmit = async () => {
+  // Submissão do formulário
+  const handleSubmit = useCallback(async () => {
+    if (isSubmitting) return;
+
+    console.log('[ShiftForm] Iniciando submissão...');
+
     if (!validateForm()) {
       showToast('Por favor, corrija os erros no formulário', 'error');
       return;
     }
 
-    setIsLoading(true);
+    setIsSubmitting(true);
 
     try {
-      const formattedStartTime = formatTimeDisplay(startTime);
-      const formattedEndTime = formatTimeDisplay(endTime);
-      const formattedValue = value.replace(/\./g, '').replace(',', '.');
+      const formattedStartTime = formatTime(formData.startTime);
+      const formattedEndTime = formatTime(formData.endTime);
+      const formattedValue = formData.value.replace(/\./g, '').replace(',', '.');
+      const numericValue = parseFloat(formattedValue);
+
+      if (isNaN(numericValue) || numericValue <= 0) {
+        throw new Error('Valor do plantão inválido');
+      }
+
+      const shiftData = {
+        date: format(formData.date, 'yyyy-MM-dd'),
+        startTime: formattedStartTime,
+        endTime: formattedEndTime,
+        value: numericValue,
+        paymentType: formData.paymentType,
+        isFixed: formData.isFixed,
+        notes: formData.notes || undefined,
+        locationId: formData.locationId || undefined,
+        contractorId: formData.contractorId || undefined,
+      };
 
       if (shiftId) {
-        await shiftsApi.updateShift(shiftId, {
-          date: format(date, 'yyyy-MM-dd'),
-          startTime: formattedStartTime,
-          endTime: formattedEndTime,
-          value: parseFloat(formattedValue),
-          paymentType,
-          isFixed,
-          notes: notes || undefined,
-          locationId: locationId || undefined,
-          contractorId: contractorId || undefined,
-        });
-
+        // Atualização
+        await shiftsApi.updateShift(shiftId, shiftData);
         showToast('Plantão atualizado com sucesso!', 'success');
-      } else {
-        await shiftsApi.createShift({
-          date: format(date, 'yyyy-MM-dd'),
-          startTime: formattedStartTime,
-          endTime: formattedEndTime,
-          value: parseFloat(formattedValue),
-          paymentType,
-          isFixed,
-          notes: notes || undefined,
-          locationId: locationId || undefined,
-          contractorId: contractorId || undefined,
+      } else if (recurrenceConfig) {
+        // Criação em lote
+        const dates = RecurrenceCalculator.calculateDates(recurrenceConfig);
+
+        if (dates.length === 0) {
+          throw new Error('Nenhuma data calculada para a recorrência');
+        }
+
+        if (dates.length > 100) {
+          throw new Error('Muitas datas calculadas. Limite máximo: 100 plantões');
+        }
+
+        // Confirmar criação
+        const confirmed = await new Promise<boolean>((resolve) => {
+          Alert.alert(
+            'Confirmar Criação',
+            `Serão criados ${dates.length} plantões com recorrência. Deseja continuar?`,
+            [
+              { text: 'Cancelar', style: 'cancel', onPress: () => resolve(false) },
+              { text: 'Criar Plantões', onPress: () => resolve(true) },
+            ]
+          );
         });
 
+        if (!confirmed) return;
+
+        const shiftsData = dates.map((shiftDate) => ({
+          ...shiftData,
+          date: format(shiftDate, 'yyyy-MM-dd'),
+          isFixed: true,
+        }));
+
+        const result = await shiftsApi.createShiftsBatch({
+          shifts: shiftsData,
+          skipConflicts: true,
+          continueOnError: true,
+        });
+
+        // Mostrar resultado
+        const { summary } = result;
+        let message = '';
+        let toastType: 'success' | 'warning' | 'error' = 'success';
+
+        if (summary.created > 0) {
+          message += `✅ ${summary.created} plantões criados`;
+        }
+
+        if (summary.skipped > 0) {
+          message += `${message ? '\n' : ''}⚠️ ${summary.skipped} já existiam`;
+          toastType = 'warning';
+        }
+
+        if (summary.failed > 0) {
+          message += `${message ? '\n' : ''}❌ ${summary.failed} falharam`;
+          toastType = summary.created > 0 ? 'warning' : 'error';
+        }
+
+        showToast(message || 'Processo concluído', toastType);
+      } else {
+        // Criação única
+        await shiftsApi.createShift(shiftData);
         showToast('Plantão criado com sucesso!', 'success');
       }
 
-      if (onSuccess) {
-        onSuccess();
-      }
+      onSuccess?.();
     } catch (error: any) {
-      console.error('Erro ao salvar plantão:', error);
-
-      showDialog({
-        title: 'Erro',
-        message: `Erro ao ${shiftId ? 'atualizar' : 'criar'} plantão: ${error.message || 'Erro desconhecido'}`,
-        type: 'error',
-      });
+      console.error('[ShiftForm] Erro ao salvar:', error);
+      const errorMessage = error?.response?.data?.message || error?.message || 'Erro desconhecido';
+      showToast(`Erro: ${errorMessage}`, 'error');
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
-  };
+  }, [
+    isSubmitting,
+    validateForm,
+    formData,
+    recurrenceConfig,
+    shiftId,
+    shiftsApi,
+    showToast,
+    onSuccess,
+  ]);
 
   return (
     <ScrollView
-      className="flex-1"
+      className="flex-1 bg-gray-50"
       showsVerticalScrollIndicator={false}
-      contentContainerClassName="pb-6">
-      <View className="mb-6 rounded-xl bg-background-50 p-4">
-        <Text className="mb-3 text-base font-bold text-text-dark">Data e Horário</Text>
+      contentContainerStyle={{ paddingBottom: 24 }}
+      keyboardShouldPersistTaps="handled">
+      {/* Seção: Data e Horário */}
+      <Card className="m-6 mb-4">
+        <SectionHeader
+          title="Data e Horário"
+          subtitle="Defina quando será o plantão"
+          icon="calendar-outline"
+        />
 
-        <DateField label="Data do Plantão" value={date} onChange={setDate} mode="date" required />
+        <DateField
+          label="Data do Plantão"
+          value={formData.date}
+          onChange={(date) => updateField('date', date)}
+          mode="date"
+          required
+          className="mb-4"
+        />
 
-        <View className="flex-row space-x-3">
+        <View className="mb-4 flex-row space-x-4">
           <DateField
             label="Início"
-            value={startTime}
-            onChange={setStartTime}
+            value={formData.startTime}
+            onChange={(time) => updateField('startTime', time)}
             mode="time"
             required
             className="flex-1"
+            error={errors.startTime}
           />
 
           <DateField
             label="Término"
-            value={endTime}
-            onChange={setEndTime}
+            value={formData.endTime}
+            onChange={(time) => updateField('endTime', time)}
             mode="time"
             required
             error={errors.endTime}
@@ -280,88 +336,146 @@ export default function ShiftForm({
           />
         </View>
 
-        <View className="mt-2 rounded-lg bg-primary/10 p-2">
-          <Text className="text-center text-sm font-medium text-primary">
-            Duração: {shiftDuration}
+        <View className="rounded-xl bg-blue-50 p-4">
+          <Text className="text-center text-sm font-semibold text-blue-700">
+            ⏱️ Duração: {shiftDuration}
           </Text>
         </View>
-      </View>
+      </Card>
 
-      <View className="mb-6 rounded-xl bg-background-50 p-4">
-        <Text className="mb-3 text-base font-bold text-text-dark">Local e Contratante</Text>
+      {/* Seção: Recorrência (apenas para novos plantões) */}
+      {!shiftId && (
+        <View className="mx-6 mb-4">
+          <RecurrenceSelector startDate={formData.date} onRecurrenceChange={setRecurrenceConfig} />
+          {errors.recurrence && (
+            <Text className="mt-2 text-sm text-red-500">{errors.recurrence}</Text>
+          )}
+        </View>
+      )}
+
+      {/* Seção: Local e Contratante */}
+      <Card className="mx-6 mb-4">
+        <SectionHeader
+          title="Local e Contratante"
+          subtitle="Onde e para quem será o plantão"
+          icon="location-outline"
+        />
 
         <SelectField
           label="Local"
-          value={locationId}
-          onValueChange={setLocationId}
+          value={formData.locationId}
+          onValueChange={(value) => updateField('locationId', value)}
           options={locationOptions}
           placeholder="Selecione o local (opcional)"
           error={errors.locationId}
           isLoading={isLoadingLocations}
+          className="mb-4"
         />
 
         <ContractorsSelector
-          selectedContractorId={contractorId}
-          onContractorSelect={setContractorId}
+          selectedContractorId={formData.contractorId}
+          onContractorSelect={(id) => updateField('contractorId', id)}
           required={false}
-          title="Contratante"
+          title="Contratante (opcional)"
         />
-      </View>
+      </Card>
 
-      <View className="mb-6 rounded-xl bg-background-50 p-4">
-        <Text className="mb-3 text-base font-bold text-text-dark">Pagamento</Text>
+      {/* Seção: Pagamento */}
+      <Card className="mx-6 mb-4">
+        <SectionHeader
+          title="Pagamento"
+          subtitle="Valor e tipo de remuneração"
+          icon="card-outline"
+        />
 
         <Input
           label="Valor do Plantão"
-          value={value}
-          onChangeText={(text) => setValue(formatValue(text))}
+          value={formData.value}
+          onChangeText={(text) => updateField('value', formatValue(text))}
           placeholder="0,00"
           keyboardType="numeric"
           leftIcon="cash-outline"
           required
           error={errors.value}
-          helperText="Valor bruto do plantão"
+          helperText="Valor bruto do plantão em reais"
+          className="mb-4"
         />
 
         <SelectField
           label="Tipo de Pagamento"
-          value={paymentType}
-          onValueChange={setPaymentType}
+          value={formData.paymentType}
+          onValueChange={(value) => updateField('paymentType', value)}
           options={PAYMENT_TYPE_OPTIONS}
           required
+          className="mb-4"
         />
 
-        <SwitchField
-          label="Plantão Fixo"
-          value={isFixed}
-          onValueChange={setIsFixed}
-          helperText="Ative para plantões que se repetem regularmente"
-        />
-      </View>
+        {!recurrenceConfig && (
+          <SwitchField
+            label="Plantão Fixo"
+            value={formData.isFixed}
+            onValueChange={(value) => updateField('isFixed', value)}
+            helperText="Plantão que se repete regularmente"
+          />
+        )}
+      </Card>
 
-      <View className="mb-6 rounded-xl bg-background-50 p-4">
-        <Text className="mb-3 text-base font-bold text-text-dark">Observações</Text>
+      {/* Seção: Observações */}
+      <Card className="mx-6 mb-4">
+        <SectionHeader
+          title="Observações"
+          subtitle="Informações adicionais (opcional)"
+          icon="document-text-outline"
+        />
 
         <Input
           label="Observações Adicionais"
-          value={notes}
-          onChangeText={setNotes}
-          placeholder="Observações adicionais (opcional)"
+          value={formData.notes}
+          onChangeText={(text) => updateField('notes', text)}
+          placeholder="Observações sobre este plantão (opcional)"
           multiline
-          numberOfLines={4}
+          numberOfLines={3}
           autoCapitalize="sentences"
+          textAlignVertical="top"
         />
-      </View>
+      </Card>
 
-      <View className="mt-4 flex-row space-x-3">
+      {/* Botões de Ação */}
+      <View className="mx-6 mt-4 space-y-3">
+        <Button
+          variant="primary"
+          onPress={handleSubmit}
+          loading={isSubmitting}
+          disabled={isSubmitting}
+          className="h-14 rounded-xl shadow-lg">
+          <View className="flex-row items-center justify-center">
+            {isSubmitting && <ActivityIndicator size="small" color="#ffffff" className="mr-2" />}
+            <Text className="text-base font-bold text-white">
+              {isSubmitting
+                ? 'Salvando...'
+                : shiftId
+                  ? 'Atualizar Plantão'
+                  : recurrenceConfig
+                    ? 'Criar Plantões'
+                    : 'Salvar Plantão'}
+            </Text>
+          </View>
+        </Button>
+
         {onCancel && (
-          <Button variant="outline" onPress={onCancel} disabled={isLoading} className="flex-1">
-            Cancelar
+          <Button
+            variant="outline"
+            onPress={onCancel}
+            disabled={isSubmitting}
+            className="h-12 rounded-xl border-2">
+            <Text
+              className={`text-base font-semibold ${
+                isSubmitting ? 'text-gray-400' : 'text-gray-600'
+              }`}>
+              Cancelar
+            </Text>
           </Button>
         )}
-        <Button variant="primary" onPress={handleSubmit} loading={isLoading} className="flex-1">
-          {shiftId ? 'Atualizar' : 'Salvar'}
-        </Button>
       </View>
     </ScrollView>
   );

@@ -13,10 +13,11 @@ import {
   ForbiddenException,
   Req,
 } from '@nestjs/common';
-import { ShiftsService } from './shifts.service';
+import { ShiftsService, BatchCreateResult } from './shifts.service';
 import { CreateShiftDto } from './dto/create-shift.dto';
 import { UpdateShiftDto } from './dto/update-shift.dto';
 import { GetShiftsFilterDto } from './dto/get-shifts-filter.dto';
+import { CreateShiftsBatchDto } from './dto/create-shifts-batch.dto';
 import { ClerkAuthGuard } from '../auth/guards/clerk-auth.guard';
 import { Request } from 'express';
 import { Plantao } from '@prisma/client';
@@ -41,6 +42,7 @@ export class ShiftsController {
     this.logger.log(`Buscando plantões para usuário com Clerk ID: ${clerkId}`);
     return this.shiftsService.findAllByUserId(clerkId, filterDto);
   }
+
   @Get(':id')
   async findOne(
     @Param('id') id: string,
@@ -69,6 +71,18 @@ export class ShiftsController {
     const clerkId = req.userContext.sub;
     this.logger.log(`Criando plantão para usuário com Clerk ID: ${clerkId}`);
     return this.shiftsService.create(clerkId, createShiftDto);
+  }
+
+  @Post('batch')
+  async createBatch(
+    @Body() createShiftsBatchDto: CreateShiftsBatchDto,
+    @Req() req: RequestWithUserContext,
+  ): Promise<BatchCreateResult> {
+    const clerkId = req.userContext.sub;
+    this.logger.log(
+      `Criando ${createShiftsBatchDto.shifts.length} plantões em lote para usuário com Clerk ID: ${clerkId}`,
+    );
+    return this.shiftsService.createBatch(clerkId, createShiftsBatchDto);
   }
 
   @Put(':id')
