@@ -18,7 +18,7 @@ import { ptBR } from 'date-fns/locale';
 import CalendarComponent from '@/components/CalendarComponent';
 import { useProfile } from '@/hooks/useProfile';
 import ShiftFormModal from '@/components/shifts/ShiftFormModal';
-import { Button, useToast } from '@/components';
+import { Button, useNotification } from '@/components';
 import { useShiftsApi, Shift } from '@/services/shifts-api';
 import { formatDate, formatTime, formatCurrency } from '@/utils/formatters';
 import { useAuth } from '@clerk/clerk-react';
@@ -37,7 +37,7 @@ export default function ShiftsScreen() {
 
   const { profile, isLoading: isProfileLoading } = useProfile();
   const { showDialog } = useDialog();
-  const { showToast } = useToast();
+  const { showError, showSuccess } = useNotification();
   const router = useRouter();
   const shiftsApi = useShiftsApi();
 
@@ -97,12 +97,12 @@ export default function ShiftsScreen() {
         prevMonthRef.current = monthKey;
       } catch (error: any) {
         console.error('Erro ao carregar plantões:', error);
-        showToast(`Erro ao carregar plantões: ${error.message}`, 'error');
+        showError(`Erro ao carregar plantões: ${error.message}`);
       } finally {
         setIsLoading(false);
       }
     },
-    [showToast, shiftsApi, currentMonth, isLoading, shifts.length, isProfileLoading]
+    [showError, shiftsApi, currentMonth, isLoading, shifts.length, isProfileLoading]
   );
 
   useEffect(() => {
@@ -183,13 +183,13 @@ export default function ShiftsScreen() {
     setIsRefreshing(true);
     try {
       await loadShifts(true);
-      showToast('Dados atualizados com sucesso!', 'success');
+      showSuccess('Dados atualizados com sucesso!');
     } catch (error) {
       console.error('Erro ao atualizar plantões:', error);
     } finally {
       setIsRefreshing(false);
     }
-  }, [loadShifts, showToast]);
+  }, [loadShifts, showSuccess]);
 
   const navigateToAddShift = useCallback(() => {
     console.log('Abrindo modal para adicionar plantão sem data específica');
@@ -206,7 +206,7 @@ export default function ShiftsScreen() {
   const navigateToShiftDetails = useCallback(
     (shift: Shift) => {
       if (!shift || !shift.id) {
-        showToast('Informações do plantão incompletas', 'error');
+        showError('Informações do plantão incompletas');
         return;
       }
 
@@ -216,10 +216,10 @@ export default function ShiftsScreen() {
         });
       } catch (error) {
         console.error('Erro ao navegar para detalhes do plantão:', error);
-        showToast('Erro ao abrir detalhes do plantão', 'error');
+        showError('Erro ao abrir detalhes do plantão');
       }
     },
-    [router, showToast]
+    [router, showError]
   );
 
   const handleSelectDate = useCallback((date: Date) => {
@@ -242,11 +242,11 @@ export default function ShiftsScreen() {
 
   const handleAddSuccess = useCallback(() => {
     console.log('Plantão adicionado com sucesso, fechando modal');
-    showToast('Plantão adicionado com sucesso!', 'success');
+    showSuccess('Plantão adicionado com sucesso!');
     setIsAddModalVisible(false);
 
     loadShifts(true);
-  }, [showToast, loadShifts]);
+  }, [showSuccess, loadShifts]);
 
   const handleCloseModal = useCallback(() => {
     console.log('Fechando modal');

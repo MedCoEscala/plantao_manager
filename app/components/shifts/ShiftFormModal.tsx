@@ -48,24 +48,29 @@ const ShiftFormModal: React.FC<ShiftFormModalProps> = ({
       animationType="slide"
       presentationStyle="pageSheet"
       onRequestClose={handleCancel}>
-      <StatusBar barStyle="dark-content" backgroundColor="#f9fafb" />
+      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
 
-      <View className="flex-1 bg-gray-50">
-        {/* Header */}
-        <View className="flex-row items-center justify-between border-b border-gray-200 bg-white px-6 py-4">
-          <View className="flex-1">
-            <Text className="text-xl font-bold text-gray-900">{getModalTitle()}</Text>
-            <Text className="mt-1 text-sm text-gray-600">
-              Preencha os dados para criar o plantão
-            </Text>
+      <View className="flex-1 bg-background">
+        {/* Header moderno */}
+        <View className="border-b border-background-200 bg-white pb-4 pt-12 shadow-sm">
+          <View className="flex-row items-center justify-between px-6">
+            <View className="flex-1 pr-4">
+              <Text className="mb-1 text-xl font-bold text-text-dark">{getModalTitle()}</Text>
+              <Text className="text-sm leading-5 text-text-light">
+                Preencha os dados para criar seu plantão
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              onPress={handleCancel}
+              disabled={isProcessing}
+              className={`h-10 w-10 items-center justify-center rounded-xl ${
+                isProcessing ? 'bg-background-200' : 'bg-background-100'
+              }`}
+              activeOpacity={0.7}>
+              <Ionicons name="close" size={20} color={isProcessing ? '#94a3b8' : '#64748b'} />
+            </TouchableOpacity>
           </View>
-
-          <TouchableOpacity
-            onPress={handleCancel}
-            disabled={isProcessing}
-            className="h-10 w-10 items-center justify-center rounded-full bg-gray-100">
-            <Ionicons name="close" size={20} color={isProcessing ? '#9ca3af' : '#6b7280'} />
-          </TouchableOpacity>
         </View>
 
         {/* Content */}

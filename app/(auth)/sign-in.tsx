@@ -18,7 +18,7 @@ import { useSignIn, useAuth } from '@clerk/clerk-expo';
 // Se der erro, precisaremos ajustar ou usar componentes padrão
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
-import { useToast } from '@/components/ui/Toast';
+import { useNotification } from '@/components';
 import apiClient from '@/lib/axios'; // Importar apiClient
 
 export default function LoginScreen() {
@@ -30,20 +30,20 @@ export default function LoginScreen() {
   const { getToken } = useAuth(); // Obter getToken de useAuth
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
-  const { showToast } = useToast(); // Assumindo que useToast está configurado no layout
+  const { showError, showSuccess } = useNotification();
 
   const validateForm = () => {
     if (!email.trim()) {
-      showToast('Por favor, informe seu email', 'error');
+      showError('Por favor, informe seu email');
       return false;
     }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email.trim())) {
-      showToast('Por favor, informe um email válido', 'error');
+      showError('Por favor, informe um email válido');
       return false;
     }
     if (!password.trim()) {
-      showToast('Por favor, informe sua senha', 'error');
+      showError('Por favor, informe sua senha');
       return false;
     }
     return true;
@@ -89,11 +89,11 @@ export default function LoginScreen() {
           console.error('❌ Erro ao sincronizar usuário:', syncError);
           // Decidir como lidar com erro de sincronização (ex: mostrar toast, mas continuar?)
           // Por ora, vamos mostrar um erro mas permitir o redirecionamento
-          showToast('Erro ao sincronizar seus dados. Tente novamente mais tarde.', 'error');
+          showError('Erro ao sincronizar seus dados. Tente novamente mais tarde.');
         }
 
         // 5. Redirecionar se tudo correu bem (ou se erro de sync for ignorado)
-        showToast('Login realizado com sucesso!', 'success');
+        showSuccess('Login realizado com sucesso!');
         router.replace('/(root)/profile'); // Redireciona para o perfil após login
       } else {
         // Status inesperado (ex: 'needs_second_factor')
@@ -101,7 +101,7 @@ export default function LoginScreen() {
           'Status inesperado do Clerk Sign In:',
           JSON.stringify(signInAttempt, null, 2)
         );
-        showToast('Status de login inesperado.', 'error');
+        showError('Status de login inesperado.');
       }
     } catch (err: any) {
       // Erro durante a tentativa de login ou obtenção de token
@@ -112,7 +112,7 @@ export default function LoginScreen() {
         firstError?.message ||
         err.message || // Capturar erro de getToken
         'Email ou senha inválidos.';
-      showToast(errorMessage, 'error');
+      showError(errorMessage);
     } finally {
       setIsLoading(false);
     }

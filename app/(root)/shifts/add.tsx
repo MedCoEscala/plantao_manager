@@ -2,15 +2,15 @@ import React from 'react';
 import { View, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Stack } from 'expo-router';
-import { useToast } from '@/components/ui/Toast';
+import { useNotification } from '@/components';
 import ShiftForm from '@/components/shifts/ShiftForm';
 
 export default function AddShiftScreen() {
   const router = useRouter();
-  const { showToast } = useToast();
+  const { showSuccess } = useNotification();
 
   const handleSuccess = () => {
-    showToast('Plantão adicionado com sucesso!', 'success');
+    showSuccess('Plantão adicionado com sucesso!');
     router.back();
   };
 

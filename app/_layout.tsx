@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { ClerkProvider, useAuth } from '@clerk/clerk-expo';
 import * as SecureStore from 'expo-secure-store';
 import { DialogProvider } from '@/contexts/DialogContext';
-import { ToastProvider } from '@/components/ui/Toast';
+import { NotificationProvider } from '@/contexts/NotificationContext';
 import './styles/global.css';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Platform, LogBox } from 'react-native';
@@ -105,14 +105,14 @@ function RootLayoutNav() {
 
   console.log('[_layout.tsx Render] Auth/App ready, rendering main Stack.');
   return (
-    <ToastProvider>
+    <NotificationProvider>
       <DialogProvider>
         <Stack>
           <Stack.Screen name="(root)" options={{ headerShown: false }} />
           <Stack.Screen name="(auth)" options={{ presentation: 'modal', headerShown: false }} />
         </Stack>
       </DialogProvider>
-    </ToastProvider>
+    </NotificationProvider>
   );
 }
 

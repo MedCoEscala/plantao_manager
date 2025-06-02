@@ -23,7 +23,7 @@ export const Button: React.FC<ButtonProps> = ({
 }) => {
   // Função para gerar as classes CSS com base nas props
   const getButtonClasses = () => {
-    let classes = 'rounded-lg items-center justify-center ';
+    let classes = 'rounded-xl items-center justify-center ';
 
     // Variantes
     switch (variant) {

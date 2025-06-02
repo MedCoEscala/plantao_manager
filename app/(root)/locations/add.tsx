@@ -5,14 +5,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import LocationForm from '@/components/locations/LocationForm';
-import { useToast } from '@/components/ui/Toast';
+import { useNotification } from '@/components';
 
 export default function AddLocationScreen() {
   const router = useRouter();
-  const { showToast } = useToast();
+  const { showSuccess } = useNotification();
 
   const handleSuccess = () => {
-    showToast('Local adicionado com sucesso!', 'success');
+    showSuccess('Local adicionado com sucesso!');
     router.back();
   };
 

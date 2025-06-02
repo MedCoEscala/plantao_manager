@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useToast } from '@/components/ui/Toast';
+import { useNotification } from '@/components';
 import { useAuth, useUser } from '@clerk/clerk-expo';
 import { useAuthenticatedFetch } from '@/utils/api-client';
 
@@ -7,7 +7,7 @@ export const useUserSync = () => {
   const { isLoaded: isAuthLoaded, userId } = useAuth();
   const { user, isLoaded: isUserLoaded } = useUser();
   const { fetchAuth } = useAuthenticatedFetch();
-  const { showToast } = useToast();
+  const { showError, showSuccess } = useNotification();
   const [isSyncing, setIsSyncing] = useState(false);
   const [isFirstSync, setIsFirstSync] = useState(true);
 
@@ -20,14 +20,14 @@ export const useUserSync = () => {
       console.log('Sincronização concluída:', result);
 
       if (isFirstSync) {
-        showToast('Perfil sincronizado com sucesso', 'success');
+        showSuccess('Perfil sincronizado com sucesso');
         setIsFirstSync(false);
       }
 
       return result;
     } catch (error) {
       console.error('Erro ao sincronizar usuário:', error);
-      showToast('Falha ao sincronizar perfil', 'error');
+      showError('Falha ao sincronizar perfil');
     } finally {
       setIsSyncing(false);
     }

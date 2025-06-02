@@ -1,5 +1,14 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Modal } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ScrollView,
+  Modal,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { format, addMonths, getDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -243,179 +252,228 @@ export default function RecurrenceSelector({
         animationType="slide"
         presentationStyle="pageSheet"
         onRequestClose={() => setShowModal(false)}>
-        <View className="flex-1 bg-gray-50">
-          {/* Header */}
-          <View className="flex-row items-center justify-between border-b border-gray-200 bg-white p-6">
-            <Text className="text-xl font-bold text-gray-900">Configurar Recorrência</Text>
-            <TouchableOpacity
-              onPress={() => setShowModal(false)}
-              className="h-8 w-8 items-center justify-center rounded-full bg-gray-100">
-              <Ionicons name="close" size={20} color="#6b7280" />
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView className="flex-1 p-6">
-            {/* Data Final */}
-            <Card className="mb-6">
-              <DateField
-                label="Repetir até"
-                value={endDate}
-                onChange={setEndDate}
-                mode="date"
-                minDate={startDate}
-                required
-              />
-            </Card>
-
-            {/* Configurações Específicas */}
-            {selectedType === 'weekly' && (
-              <Card>
-                <SectionHeader title="Dias da Semana" />
-                <View className="flex-row flex-wrap gap-2">
-                  {WEEKDAYS.map((day) => (
-                    <TouchableOpacity
-                      key={day.value}
-                      onPress={() => toggleWeekday(day.value)}
-                      className={cn(
-                        'rounded-xl border-2 px-4 py-3',
-                        weekdays.includes(day.value)
-                          ? 'border-primary bg-primary text-white'
-                          : 'border-gray-200 bg-white'
-                      )}>
-                      <Text
-                        className={cn(
-                          'text-sm font-medium',
-                          weekdays.includes(day.value) ? 'text-white' : 'text-gray-700'
-                        )}>
-                        {day.short}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+        <SafeAreaView className="flex-1 bg-background" edges={['top']}>
+          <KeyboardAvoidingView
+            className="flex-1"
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+            {/* Header */}
+            <View className="border-b border-gray-200 bg-white pb-4">
+              <View className="flex-row items-center justify-between px-6 pt-4">
+                <View className="flex-1">
+                  <Text className="text-xl font-bold text-text-dark">Configurar Recorrência</Text>
+                  <Text className="mt-1 text-sm text-text-light">
+                    {RECURRENCE_OPTIONS.find((opt) => opt.type === selectedType)?.title}
+                  </Text>
                 </View>
-              </Card>
-            )}
+                <TouchableOpacity
+                  onPress={() => setShowModal(false)}
+                  className="h-10 w-10 items-center justify-center rounded-xl bg-background-100"
+                  activeOpacity={0.7}>
+                  <Ionicons name="close" size={20} color="#64748b" />
+                </TouchableOpacity>
+              </View>
+            </View>
 
-            {selectedType === 'monthly-weekday' && (
-              <View className="space-y-6">
-                <Card>
-                  <SectionHeader title="Qual semana do mês?" />
-                  <View className="flex-row flex-wrap gap-2">
-                    {WEEK_NUMBERS.map((week) => (
+            {/* Content */}
+            <ScrollView
+              className="flex-1"
+              contentContainerStyle={{
+                paddingHorizontal: 20,
+                paddingVertical: 20,
+                paddingBottom: 40,
+              }}
+              showsVerticalScrollIndicator={false}>
+              {/* Data Final */}
+              <Card className="mb-6 rounded-2xl p-5">
+                <Text className="mb-4 text-lg font-semibold text-text-dark">Data Final</Text>
+                <DateField
+                  label="Repetir até"
+                  value={endDate}
+                  onChange={setEndDate}
+                  mode="date"
+                  minDate={startDate}
+                  required
+                />
+              </Card>
+
+              {/* Configurações por Tipo */}
+              {selectedType === 'weekly' && (
+                <Card className="mb-6 rounded-2xl p-5">
+                  <Text className="mb-4 text-lg font-semibold text-text-dark">Dias da Semana</Text>
+                  <Text className="mb-4 text-sm text-text-light">
+                    Selecione os dias que o plantão irá se repetir
+                  </Text>
+                  <View className="flex-row flex-wrap gap-3">
+                    {WEEKDAYS.map((day) => (
                       <TouchableOpacity
-                        key={week.value}
-                        onPress={() => toggleWeekNumber(week.value)}
+                        key={day.value}
+                        onPress={() => toggleWeekday(day.value)}
                         className={cn(
-                          'rounded-xl border-2 px-4 py-3',
-                          weekNumbers.includes(week.value)
+                          'min-w-[90px] flex-1 items-center rounded-xl border-2 px-4 py-3',
+                          weekdays.includes(day.value)
                             ? 'border-primary bg-primary'
-                            : 'border-gray-200 bg-white'
-                        )}>
+                            : 'border-gray-300 bg-white'
+                        )}
+                        activeOpacity={0.7}>
                         <Text
                           className={cn(
                             'text-sm font-medium',
-                            weekNumbers.includes(week.value) ? 'text-white' : 'text-gray-700'
+                            weekdays.includes(day.value) ? 'text-white' : 'text-text-dark'
                           )}>
-                          {week.label}
+                          {day.short}
                         </Text>
                       </TouchableOpacity>
                     ))}
                   </View>
                 </Card>
+              )}
 
-                <Card>
-                  <SectionHeader title="Dia da semana" />
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    <View className="flex-row gap-2">
-                      {WEEKDAYS.map((day) => (
+              {selectedType === 'monthly-weekday' && (
+                <>
+                  <Card className="mb-6 rounded-2xl p-5">
+                    <Text className="mb-4 text-lg font-semibold text-text-dark">Semana do Mês</Text>
+                    <Text className="mb-4 text-sm text-text-light">
+                      Escolha em qual semana do mês
+                    </Text>
+                    <View className="flex-row flex-wrap gap-3">
+                      {WEEK_NUMBERS.map((week) => (
                         <TouchableOpacity
-                          key={day.value}
-                          onPress={() => setDayOfWeek(day.value)}
+                          key={week.value}
+                          onPress={() => toggleWeekNumber(week.value)}
                           className={cn(
-                            'rounded-xl border-2 px-4 py-3',
-                            dayOfWeek === day.value
+                            'min-w-[120px] flex-1 items-center rounded-xl border-2 px-4 py-3',
+                            weekNumbers.includes(week.value)
                               ? 'border-primary bg-primary'
-                              : 'border-gray-200 bg-white'
-                          )}>
+                              : 'border-gray-300 bg-white'
+                          )}
+                          activeOpacity={0.7}>
                           <Text
                             className={cn(
-                              'text-sm font-medium',
-                              dayOfWeek === day.value ? 'text-white' : 'text-gray-700'
+                              'text-center text-sm font-medium',
+                              weekNumbers.includes(week.value) ? 'text-white' : 'text-text-dark'
                             )}>
-                            {day.label}
+                            {week.label}
                           </Text>
                         </TouchableOpacity>
                       ))}
                     </View>
+                  </Card>
+
+                  <Card className="mb-6 rounded-2xl p-5">
+                    <Text className="mb-4 text-lg font-semibold text-text-dark">Dia da Semana</Text>
+                    <Text className="mb-4 text-sm text-text-light">Escolha o dia da semana</Text>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      className="mx-[-8px]">
+                      <View className="flex-row gap-3 px-2">
+                        {WEEKDAYS.map((day) => (
+                          <TouchableOpacity
+                            key={day.value}
+                            onPress={() => setDayOfWeek(day.value)}
+                            className={cn(
+                              'min-w-[85px] items-center rounded-xl border-2 px-4 py-3',
+                              dayOfWeek === day.value
+                                ? 'border-primary bg-primary'
+                                : 'border-gray-300 bg-white'
+                            )}
+                            activeOpacity={0.7}>
+                            <Text
+                              className={cn(
+                                'text-sm font-medium',
+                                dayOfWeek === day.value ? 'text-white' : 'text-text-dark'
+                              )}>
+                              {day.short}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </ScrollView>
+                  </Card>
+                </>
+              )}
+
+              {selectedType === 'monthly-specific' && (
+                <Card className="mb-6 rounded-2xl p-5">
+                  <Text className="mb-4 text-lg font-semibold text-text-dark">Dias do Mês</Text>
+                  <Text className="mb-4 text-sm text-text-light">
+                    Selecione os dias específicos do mês
+                  </Text>
+                  <View className="flex-row flex-wrap justify-start gap-2">
+                    {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => {
+                      const dayStr = day.toString();
+                      const isSelected = monthDays.includes(dayStr);
+
+                      return (
+                        <TouchableOpacity
+                          key={day}
+                          onPress={() => toggleMonthDay(dayStr)}
+                          className={cn(
+                            'mb-1 h-12 w-12 items-center justify-center rounded-xl border-2',
+                            isSelected ? 'border-primary bg-primary' : 'border-gray-300 bg-white'
+                          )}
+                          activeOpacity={0.7}>
+                          <Text
+                            className={cn(
+                              'text-sm font-medium',
+                              isSelected ? 'text-white' : 'text-text-dark'
+                            )}>
+                            {day}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </Card>
+              )}
+
+              {/* Preview */}
+              {previewDates.length > 0 && (
+                <Card className="rounded-2xl p-5">
+                  <View className="mb-4 flex-row items-center">
+                    <View className="mr-3 h-8 w-8 items-center justify-center rounded-xl bg-primary/20">
+                      <Ionicons name="calendar-outline" size={18} color="#18cb96" />
+                    </View>
+                    <Text className="text-lg font-semibold text-text-dark">
+                      {previewDates.length} plantões serão criados
+                    </Text>
+                  </View>
+                  <ScrollView className="max-h-48" showsVerticalScrollIndicator={true}>
+                    {previewDates.slice(0, 20).map((date, index) => (
+                      <View key={index} className="mb-2 flex-row items-center">
+                        <View className="mr-3 h-2 w-2 rounded-full bg-primary" />
+                        <Text className="text-sm text-text-light">
+                          {format(date, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                        </Text>
+                      </View>
+                    ))}
+                    {previewDates.length > 20 && (
+                      <Text className="mt-2 text-sm font-medium text-primary">
+                        ... e mais {previewDates.length - 20} plantões
+                      </Text>
+                    )}
                   </ScrollView>
                 </Card>
-              </View>
-            )}
+              )}
+            </ScrollView>
 
-            {selectedType === 'monthly-specific' && (
-              <Card>
-                <SectionHeader title="Dias do Mês" subtitle="Selecione os dias específicos" />
-                <View className="flex-row flex-wrap gap-2">
-                  {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => {
-                    const dayStr = day.toString();
-                    const isSelected = monthDays.includes(dayStr);
-
-                    return (
-                      <TouchableOpacity
-                        key={day}
-                        onPress={() => toggleMonthDay(dayStr)}
-                        className={cn(
-                          'h-12 w-12 items-center justify-center rounded-xl border-2',
-                          isSelected ? 'border-primary bg-primary' : 'border-gray-200 bg-white'
-                        )}>
-                        <Text
-                          className={cn(
-                            'text-sm font-semibold',
-                            isSelected ? 'text-white' : 'text-gray-700'
-                          )}>
-                          {day}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
+            {/* Footer com padding extra para garantir que não seja cortado */}
+            <View className="border-t border-gray-200 bg-white">
+              <SafeAreaView edges={['bottom']}>
+                <View className="px-6 pb-12 pt-5">
+                  <TouchableOpacity
+                    onPress={() => setShowModal(false)}
+                    className="h-12 w-full items-center justify-center rounded-xl bg-primary"
+                    activeOpacity={0.8}>
+                    <Text className="text-base font-semibold text-white">
+                      Confirmar Configuração
+                    </Text>
+                  </TouchableOpacity>
                 </View>
-              </Card>
-            )}
-
-            {/* Preview */}
-            {previewDates.length > 0 && (
-              <Card>
-                <SectionHeader
-                  title={`${previewDates.length} plantões serão criados`}
-                  icon="calendar-number"
-                  iconColor="#18cb96"
-                />
-                <ScrollView className="max-h-32">
-                  {previewDates.slice(0, 10).map((date, index) => (
-                    <Text key={index} className="mb-1 text-sm text-gray-600">
-                      • {format(date, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
-                    </Text>
-                  ))}
-                  {previewDates.length > 10 && (
-                    <Text className="mt-2 text-sm font-medium text-gray-500">
-                      ... e mais {previewDates.length - 10} datas
-                    </Text>
-                  )}
-                </ScrollView>
-              </Card>
-            )}
-          </ScrollView>
-
-          {/* Footer */}
-          <View className="border-t border-gray-200 bg-white p-6">
-            <TouchableOpacity
-              onPress={() => setShowModal(false)}
-              className="w-full rounded-xl bg-primary py-4">
-              <Text className="text-center text-base font-semibold text-white">
-                Confirmar Configuração
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+              </SafeAreaView>
+            </View>
+          </KeyboardAvoidingView>
+        </SafeAreaView>
       </Modal>
     </>
   );

@@ -1,22 +1,33 @@
-import React, { useState, useCallback, useMemo } from 'react';
-import { View, Text, ScrollView, ActivityIndicator, Alert } from 'react-native';
-import { format, parseISO, isValid } from 'date-fns';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { parseISO, format, isValid } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
-import { useToast } from '@/components/ui/Toast';
-import DateField from '@/components/form/DateField';
-import SelectField from '@/components/form/SelectField';
-import SwitchField from '@/components/form/SwitchField';
 import Card from '@/components/ui/Card';
 import SectionHeader from '@/components/ui/SectionHeader';
-import { useShiftsApi, Shift } from '@/services/shifts-api';
+import DateField from '@/components/form/DateField';
+import Button from '@/components/ui/Button';
+import Input from '@/components/ui/Input';
+import { formatCurrency, formatDate, formatTime } from '@/utils/formatters';
+import { Ionicons } from '@expo/vector-icons';
+import { useNotification } from '@/components';
 import { useLocationsSelector } from '@/hooks/useLocationsSelector';
-import ContractorsSelector from '@/components/contractors/ContractorsSelector';
-import { formatTime } from '@/utils/formatters';
+import { useShiftsApi, CreateShiftData, UpdateShiftData, Shift } from '@/services/shifts-api';
 import { RecurrenceConfig } from '@/types/recurrence';
 import { RecurrenceCalculator } from '@/utils/recurrence';
 import RecurrenceSelector from '@/components/shifts/RecurrenceSelector';
+import SelectField from '@/components/form/SelectField';
+import SwitchField from '@/components/form/SwitchField';
+import ContractorsSelector from '@/components/contractors/ContractorsSelector';
 
 const PAYMENT_TYPE_OPTIONS = [
   { label: 'Pessoa Física (PF)', value: 'PF', icon: 'person-outline' },
@@ -52,9 +63,9 @@ export default function ShiftForm({
   onCancel,
   isModal = false,
 }: ShiftFormProps) {
-  const { showToast } = useToast();
   const shiftsApi = useShiftsApi();
   const { locationOptions, isLoading: isLoadingLocations } = useLocationsSelector();
+  const { showError, showSuccess, showInfo } = useNotification();
 
   // Estado do formulário
   const [formData, setFormData] = useState<FormData>(() => {
@@ -143,31 +154,35 @@ export default function ShiftForm({
   const validateForm = useCallback((): boolean => {
     const newErrors: Record<string, string> = {};
 
-    if (!formData.value || formData.value === '0,00') {
-      newErrors.value = 'Informe o valor do plantão';
+    if (!formData.date) {
+      newErrors.date = 'Data é obrigatória';
     }
 
-    const startMinutes = formData.startTime.getHours() * 60 + formData.startTime.getMinutes();
-    const endMinutes = formData.endTime.getHours() * 60 + formData.endTime.getMinutes();
-
-    if (endMinutes === startMinutes) {
-      newErrors.endTime = 'Horário de término deve ser diferente do início';
+    if (!formData.startTime) {
+      newErrors.startTime = 'Horário de início é obrigatório';
     }
 
-    if (recurrenceConfig && !shiftId) {
-      try {
-        const validation = RecurrenceCalculator.validatePattern(recurrenceConfig.pattern);
-        if (!validation.isValid) {
-          newErrors.recurrence = validation.errors.join(', ');
-        }
-      } catch {
-        newErrors.recurrence = 'Configuração de recorrência inválida';
+    if (!formData.locationId) {
+      newErrors.locationId = 'Local é obrigatório';
+    }
+
+    if (formData.value) {
+      const formattedValue = formData.value.replace(/\./g, '').replace(',', '.');
+      const numericValue = parseFloat(formattedValue);
+      if (isNaN(numericValue) || numericValue <= 0) {
+        newErrors.value = 'Valor deve ser maior que zero';
       }
     }
 
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  }, [formData.value, formData.startTime, formData.endTime, recurrenceConfig, shiftId]);
+
+    if (Object.keys(newErrors).length > 0) {
+      showError('Por favor, corrija os erros no formulário');
+      return false;
+    }
+
+    return true;
+  }, [formData, showError]);
 
   // Submissão do formulário
   const handleSubmit = useCallback(async () => {
@@ -176,7 +191,6 @@ export default function ShiftForm({
     console.log('[ShiftForm] Iniciando submissão...');
 
     if (!validateForm()) {
-      showToast('Por favor, corrija os erros no formulário', 'error');
       return;
     }
 
@@ -207,7 +221,7 @@ export default function ShiftForm({
       if (shiftId) {
         // Atualização
         await shiftsApi.updateShift(shiftId, shiftData);
-        showToast('Plantão atualizado com sucesso!', 'success');
+        showSuccess('Plantão atualizado com sucesso!');
       } else if (recurrenceConfig) {
         // Criação em lote
         const dates = RecurrenceCalculator.calculateDates(recurrenceConfig);
@@ -246,49 +260,45 @@ export default function ShiftForm({
           continueOnError: true,
         });
 
-        // Mostrar resultado
-        const { summary } = result;
-        let message = '';
-        let toastType: 'success' | 'warning' | 'error' = 'success';
-
-        if (summary.created > 0) {
-          message += `✅ ${summary.created} plantões criados`;
+        let message = 'Processo concluído';
+        if (result?.summary) {
+          const { created, skipped, failed } = result.summary;
+          if (created > 0) {
+            message = `${created} plantão${created > 1 ? 's' : ''} criado${created > 1 ? 's' : ''} com sucesso!`;
+          }
+          if (skipped > 0) {
+            message += ` ${skipped} data${skipped > 1 ? 's' : ''} foi${skipped > 1 ? 'ram' : ''} ignorada${skipped > 1 ? 's' : ''} (já existia${skipped > 1 ? 'm' : ''} plantão${skipped > 1 ? 's' : ''}).`;
+          }
+          if (failed > 0) {
+            message += ` ${failed} erro${failed > 1 ? 's' : ''} ocorreu${failed > 1 ? 'ram' : ''}.`;
+          }
         }
 
-        if (summary.skipped > 0) {
-          message += `${message ? '\n' : ''}⚠️ ${summary.skipped} já existiam`;
-          toastType = 'warning';
-        }
-
-        if (summary.failed > 0) {
-          message += `${message ? '\n' : ''}❌ ${summary.failed} falharam`;
-          toastType = summary.created > 0 ? 'warning' : 'error';
-        }
-
-        showToast(message || 'Processo concluído', toastType);
+        showSuccess(message);
       } else {
-        // Criação única
+        // Criação simples
         await shiftsApi.createShift(shiftData);
-        showToast('Plantão criado com sucesso!', 'success');
+        showSuccess('Plantão criado com sucesso!');
       }
 
       onSuccess?.();
     } catch (error: any) {
       console.error('[ShiftForm] Erro ao salvar:', error);
-      const errorMessage = error?.response?.data?.message || error?.message || 'Erro desconhecido';
-      showToast(`Erro: ${errorMessage}`, 'error');
+      const errorMessage = error.response?.data?.message || error.message || 'Erro desconhecido';
+      showError(`Erro: ${errorMessage}`);
     } finally {
       setIsSubmitting(false);
     }
   }, [
-    isSubmitting,
-    validateForm,
     formData,
-    recurrenceConfig,
+    validateForm,
     shiftId,
+    recurrenceConfig,
     shiftsApi,
-    showToast,
     onSuccess,
+    showSuccess,
+    showError,
+    isSubmitting,
   ]);
 
   return (
@@ -364,11 +374,10 @@ export default function ShiftForm({
         <SelectField
           label="Local"
           value={formData.locationId}
-          onValueChange={(value) => updateField('locationId', value)}
+          onValueChange={(value: string) => updateField('locationId', value)}
           options={locationOptions}
-          placeholder="Selecione o local (opcional)"
+          placeholder="Selecione o local"
           error={errors.locationId}
-          isLoading={isLoadingLocations}
           className="mb-4"
         />
 
@@ -404,20 +413,20 @@ export default function ShiftForm({
         <SelectField
           label="Tipo de Pagamento"
           value={formData.paymentType}
-          onValueChange={(value) => updateField('paymentType', value)}
+          onValueChange={(value: string) => updateField('paymentType', value)}
           options={PAYMENT_TYPE_OPTIONS}
-          required
+          placeholder="Selecione o tipo"
+          error={errors.paymentType}
           className="mb-4"
         />
 
-        {!recurrenceConfig && (
-          <SwitchField
-            label="Plantão Fixo"
-            value={formData.isFixed}
-            onValueChange={(value) => updateField('isFixed', value)}
-            helperText="Plantão que se repete regularmente"
-          />
-        )}
+        <SwitchField
+          label="Plantão Fixo"
+          value={formData.isFixed}
+          onValueChange={(value: boolean) => updateField('isFixed', value)}
+          helperText="Marque se é um plantão fixo"
+          className="mb-4"
+        />
       </Card>
 
       {/* Seção: Observações */}
@@ -441,41 +450,45 @@ export default function ShiftForm({
       </Card>
 
       {/* Botões de Ação */}
-      <View className="mx-6 mt-4 space-y-3">
-        <Button
-          variant="primary"
-          onPress={handleSubmit}
-          loading={isSubmitting}
-          disabled={isSubmitting}
-          className="h-14 rounded-xl shadow-lg">
-          <View className="flex-row items-center justify-center">
-            {isSubmitting && <ActivityIndicator size="small" color="#ffffff" className="mr-2" />}
-            <Text className="text-base font-bold text-white">
-              {isSubmitting
-                ? 'Salvando...'
-                : shiftId
+      <View className="mx-6 mb-4 mt-6">
+        <View className="flex-row gap-3">
+          {onCancel && (
+            <Button
+              variant="outline"
+              onPress={onCancel}
+              disabled={isSubmitting}
+              className="h-12 flex-1 rounded-xl border-2">
+              <Text
+                className={`text-base font-medium ${
+                  isSubmitting ? 'text-gray-400' : 'text-text-dark'
+                }`}>
+                Cancelar
+              </Text>
+            </Button>
+          )}
+
+          <Button
+            variant="primary"
+            onPress={handleSubmit}
+            loading={isSubmitting}
+            disabled={isSubmitting}
+            className={`${onCancel ? 'flex-1' : 'w-full'} h-12 rounded-xl shadow-sm`}>
+            {isSubmitting ? (
+              <View className="flex-row items-center justify-center">
+                <ActivityIndicator size="small" color="#ffffff" className="mr-2" />
+                <Text className="text-base font-medium text-white">Salvando...</Text>
+              </View>
+            ) : (
+              <Text className="text-base font-medium text-white">
+                {shiftId
                   ? 'Atualizar Plantão'
                   : recurrenceConfig
                     ? 'Criar Plantões'
                     : 'Salvar Plantão'}
-            </Text>
-          </View>
-        </Button>
-
-        {onCancel && (
-          <Button
-            variant="outline"
-            onPress={onCancel}
-            disabled={isSubmitting}
-            className="h-12 rounded-xl border-2">
-            <Text
-              className={`text-base font-semibold ${
-                isSubmitting ? 'text-gray-400' : 'text-gray-600'
-              }`}>
-              Cancelar
-            </Text>
+              </Text>
+            )}
           </Button>
-        )}
+        </View>
       </View>
     </ScrollView>
   );
