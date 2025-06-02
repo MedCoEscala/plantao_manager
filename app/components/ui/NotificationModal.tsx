@@ -46,10 +46,10 @@ const getNotificationStyles = (type: NotificationType) => {
     default:
       return {
         icon: 'information-circle' as const,
-        iconColor: '#3B82F6',
-        iconBgColor: '#EFF6FF',
-        borderColor: '#3B82F6',
-        backgroundColor: '#EFF6FF',
+        iconColor: '#18cb96',
+        iconBgColor: '#e9f9f3',
+        borderColor: '#18cb96',
+        backgroundColor: '#e9f9f3',
       };
   }
 };

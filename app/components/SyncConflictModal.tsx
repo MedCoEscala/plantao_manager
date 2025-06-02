@@ -147,7 +147,7 @@ const SyncConflictModal: React.FC<SyncConflictModalProps> = ({
         <View className="flex-row justify-between">
           <View className="mr-2 flex-1">
             <Text className="mb-1 text-xs text-gray-500">Versão Local</Text>
-            <View className="rounded-md bg-blue-50 p-2">
+            <View className="rounded-md bg-primary-50 p-2">
               <Text className="text-sm text-text-dark">{formatValue(localValue)}</Text>
             </View>
           </View>
@@ -202,7 +202,7 @@ const SyncConflictModal: React.FC<SyncConflictModalProps> = ({
           <View className="border-t border-gray-200 p-4">
             <View className="flex-row justify-between space-x-3">
               <TouchableOpacity
-                className="flex-1 rounded-md bg-blue-600 p-3"
+                className="flex-1 rounded-md bg-primary p-3"
                 onPress={() => handleResolve('local')}
                 disabled={isLoading}>
                 <Text className="text-center font-medium text-white">

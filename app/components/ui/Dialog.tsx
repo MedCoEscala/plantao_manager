@@ -1,4 +1,4 @@
-import React from "react";
+import React from 'react';
 import {
   View,
   Text,
@@ -6,10 +6,10 @@ import {
   TouchableOpacity,
   TouchableWithoutFeedback,
   StyleSheet,
-} from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
-export type DialogType = "success" | "error" | "info" | "warning" | "confirm";
+export type DialogType = 'success' | 'error' | 'info' | 'warning' | 'confirm';
 
 interface DialogProps {
   visible: boolean;
@@ -25,71 +25,66 @@ interface DialogProps {
 
 const getDialogStyles = (type: DialogType) => {
   switch (type) {
-    case "success":
+    case 'success':
       return {
-        icon: "checkmark-circle",
-        iconColor: "#10B981",
-        title: "Sucesso",
+        icon: 'checkmark-circle',
+        iconColor: '#10B981',
+        title: 'Sucesso',
       };
-    case "error":
+    case 'error':
       return {
-        icon: "close-circle",
-        iconColor: "#EF4444",
-        title: "Erro",
+        icon: 'close-circle',
+        iconColor: '#EF4444',
+        title: 'Erro',
       };
-    case "warning":
+    case 'warning':
       return {
-        icon: "warning",
-        iconColor: "#F59E0B",
-        title: "Alerta",
+        icon: 'warning',
+        iconColor: '#F59E0B',
+        title: 'Alerta',
       };
-    case "confirm":
+    case 'confirm':
       return {
-        icon: "help-circle",
-        iconColor: "#3B82F6",
-        title: "Confirmação",
+        icon: 'help-circle',
+        iconColor: '#18cb96',
+        title: 'Confirmação',
       };
-    case "info":
+    case 'info':
     default:
       return {
-        icon: "information-circle",
-        iconColor: "#3B82F6",
-        title: "Informação",
+        icon: 'information-circle',
+        iconColor: '#18cb96',
+        title: 'Informação',
       };
   }
 };
 
 const Dialog = ({
   visible,
-  type = "info",
+  type = 'info',
   title,
   message,
   onConfirm,
   onCancel,
   onClose,
-  confirmText = "Confirmar",
-  cancelText = "Cancelar",
+  confirmText = 'Confirmar',
+  cancelText = 'Cancelar',
 }: DialogProps) => {
   const styles = getDialogStyles(type);
-  const isConfirmDialog = type === "confirm";
+  const isConfirmDialog = type === 'confirm';
 
   return (
     <Modal
       visible={visible}
       transparent
       animationType="fade"
-      onRequestClose={isConfirmDialog ? onCancel || onClose : onClose}
-    >
+      onRequestClose={isConfirmDialog ? onCancel || onClose : onClose}>
       <TouchableWithoutFeedback onPress={onClose}>
         <View style={styleSheet.overlay}>
           <TouchableWithoutFeedback>
             <View style={styleSheet.dialogContainer}>
               <View style={styleSheet.header}>
-                <Ionicons
-                  name={styles.icon as any}
-                  size={24}
-                  color={styles.iconColor}
-                />
+                <Ionicons name={styles.icon as any} size={24} color={styles.iconColor} />
                 <Text style={styleSheet.title}>{title || styles.title}</Text>
               </View>
 
@@ -99,20 +94,12 @@ const Dialog = ({
                 style={[
                   styleSheet.buttonContainer,
                   {
-                    justifyContent: isConfirmDialog
-                      ? "space-between"
-                      : "flex-end",
+                    justifyContent: isConfirmDialog ? 'space-between' : 'flex-end',
                   },
-                ]}
-              >
+                ]}>
                 {isConfirmDialog && (
-                  <TouchableOpacity
-                    onPress={onCancel || onClose}
-                    style={styleSheet.cancelButton}
-                  >
-                    <Text style={styleSheet.cancelButtonText}>
-                      {cancelText}
-                    </Text>
+                  <TouchableOpacity onPress={onCancel || onClose} style={styleSheet.cancelButton}>
+                    <Text style={styleSheet.cancelButtonText}>{cancelText}</Text>
                   </TouchableOpacity>
                 )}
 
@@ -122,16 +109,11 @@ const Dialog = ({
                     styleSheet.confirmButton,
                     {
                       backgroundColor:
-                        type === "error"
-                          ? "#EF4444"
-                          : type === "warning"
-                          ? "#F59E0B"
-                          : "#3B82F6",
+                        type === 'error' ? '#EF4444' : type === 'warning' ? '#F59E0B' : '#18cb96',
                     },
-                  ]}
-                >
+                  ]}>
                   <Text style={styleSheet.confirmButtonText}>
-                    {isConfirmDialog ? confirmText : "OK"}
+                    {isConfirmDialog ? confirmText : 'OK'}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -146,16 +128,16 @@ const Dialog = ({
 const styleSheet = StyleSheet.create({
   overlay: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   dialogContainer: {
-    width: "80%",
-    backgroundColor: "white",
+    width: '80%',
+    backgroundColor: 'white',
     borderRadius: 12,
     padding: 20,
-    shadowColor: "#000",
+    shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 2,
@@ -165,33 +147,33 @@ const styleSheet = StyleSheet.create({
     elevation: 5,
   },
   header: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 16,
   },
   title: {
     fontSize: 20,
-    fontWeight: "bold",
+    fontWeight: 'bold',
     marginLeft: 8,
-    color: "#1F2937",
+    color: '#1F2937',
   },
   message: {
-    color: "#4B5563",
+    color: '#4B5563',
     marginBottom: 20,
     lineHeight: 20,
   },
   buttonContainer: {
-    flexDirection: "row",
+    flexDirection: 'row',
   },
   cancelButton: {
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 6,
-    backgroundColor: "#E5E7EB",
+    backgroundColor: '#E5E7EB',
   },
   cancelButtonText: {
-    color: "#4B5563",
-    fontWeight: "500",
+    color: '#4B5563',
+    fontWeight: '500',
   },
   confirmButton: {
     paddingVertical: 8,
@@ -199,8 +181,8 @@ const styleSheet = StyleSheet.create({
     borderRadius: 6,
   },
   confirmButtonText: {
-    color: "white",
-    fontWeight: "500",
+    color: 'white',
+    fontWeight: '500',
   },
 });
 

@@ -1,8 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, ScrollView, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
-import { useToast } from '@/components/ui/Toast';
+import Card from '@/components/ui/Card';
+import SectionHeader from '@/components/ui/SectionHeader';
+import { useNotification } from '@/components';
 import ColorField from '@/components/form/ColorField';
 import { useLocationsApi } from '@/services/locations-api';
 
@@ -33,258 +36,406 @@ interface LocationFormProps {
   onCancel?: () => void;
 }
 
+interface FormData {
+  name: string;
+  address: string;
+  phone: string;
+  selectedColor: string;
+}
+
 export default function LocationForm({
   locationId,
   initialValues = {},
   onSuccess,
   onCancel,
 }: LocationFormProps) {
-  // Estados do formulário
-  const [name, setName] = useState(initialValues.name || '');
-  const [address, setAddress] = useState(initialValues.address || '');
-  const [phone, setPhone] = useState(initialValues.phone || '');
-  const [selectedColor, setSelectedColor] = useState(initialValues.color || COLOR_PALETTE[0].color);
+  const [formData, setFormData] = useState<FormData>(() => ({
+    name: initialValues.name || '',
+    address: initialValues.address || '',
+    phone: initialValues.phone || '',
+    selectedColor: initialValues.color || COLOR_PALETTE[0].color,
+  }));
 
-  // Estados de validação e UI
-  const [errors, setErrors] = useState<{ [key: string]: string }>({});
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isLoading, setIsLoading] = useState(false);
   const [hasSubmitted, setHasSubmitted] = useState(false);
 
-  const { showToast } = useToast();
+  const { showError, showSuccess } = useNotification();
   const locationsApi = useLocationsApi();
+
+  // Atualizar dados do formulário
+  const updateField = useCallback(
+    <K extends keyof FormData>(field: K, value: FormData[K]) => {
+      setFormData((prev) => ({ ...prev, [field]: value }));
+
+      // Limpar erro do campo se existir
+      if (errors[field]) {
+        setErrors((prev) => ({ ...prev, [field]: '' }));
+      }
+    },
+    [errors]
+  );
 
   // Atualizar valores se as props mudarem
   useEffect(() => {
     if (initialValues) {
-      setName(initialValues.name || '');
-      setAddress(initialValues.address || '');
-      setPhone(initialValues.phone || '');
-      setSelectedColor(initialValues.color || COLOR_PALETTE[0].color);
+      setFormData({
+        name: initialValues.name || '',
+        address: initialValues.address || '',
+        phone: initialValues.phone || '',
+        selectedColor: initialValues.color || COLOR_PALETTE[0].color,
+      });
     }
   }, [initialValues]);
 
   // Validação do formulário
-  const validateForm = () => {
-    const newErrors: { [key: string]: string } = {};
+  const validateForm = useCallback((): boolean => {
+    const newErrors: Record<string, string> = {};
 
-    if (!name.trim()) {
+    // Validar nome (OBRIGATÓRIO)
+    if (!formData.name.trim()) {
       newErrors.name = 'Nome é obrigatório';
-    } else if (name.trim().length < 3) {
-      newErrors.name = 'Nome deve ter pelo menos 3 caracteres';
+    } else if (formData.name.trim().length < 2) {
+      newErrors.name = 'Nome deve ter pelo menos 2 caracteres';
+    } else if (formData.name.trim().length > 100) {
+      newErrors.name = 'Nome deve ter no máximo 100 caracteres';
     }
 
-    if (!selectedColor) {
-      newErrors.color = 'Cor é obrigatória';
+    // Validar cor (OBRIGATÓRIO)
+    if (!formData.selectedColor) {
+      newErrors.selectedColor = 'Cor é obrigatória';
     }
 
-    if (phone && phone.trim()) {
-      // Verifica se tem formato válido (apenas parênteses, dígitos, espaços e hífens)
-      if (!/^[()\d\s-]+$/.test(phone)) {
+    // Validar telefone (OPCIONAL - apenas se preenchido)
+    if (formData.phone && formData.phone.trim()) {
+      if (!/^[()\d\s-]+$/.test(formData.phone)) {
         newErrors.phone = 'Formato de telefone inválido';
+      } else {
+        const phoneDigits = formData.phone.replace(/\D/g, '');
+        if (phoneDigits.length < 8 || phoneDigits.length > 11) {
+          newErrors.phone = 'Telefone deve ter entre 8 e 11 dígitos';
+        }
       }
+    }
 
-      // Verifica se tem dígitos suficientes
-      const phoneDigits = phone.replace(/\D/g, '');
-      if (phoneDigits.length < 8 || phoneDigits.length > 11) {
-        newErrors.phone = 'Telefone deve ter entre 8 e 11 dígitos';
-      }
+    // Validar endereço (OPCIONAL - apenas se preenchido)
+    if (formData.address && formData.address.trim() && formData.address.trim().length > 500) {
+      newErrors.address = 'Endereço deve ter no máximo 500 caracteres';
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  };
+  }, [formData]);
 
-  // Validar quando sair do campo
-  const validateField = (field: string, value: string) => {
-    const newErrors = { ...errors };
+  // Validar campo específico
+  const validateField = useCallback(
+    (field: keyof FormData, value: string) => {
+      const newErrors = { ...errors };
 
-    if (field === 'name') {
-      if (!value.trim()) {
-        newErrors.name = 'Nome é obrigatório';
-      } else if (value.trim().length < 3) {
-        newErrors.name = 'Nome deve ter pelo menos 3 caracteres';
-      } else {
-        delete newErrors.name;
-      }
-    }
-
-    if (field === 'phone') {
-      if (value && value.trim()) {
-        // Verifica se tem formato válido (apenas parênteses, dígitos, espaços e hífens)
-        if (!/^[()\d\s-]+$/.test(value)) {
-          newErrors.phone = 'Formato de telefone inválido';
-        } else {
-          // Verifica se tem dígitos suficientes
-          const phoneDigits = value.replace(/\D/g, '');
-          if (phoneDigits.length < 8 || phoneDigits.length > 11) {
-            newErrors.phone = 'Telefone deve ter entre 8 e 11 dígitos';
+      switch (field) {
+        case 'name':
+          if (!value.trim()) {
+            newErrors.name = 'Nome é obrigatório';
+          } else if (value.trim().length < 2) {
+            newErrors.name = 'Nome deve ter pelo menos 2 caracteres';
+          } else if (value.trim().length > 100) {
+            newErrors.name = 'Nome deve ter no máximo 100 caracteres';
           } else {
+            delete newErrors.name;
+          }
+          break;
+
+        case 'phone':
+          // Apenas validar se algo foi digitado
+          if (value && value.trim()) {
+            if (!/^[()\d\s-]+$/.test(value)) {
+              newErrors.phone = 'Formato de telefone inválido';
+            } else {
+              const phoneDigits = value.replace(/\D/g, '');
+              if (phoneDigits.length < 8 || phoneDigits.length > 11) {
+                newErrors.phone = 'Telefone deve ter entre 8 e 11 dígitos';
+              } else {
+                delete newErrors.phone;
+              }
+            }
+          } else {
+            // Campo vazio é válido (opcional)
             delete newErrors.phone;
           }
-        }
-      } else {
-        delete newErrors.phone;
-      }
-    }
+          break;
 
-    setErrors(newErrors);
-  };
+        case 'address':
+          // Apenas validar se algo foi digitado
+          if (value && value.trim()) {
+            if (value.trim().length > 500) {
+              newErrors.address = 'Endereço deve ter no máximo 500 caracteres';
+            } else {
+              delete newErrors.address;
+            }
+          } else {
+            // Campo vazio é válido (opcional)
+            delete newErrors.address;
+          }
+          break;
+      }
+
+      setErrors(newErrors);
+    },
+    [errors]
+  );
 
   // Formatar telefone
-  const handlePhoneChange = (text: string) => {
-    // Remove tudo exceto dígitos
-    const cleaned = text.replace(/\D/g, '');
+  const handlePhoneChange = useCallback(
+    (text: string) => {
+      // Remove tudo exceto dígitos
+      const cleaned = text.replace(/\D/g, '');
 
-    let formatted = '';
-    if (cleaned.length <= 2) {
-      formatted = cleaned;
-    } else if (cleaned.length <= 7) {
-      formatted = `(${cleaned.slice(0, 2)}) ${cleaned.slice(2)}`;
-    } else {
-      formatted = `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 7)}-${cleaned.slice(7, 11)}`;
-    }
+      let formatted = '';
+      if (cleaned.length <= 2) {
+        formatted = cleaned;
+      } else if (cleaned.length <= 7) {
+        formatted = `(${cleaned.slice(0, 2)}) ${cleaned.slice(2)}`;
+      } else {
+        formatted = `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 7)}-${cleaned.slice(7, 11)}`;
+      }
 
-    setPhone(formatted);
+      updateField('phone', formatted);
 
-    if (hasSubmitted) {
-      validateField('phone', formatted);
-    }
-  };
+      if (hasSubmitted) {
+        validateField('phone', formatted);
+      }
+    },
+    [updateField, hasSubmitted, validateField]
+  );
 
-  // Atualizar nome com validação
-  const handleNameChange = (text: string) => {
-    setName(text);
+  // Manipular mudança de nome
+  const handleNameChange = useCallback(
+    (text: string) => {
+      updateField('name', text);
 
-    if (hasSubmitted) {
-      validateField('name', text);
-    }
-  };
+      if (hasSubmitted) {
+        validateField('name', text);
+      }
+    },
+    [updateField, hasSubmitted, validateField]
+  );
+
+  // Manipular mudança de endereço
+  const handleAddressChange = useCallback(
+    (text: string) => {
+      updateField('address', text);
+
+      if (hasSubmitted) {
+        validateField('address', text);
+      }
+    },
+    [updateField, hasSubmitted, validateField]
+  );
 
   // Salvar formulário
-  const handleSubmit = async () => {
+  const handleSubmit = useCallback(async () => {
     setHasSubmitted(true);
 
     if (!validateForm()) {
-      showToast('Por favor, corrija os erros no formulário', 'error');
+      showError('Por favor, corrija os erros no formulário');
       return;
     }
 
     setIsLoading(true);
 
     try {
-      // Converter telefone para número removendo todos os caracteres não numéricos
-      let phoneValue = undefined;
-      if (phone && phone.trim()) {
-        const phoneDigits = phone.replace(/\D/g, '');
-        if (phoneDigits) {
-          phoneValue = Number(phoneDigits);
+      // Preparar dados base obrigatórios
+      const locationData: any = {
+        name: formData.name.trim(),
+        color: formData.selectedColor,
+      };
+
+      // Adicionar campos opcionais apenas se preenchidos
+      if (formData.address && formData.address.trim()) {
+        locationData.address = formData.address.trim();
+      }
+
+      if (formData.phone && formData.phone.trim()) {
+        const phoneDigits = formData.phone.replace(/\D/g, '');
+        if (phoneDigits && phoneDigits.length >= 8) {
+          locationData.phone = Number(phoneDigits);
         }
       }
 
-      // Dados para enviar para API
-      const formData = {
-        name: name.trim(),
-        address: address.trim() || undefined,
-        phone: phoneValue,
-        color: selectedColor,
-      };
-
-      console.log(`[LocationForm] ${locationId ? 'Atualizando' : 'Criando'} local:`, formData);
+      console.log(`[LocationForm] ${locationId ? 'Atualizando' : 'Criando'} local:`, locationData);
 
       if (locationId) {
-        // Atualizar local existente
-        await locationsApi.updateLocation(locationId, formData);
-        showToast('Local atualizado com sucesso!', 'success');
+        await locationsApi.updateLocation(locationId, locationData);
+        showSuccess('Local atualizado com sucesso!');
       } else {
-        // Criar novo local
-        await locationsApi.createLocation(formData);
-        showToast('Local adicionado com sucesso!', 'success');
+        await locationsApi.createLocation(locationData);
+        showSuccess('Local criado com sucesso!');
       }
 
-      if (onSuccess) {
-        onSuccess();
-      }
+      onSuccess?.();
     } catch (error: any) {
       console.error('Erro ao salvar local:', error);
-      showToast(`Erro ao salvar local: ${error.message || 'Erro desconhecido'}`, 'error');
+      const errorMessage = error.response?.data?.message || error.message || 'Erro desconhecido';
+      showError(`Erro ao salvar local: ${errorMessage}`);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [formData, validateForm, locationId, locationsApi, showSuccess, showError, onSuccess]);
 
-  // Componente de visualização do local (preview)
-  const LocationPreview = () => (
-    <View
-      className="mb-6 w-full items-center justify-center rounded-xl p-6"
-      style={{ backgroundColor: selectedColor }}>
-      <Text className="mb-1 text-lg font-bold text-white">{name || 'Nome do Local'}</Text>
-      <Text className="text-center text-white opacity-90">
-        {address || 'Endereço do local (opcional)'}
-      </Text>
-    </View>
+  // Componente de pré-visualização
+  const LocationPreview = useCallback(
+    () => (
+      <View
+        className="w-full items-center justify-center rounded-2xl p-8 shadow-sm"
+        style={{ backgroundColor: formData.selectedColor }}>
+        <View className="items-center">
+          <Text className="text-center text-xl font-bold text-white">
+            {formData.name.trim() || 'Nome do Local'}
+          </Text>
+          {formData.address.trim() && (
+            <Text className="mt-2 text-center text-sm leading-5 text-white/90">
+              {formData.address.trim()}
+            </Text>
+          )}
+          {formData.phone.trim() && (
+            <Text className="mt-1 text-center text-xs text-white/80">📞 {formData.phone}</Text>
+          )}
+        </View>
+      </View>
+    ),
+    [formData]
   );
 
   return (
-    <View className="space-y-4">
-      <LocationPreview />
+    <ScrollView
+      className="flex-1 bg-gray-50"
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={{ paddingBottom: 32 }}
+      keyboardShouldPersistTaps="handled">
+      {/* Seção: Pré-visualização */}
+      <Card className="mx-6 mb-6 mt-6">
+        <SectionHeader
+          title="Pré-visualização"
+          subtitle="Veja como o local aparecerá nos plantões"
+          icon="eye-outline"
+        />
+        <View className="mt-4">
+          <LocationPreview />
+        </View>
+      </Card>
 
-      <Input
-        label="Nome"
-        value={name}
-        onChangeText={handleNameChange}
-        placeholder="Nome do local"
-        required
-        error={errors.name}
-        autoCapitalize="words"
-        disabled={isLoading}
-        onBlur={() => validateField('name', name)}
-      />
+      {/* Seção: Informações Básicas */}
+      <Card className="mx-6 mb-6">
+        <SectionHeader
+          title="Informações do Local"
+          subtitle="Dados principais para identificação"
+          icon="location-outline"
+        />
 
-      <Input
-        label="Endereço"
-        value={address}
-        onChangeText={setAddress}
-        placeholder="Endereço completo"
-        helperText="Opcional"
-        multiline
-        numberOfLines={2}
-        autoCapitalize="sentences"
-        disabled={isLoading}
-      />
+        <View className="mt-6 space-y-6">
+          <Input
+            label="Nome do Local"
+            value={formData.name}
+            onChangeText={handleNameChange}
+            placeholder="Ex: Hospital São José, Clínica ABC..."
+            required
+            error={errors.name}
+            autoCapitalize="words"
+            disabled={isLoading}
+            onBlur={() => validateField('name', formData.name)}
+            maxLength={100}
+            leftIcon="business-outline"
+          />
 
-      <Input
-        label="Telefone"
-        value={phone}
-        onChangeText={handlePhoneChange}
-        placeholder="(00) 00000-0000"
-        keyboardType="phone-pad"
-        helperText="Opcional"
-        error={errors.phone}
-        leftIcon="call-outline"
-        disabled={isLoading}
-        onBlur={() => validateField('phone', phone)}
-      />
+          <Input
+            label="Endereço (opcional)"
+            value={formData.address}
+            onChangeText={handleAddressChange}
+            placeholder="Rua, número, bairro, cidade..."
+            helperText="Endereço completo do local"
+            multiline
+            numberOfLines={3}
+            autoCapitalize="sentences"
+            disabled={isLoading}
+            onBlur={() => validateField('address', formData.address)}
+            maxLength={500}
+            leftIcon="location-outline"
+            error={errors.address}
+          />
 
-      <ColorField
-        label="Cor"
-        value={selectedColor}
-        onValueChange={setSelectedColor}
-        options={COLOR_PALETTE}
-        required
-        error={errors.color}
-        disabled={isLoading}
-      />
+          <Input
+            label="Telefone (opcional)"
+            value={formData.phone}
+            onChangeText={handlePhoneChange}
+            placeholder="(00) 00000-0000"
+            keyboardType="phone-pad"
+            helperText="Número para contato do local"
+            error={errors.phone}
+            leftIcon="call-outline"
+            disabled={isLoading}
+            onBlur={() => validateField('phone', formData.phone)}
+          />
+        </View>
+      </Card>
 
-      <View className="mt-4 flex-row space-x-3">
-        {onCancel && (
-          <Button variant="outline" onPress={onCancel} disabled={isLoading} className="flex-1">
-            Cancelar
+      {/* Seção: Personalização */}
+      <Card className="mx-6 mb-6">
+        <SectionHeader
+          title="Personalização"
+          subtitle="Escolha uma cor para identificar este local"
+          icon="color-palette-outline"
+        />
+
+        <View className="mt-6">
+          <ColorField
+            label="Cor de Identificação"
+            value={formData.selectedColor}
+            onValueChange={(color) => updateField('selectedColor', color)}
+            options={COLOR_PALETTE}
+            required
+            error={errors.selectedColor}
+            disabled={isLoading}
+          />
+        </View>
+      </Card>
+
+      {/* Botões de Ação */}
+      <View className="mx-6 mb-6 mt-8">
+        <View className="flex-row gap-4">
+          {onCancel && (
+            <Button
+              variant="outline"
+              onPress={onCancel}
+              disabled={isLoading}
+              className="h-14 flex-1 rounded-2xl border-2">
+              <Text
+                className={`text-base font-semibold ${
+                  isLoading ? 'text-gray-400' : 'text-text-dark'
+                }`}>
+                Cancelar
+              </Text>
+            </Button>
+          )}
+
+          <Button
+            variant="primary"
+            onPress={handleSubmit}
+            loading={isLoading}
+            disabled={isLoading}
+            className={`${onCancel ? 'flex-1' : 'w-full'} h-14 rounded-2xl shadow-lg`}>
+            {isLoading ? (
+              <View className="flex-row items-center justify-center">
+                <ActivityIndicator size="small" color="#ffffff" className="mr-3" />
+                <Text className="text-base font-semibold text-white">Salvando...</Text>
+              </View>
+            ) : (
+              <Text className="text-base font-semibold text-white">
+                {locationId ? 'Atualizar Local' : 'Criar Local'}
+              </Text>
+            )}
           </Button>
-        )}
-        <Button variant="primary" onPress={handleSubmit} loading={isLoading} className="flex-1">
-          {locationId ? 'Atualizar' : 'Salvar'}
-        </Button>
+        </View>
       </View>
-    </View>
+    </ScrollView>
   );
 }

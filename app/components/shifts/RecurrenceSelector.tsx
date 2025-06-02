@@ -68,6 +68,7 @@ export default function RecurrenceSelector({
   const [selectedType, setSelectedType] = useState<RecurrenceType | 'none'>('none');
   const [endDate, setEndDate] = useState<Date>(() => addMonths(startDate, 3));
   const [showModal, setShowModal] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   // Estados de configuração
   const [weekdays, setWeekdays] = useState<number[]>([]);
@@ -148,8 +149,12 @@ export default function RecurrenceSelector({
           setMonthDays([]);
       }
 
+      // Aguardar um frame para garantir que o estado foi atualizado
       if (type !== 'none') {
-        setShowModal(true);
+        setIsInitialized(true);
+        setTimeout(() => {
+          setShowModal(true);
+        }, 100);
       }
     },
     [startDate]
@@ -248,7 +253,7 @@ export default function RecurrenceSelector({
       </Card>
 
       <Modal
-        visible={showModal}
+        visible={showModal && isInitialized}
         animationType="slide"
         presentationStyle="pageSheet"
         onRequestClose={() => setShowModal(false)}>
@@ -266,7 +271,10 @@ export default function RecurrenceSelector({
                   </Text>
                 </View>
                 <TouchableOpacity
-                  onPress={() => setShowModal(false)}
+                  onPress={() => {
+                    setShowModal(false);
+                    setIsInitialized(false);
+                  }}
                   className="h-10 w-10 items-center justify-center rounded-xl bg-background-100"
                   activeOpacity={0.7}>
                   <Ionicons name="close" size={20} color="#64748b" />
@@ -462,7 +470,10 @@ export default function RecurrenceSelector({
               <SafeAreaView edges={['bottom']}>
                 <View className="px-6 pb-12 pt-5">
                   <TouchableOpacity
-                    onPress={() => setShowModal(false)}
+                    onPress={() => {
+                      setShowModal(false);
+                      setIsInitialized(false);
+                    }}
                     className="h-12 w-full items-center justify-center rounded-xl bg-primary"
                     activeOpacity={0.8}>
                     <Text className="text-base font-semibold text-white">

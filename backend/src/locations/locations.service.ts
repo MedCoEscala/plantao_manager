@@ -119,14 +119,24 @@ export class LocationsService {
         );
       }
 
+      // Preparar dados de criação com campos opcionais
+      const locationData: any = {
+        name: createLocationDto.name,
+        color: createLocationDto.color,
+        userId: user.id,
+      };
+
+      // Adicionar campos opcionais apenas se preenchidos
+      if (createLocationDto.address) {
+        locationData.address = createLocationDto.address;
+      }
+
+      if (createLocationDto.phone) {
+        locationData.phone = createLocationDto.phone.toString();
+      }
+
       return this.prisma.location.create({
-        data: {
-          name: createLocationDto.name,
-          address: createLocationDto.address,
-          phone: createLocationDto.phone.toString(),
-          color: createLocationDto.color,
-          userId: user.id,
-        },
+        data: locationData,
       });
     } catch (error) {
       this.logger.error(`Erro ao criar local: ${error.message}`, error.stack);
@@ -151,9 +161,17 @@ export class LocationsService {
     try {
       await this.findOne(id);
 
+      // Preparar dados de atualização
+      const updateData: any = { ...updateLocationDto };
+
+      // Converter phone para string se fornecido
+      if (updateLocationDto.phone) {
+        updateData.phone = updateLocationDto.phone.toString();
+      }
+
       return this.prisma.location.update({
         where: { id },
-        data: updateLocationDto,
+        data: updateData,
       });
     } catch (error) {
       this.logger.error(

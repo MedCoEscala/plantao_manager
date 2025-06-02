@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsNumber, IsString } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsString, IsOptional } from 'class-validator';
 
 export class CreateLocationDto {
   @IsString()
@@ -6,12 +6,12 @@ export class CreateLocationDto {
   name: string;
 
   @IsString()
-  @IsNotEmpty()
-  address: string;
+  @IsOptional()
+  address?: string;
 
   @IsNumber()
-  @IsNotEmpty()
-  phone: number;
+  @IsOptional()
+  phone?: number;
 
   @IsString()
   @IsNotEmpty({ message: 'A cor é obrigatória' })
