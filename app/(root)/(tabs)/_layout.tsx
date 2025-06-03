@@ -100,6 +100,19 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="cnpj"
+        options={{
+          title: 'Meu CNPJ',
+          headerTitle: 'Meu CNPJ',
+          headerShown: false,
+          tabBarIcon: ({ color, size }) => (
+            <View className="items-center justify-center">
+              <Ionicons name="business-outline" size={size} color={color} />
+            </View>
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="profile"
         options={{
           title: 'Perfil',

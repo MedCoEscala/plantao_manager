@@ -8,6 +8,7 @@ import { ShiftsModule } from './shifts/shifts.module';
 import { ContractorsModule } from './contractors/contractors.module';
 import { LocationsModule } from './locations/location.module';
 import { PaymentsModule } from './payments/payments.module';
+import { CNPJModule } from './cnpj/cnpj.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { PaymentsModule } from './payments/payments.module';
     LocationsModule,
     ContractorsModule,
     PaymentsModule,
+    CNPJModule,
   ],
   controllers: [AppController],
   providers: [AppService],

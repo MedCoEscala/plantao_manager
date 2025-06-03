@@ -35,11 +35,9 @@ export function useContractorsSelector() {
       // Não recarregar se já temos dados recentes, a menos que force=true
       if (
         dataLoadedRef.current &&
-        contractors.length > 0 &&
         !force &&
-        now - lastLoadTimeRef.current < 300000
+        now - lastLoadTimeRef.current < 300000 // 5 minutos
       ) {
-        // 5 minutos
         console.log('[Contractors] Dados já carregados e recentes');
         return;
       }
@@ -78,7 +76,7 @@ export function useContractorsSelector() {
         isLoadingRef.current = false;
       }
     },
-    [contractorsApi, showToast, contractors.length]
+    [contractorsApi, showToast]
   );
 
   // Carregamento inicial mais controlado

@@ -36,11 +36,9 @@ export function useLocationsSelector() {
       // Não recarregar se já temos dados recentes, a menos que force=true
       if (
         dataLoadedRef.current &&
-        locations.length > 0 &&
         !force &&
-        now - lastLoadTimeRef.current < 300000
+        now - lastLoadTimeRef.current < 300000 // 5 minutos
       ) {
-        // 5 minutos
         console.log('[Locations] Dados já carregados e recentes');
         return;
       }
@@ -80,7 +78,7 @@ export function useLocationsSelector() {
         isLoadingRef.current = false;
       }
     },
-    [locationsApi, showToast, locations.length]
+    [locationsApi, showToast]
   );
 
   // Carregamento inicial mais controlado

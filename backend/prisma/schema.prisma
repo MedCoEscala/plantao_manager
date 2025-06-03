@@ -23,6 +23,7 @@ model User {
   locations   Location[]
   plantoes    Plantao[]
   contractors Contractor[]
+  cnpjData    CNPJData[]
 
   @@map("users")
 }
@@ -90,4 +91,19 @@ model Payment {
   plantao     Plantao   @relation(fields: [plantaoId], references: [id], onDelete: Cascade)
 
   @@map("payments")
+}
+
+model CNPJData {
+  id                 String   @id @default(cuid())
+  companyName        String?  @map("company_name")
+  cnpjNumber         String?  @map("cnpj_number")
+  accountingFirmName String?  @map("accounting_firm_name")
+  monthlyFee         Float?   @map("monthly_fee")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+  userId             String   @map("user_id")
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId])
+  @@map("cnpj_data")
 }
