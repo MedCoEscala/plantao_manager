@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   TextInput,
   Animated,
+  Easing,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -81,11 +82,10 @@ export default function PaymentsScreen() {
   const [selectedLocationId, setSelectedLocationId] = useState<string>('');
   const [selectedContractorId, setSelectedContractorId] = useState<string>('');
   const [showFilters, setShowFilters] = useState(false);
-  const [filterContentHeight, setFilterContentHeight] = useState(0);
 
-  // Animações
+  // Animações - Refatoração completa para melhor fluidez
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const filtersHeight = useRef(new Animated.Value(0)).current;
+  const filtersAnim = useRef(new Animated.Value(0)).current;
   const selectionBarAnim = useRef(new Animated.Value(0)).current;
 
   // Refs para controle rigoroso de carregamento
@@ -499,27 +499,32 @@ export default function PaymentsScreen() {
     [router]
   );
 
-  // Animações
+  // Animações - Sistema refatorado para maior fluidez
   useEffect(() => {
     Animated.timing(fadeAnim, {
       toValue: showSearch ? 1 : 0,
       duration: PAYMENT_ANIMATIONS.FADE_DURATION,
+      easing: Easing.out(Easing.cubic),
       useNativeDriver: false,
     }).start();
   }, [showSearch, fadeAnim]);
 
   useEffect(() => {
-    Animated.timing(filtersHeight, {
-      toValue: showFilters ? filterContentHeight : 0,
-      duration: PAYMENT_ANIMATIONS.SLIDE_DURATION,
-      useNativeDriver: false,
-    }).start();
-  }, [showFilters, filtersHeight, filterContentHeight]);
+    Animated.parallel([
+      Animated.timing(filtersAnim, {
+        toValue: showFilters ? 1 : 0,
+        duration: PAYMENT_ANIMATIONS.FILTERS_DURATION,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: false,
+      }),
+    ]).start();
+  }, [showFilters, filtersAnim]);
 
   useEffect(() => {
     Animated.timing(selectionBarAnim, {
       toValue: isSelectionMode ? 1 : 0,
       duration: PAYMENT_ANIMATIONS.SELECTION_DURATION,
+      easing: Easing.out(Easing.cubic),
       useNativeDriver: true,
     }).start();
   }, [isSelectionMode, selectionBarAnim]);
@@ -708,18 +713,33 @@ export default function PaymentsScreen() {
           </View>
         </Animated.View>
 
-        {/* Filtros */}
+        {/* Filtros - Animação completamente refatorada */}
         <Animated.View
           style={{
-            height: filtersHeight,
-            opacity: showFilters ? 1 : 0,
-            marginTop: showFilters ? 8 : 0,
+            height: filtersAnim.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0, 240], // Altura aumentada para acomodar melhor o conteúdo
+            }),
+            opacity: filtersAnim.interpolate({
+              inputRange: [0, 0.3, 1],
+              outputRange: [0, 0, 1], // Opacity começa a aparecer após 30% da animação
+            }),
+            marginTop: filtersAnim.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0, 8], // Margem animada suavemente
+            }),
             overflow: 'hidden',
           }}>
-          <View
-            onLayout={(event) => {
-              const { height } = event.nativeEvent.layout;
-              setFilterContentHeight(height + 16);
+          <Animated.View
+            style={{
+              transform: [
+                {
+                  translateY: filtersAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [-20, 0], // Efeito de slide sutil
+                  }),
+                },
+              ],
             }}>
             <TouchableOpacity
               className="mb-3 rounded-lg bg-primary/10 p-3"
@@ -765,7 +785,7 @@ export default function PaymentsScreen() {
                 placeholder={PAYMENT_MESSAGES.FILTER_BY_CONTRACTOR}
               />
             </View>
-          </View>
+          </Animated.View>
         </Animated.View>
       </View>
 
