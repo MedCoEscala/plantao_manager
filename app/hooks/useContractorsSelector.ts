@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useContractorsApi, Contractor } from '@/services/contractors-api';
+
 import { useToast } from '@/components/ui/Toast';
+import { useContractorsApi, Contractor } from '@/services/contractors-api';
 
 interface ContractorOption {
   value: string;

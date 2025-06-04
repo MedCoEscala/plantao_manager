@@ -1,8 +1,8 @@
-import React, { useEffect, useRef } from "react";
-import { View, Text, Animated, TouchableOpacity } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons } from '@expo/vector-icons';
+import React, { useEffect, useRef } from 'react';
+import { View, Text, Animated, TouchableOpacity } from 'react-native';
 
-export type ToastType = "success" | "error" | "info" | "warning";
+export type ToastType = 'success' | 'error' | 'info' | 'warning';
 
 interface ToastProps {
   visible: boolean;
@@ -24,7 +24,7 @@ export const Toast: React.FC<ToastProps> = ({
   visible,
   message,
   title,
-  type = "info",
+  type = 'info',
   duration = 3000,
   onDismiss,
 }) => {
@@ -75,46 +75,46 @@ export const Toast: React.FC<ToastProps> = ({
 
   const getIconName = () => {
     switch (type) {
-      case "success":
-        return "checkmark-circle" as const;
-      case "error":
-        return "alert-circle" as const;
-      case "warning":
-        return "warning-outline" as const;
-      case "info":
+      case 'success':
+        return 'checkmark-circle' as const;
+      case 'error':
+        return 'alert-circle' as const;
+      case 'warning':
+        return 'warning-outline' as const;
+      case 'info':
       default:
-        return "information-circle" as const;
+        return 'information-circle' as const;
     }
   };
 
   const getIconColor = (): string => {
     switch (type) {
-      case "success":
-        return "#2A9D8F";
-      case "error":
-        return "#E76F51";
-      case "warning":
-        return "#E9C46A";
-      case "info":
+      case 'success':
+        return '#2A9D8F';
+      case 'error':
+        return '#E76F51';
+      case 'warning':
+        return '#E9C46A';
+      case 'info':
       default:
-        return "#0077B6";
+        return '#0077B6';
     }
   };
 
   const getContainerClasses = (): string => {
-    let classes =
-      "absolute top-[50px] left-4 right-4 p-4 rounded-lg border flex-row items-center z-50 shadow-md ";
+    const classes =
+      'absolute top-[50px] left-4 right-4 p-4 rounded-lg border flex-row items-center z-50 shadow-md ';
 
     switch (type) {
-      case "success":
-        return classes + "bg-success/10 border-success";
-      case "error":
-        return classes + "bg-error/10 border-error";
-      case "warning":
-        return classes + "bg-warning/10 border-warning";
-      case "info":
+      case 'success':
+        return classes + 'bg-success/10 border-success';
+      case 'error':
+        return classes + 'bg-error/10 border-error';
+      case 'warning':
+        return classes + 'bg-warning/10 border-warning';
+      case 'info':
       default:
-        return classes + "bg-primary/10 border-primary";
+        return classes + 'bg-primary/10 border-primary';
     }
   };
 
@@ -126,13 +126,10 @@ export const Toast: React.FC<ToastProps> = ({
         opacity: fadeAnim,
         transform: [{ translateY }],
       }}
-      className={getContainerClasses()}
-    >
+      className={getContainerClasses()}>
       <Ionicons name={getIconName()} size={24} color={getIconColor()} />
-      <View className="flex-1 ml-3 mr-3">
-        {title && (
-          <Text className="font-bold text-text-dark mb-1">{title}</Text>
-        )}
+      <View className="ml-3 mr-3 flex-1">
+        {title && <Text className="mb-1 font-bold text-text-dark">{title}</Text>}
         <Text className="text-sm text-text-dark">{message}</Text>
       </View>
       <TouchableOpacity onPress={hideToast}>
@@ -154,20 +151,14 @@ export const createToastContext = () => {
     show: () => {},
   });
 
-  const ToastProvider: React.FC<{ children: React.ReactNode }> = ({
-    children,
-  }) => {
+  const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [visible, setVisible] = React.useState(false);
-    const [message, setMessage] = React.useState("");
+    const [message, setMessage] = React.useState('');
     const [title, setTitle] = React.useState<string | undefined>(undefined);
-    const [type, setType] = React.useState<ToastType>("info");
+    const [type, setType] = React.useState<ToastType>('info');
     const [duration, setDuration] = React.useState(3000);
 
-    const showToast = (
-      msg: string,
-      toastType: ToastType = "info",
-      toastDuration = 3000
-    ) => {
+    const showToast = (msg: string, toastType: ToastType = 'info', toastDuration = 3000) => {
       setMessage(msg);
       setTitle(undefined);
       setType(toastType);
@@ -178,7 +169,7 @@ export const createToastContext = () => {
     const show = (options: ToastOptions) => {
       setMessage(options.message);
       setTitle(options.title);
-      setType(options.type || "info");
+      setType(options.type || 'info');
       setDuration(options.duration || 3000);
       setVisible(true);
     };

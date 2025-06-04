@@ -12,13 +12,14 @@ import {
   ForbiddenException,
   Req,
 } from '@nestjs/common';
+import { Contractor } from '@prisma/client';
+import { Request } from 'express';
+
 import { ContractorsService } from './contractors.service';
 import { CreateContractorDto } from './dto/create-contractor.dto';
-import { UpdateContractorDto } from './dto/update-contractor.dto';
 import { GetContractorsFilterDto } from './dto/get-contractors-filter.dto';
+import { UpdateContractorDto } from './dto/update-contractor.dto';
 import { ClerkAuthGuard } from '../auth/guards/clerk-auth.guard';
-import { Request } from 'express';
-import { Contractor } from '@prisma/client';
 
 interface RequestWithUserContext extends Request {
   userContext: Record<string, any>;

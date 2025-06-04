@@ -1,7 +1,8 @@
-import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
+import { NestFactory } from '@nestjs/core';
 import { networkInterfaces } from 'os';
+
+import { AppModule } from './app.module';
 
 function getNetworkIP(): string {
   const nets = networkInterfaces();

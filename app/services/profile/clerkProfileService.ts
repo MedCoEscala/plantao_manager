@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+
 import { ProfileResponse, ProfileService, ProfileUpdateData } from './profileTypes';
 import { User } from '../../types/user';
 import { formatUserFromClerk } from '../auth/utils';

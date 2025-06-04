@@ -12,13 +12,14 @@ import {
   ForbiddenException,
   Req,
 } from '@nestjs/common';
-import { GetLocationsFilterDto } from './dto/get-locations-filter.dto';
-import { ClerkAuthGuard } from '../auth/guards/clerk-auth.guard';
-import { Request } from 'express';
 import { Location } from '@prisma/client';
+import { Request } from 'express';
+
 import { CreateLocationDto } from './dto/create-locations.dto';
+import { GetLocationsFilterDto } from './dto/get-locations-filter.dto';
 import { UpdateLocationDto } from './dto/update-locations.dto';
 import { LocationsService } from './locations.service';
+import { ClerkAuthGuard } from '../auth/guards/clerk-auth.guard';
 interface RequestWithUserContext extends Request {
   userContext: Record<string, any>;
 }

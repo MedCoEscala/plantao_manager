@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
-import { View, Text, Modal, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import React, { useState } from 'react';
+import { View, Text, Modal, TouchableOpacity, ScrollView } from 'react-native';
 
 interface MonthYearPickerProps {
   visible: boolean;

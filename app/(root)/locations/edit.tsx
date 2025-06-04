@@ -1,9 +1,10 @@
+import { Ionicons } from '@expo/vector-icons';
+import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import React from 'react';
 import { View } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+
 import LocationForm from '@/components/locations/LocationForm';
 import { useToast } from '@/components/ui/Toast';
 

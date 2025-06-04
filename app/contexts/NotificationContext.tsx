@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
+
 import NotificationModal from '../components/ui/NotificationModal';
 
 export type NotificationType = 'success' | 'error' | 'info' | 'warning';

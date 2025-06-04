@@ -1,3 +1,15 @@
+import Button from '@app/components/ui/Button';
+import Input from '@app/components/ui/Input';
+import { useToast } from '@app/components/ui/Toast';
+import { useDialog } from '@app/contexts/DialogContext';
+import { fetchWithAuth } from '@app/utils/api-client';
+import { useUser, useAuth } from '@clerk/clerk-expo';
+import { Ionicons } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { router } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -9,18 +21,6 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { StatusBar } from 'expo-status-bar';
-import { router } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { useUser, useAuth } from '@clerk/clerk-expo';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-import Button from '@app/components/ui/Button';
-import Input from '@app/components/ui/Input';
-import { useToast } from '@app/components/ui/Toast';
-import { useDialog } from '@app/contexts/DialogContext';
-import { fetchWithAuth } from '@app/utils/api-client';
 
 interface UserData {
   id: string;

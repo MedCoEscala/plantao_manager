@@ -1,3 +1,5 @@
+import { Ionicons } from '@expo/vector-icons';
+import { StatusBar } from 'expo-status-bar';
 import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
@@ -9,13 +11,12 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { StatusBar } from 'expo-status-bar';
-import { Ionicons } from '@expo/vector-icons';
-import { useDialog } from '@/contexts/DialogContext';
-import { useCNPJData } from '@/hooks/useCNPJData';
+
 import CNPJForm from '@/components/cnpj/CNPJForm';
 import Card from '@/components/ui/Card';
 import SectionHeader from '@/components/ui/SectionHeader';
+import { useDialog } from '@/contexts/DialogContext';
+import { useCNPJData } from '@/hooks/useCNPJData';
 
 const MEDCO_URL = 'https://medcocontabilidade.com.br/';
 

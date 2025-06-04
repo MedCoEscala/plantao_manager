@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
 import { useAuth } from '@clerk/clerk-expo';
+import { useState, useEffect } from 'react';
+
 import { useToast } from '@/components/ui/Toast';
 import apiClient from '@/lib/axios';
 

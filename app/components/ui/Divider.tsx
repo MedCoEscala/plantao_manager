@@ -1,35 +1,35 @@
-import React from "react";
-import { View, Text, ViewProps } from "react-native";
+import React from 'react';
+import { View, Text, ViewProps } from 'react-native';
 
 interface DividerProps extends ViewProps {
   label?: string;
-  orientation?: "horizontal" | "vertical";
-  variant?: "solid" | "dashed" | "dotted";
+  orientation?: 'horizontal' | 'vertical';
+  variant?: 'solid' | 'dashed' | 'dotted';
   color?: string;
 }
 
 export const Divider: React.FC<DividerProps> = ({
   label,
-  orientation = "horizontal",
-  variant = "solid",
-  color = "gray-300",
-  className = "",
+  orientation = 'horizontal',
+  variant = 'solid',
+  color = 'gray-300',
+  className = '',
   ...props
 }) => {
   // Função para gerar as classes do divider
   const getDividerClasses = () => {
-    let classes = "";
+    let classes = '';
 
     // Orientação
-    if (orientation === "horizontal") {
-      classes += "w-full ";
+    if (orientation === 'horizontal') {
+      classes += 'w-full ';
 
       // Se tiver label, ajusta para o label
       if (label) {
-        classes += "flex-row items-center ";
+        classes += 'flex-row items-center ';
       }
     } else {
-      classes += "h-full ";
+      classes += 'h-full ';
     }
 
     return classes + className;
@@ -37,31 +37,31 @@ export const Divider: React.FC<DividerProps> = ({
 
   // Função para gerar as classes da linha
   const getLineClasses = () => {
-    let classes = "bg-" + color + " ";
+    let classes = 'bg-' + color + ' ';
 
     // Orientação
-    if (orientation === "horizontal") {
+    if (orientation === 'horizontal') {
       // Se tiver label, a linha ocupa apenas parte do espaço
       if (label) {
-        classes += "flex-1 h-px ";
+        classes += 'flex-1 h-px ';
       } else {
-        classes += "h-px ";
+        classes += 'h-px ';
       }
     } else {
-      classes += "w-px ";
+      classes += 'w-px ';
     }
 
     // Estilos da borda
     switch (variant) {
-      case "dashed":
+      case 'dashed':
         // Não é possível aplicar diretamente borda tracejada no React Native via classes,
         // mantemos estilo sólido para manter compatibilidade
         break;
-      case "dotted":
+      case 'dotted':
         // Não é possível aplicar diretamente borda pontilhada no React Native via classes,
         // mantemos estilo sólido para manter compatibilidade
         break;
-      case "solid":
+      case 'solid':
       default:
         break;
     }
@@ -71,11 +71,11 @@ export const Divider: React.FC<DividerProps> = ({
 
   // Função para gerar as classes do texto
   const getLabelClasses = () => {
-    return "text-text-light text-sm px-3";
+    return 'text-text-light text-sm px-3';
   };
 
   // Renderização com label (apenas para orientação horizontal)
-  if (label && orientation === "horizontal") {
+  if (label && orientation === 'horizontal') {
     return (
       <View className={getDividerClasses()} {...props}>
         <View className={getLineClasses()} />

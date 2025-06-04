@@ -1,3 +1,9 @@
+import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
+import { format, parseISO, startOfMonth, endOfMonth } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   View,
@@ -10,29 +16,24 @@ import {
   Easing,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { StatusBar } from 'expo-status-bar';
-import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { useDialog } from '@/contexts/DialogContext';
-import { useToast } from '@/components/ui/Toast';
-import { format, parseISO, startOfMonth, endOfMonth } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-import { useShiftsApi, Shift } from '@/services/shifts-api';
-import { usePaymentsApi } from '@/services/payments-api';
-import { SelectField } from '@/components/form/SelectField';
-import { useLocationsSelector } from '@/hooks/useLocationsSelector';
-import { useContractorsSelector } from '@/hooks/useContractorsSelector';
-import MonthYearPicker from '@/components/ui/MonthYearPicker';
-import { useFocusEffect } from '@react-navigation/native';
 
-import { useSelection } from '@/hooks/useSelection';
-import { SelectableListItem } from '@/components/ui/SelectableListItem';
+import { SelectField } from '@/components/form/SelectField';
 import { Checkbox } from '@/components/ui/CheckBox';
+import MonthYearPicker from '@/components/ui/MonthYearPicker';
+import { SelectableListItem } from '@/components/ui/SelectableListItem';
+import { useToast } from '@/components/ui/Toast';
 import {
   PAYMENT_MESSAGES,
   PAYMENT_COLORS,
   PAYMENT_ANIMATIONS,
 } from '@/constants/payment-constants';
+import { useDialog } from '@/contexts/DialogContext';
+import { useContractorsSelector } from '@/hooks/useContractorsSelector';
+import { useLocationsSelector } from '@/hooks/useLocationsSelector';
+import { useSelection } from '@/hooks/useSelection';
+import { usePaymentsApi } from '@/services/payments-api';
+import { useShiftsApi, Shift } from '@/services/shifts-api';
+
 import { formatTime } from '@/utils/formatters';
 
 const formatCurrency = (value: number): string => {

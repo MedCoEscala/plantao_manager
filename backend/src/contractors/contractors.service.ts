@@ -5,11 +5,12 @@ import {
   BadRequestException,
   InternalServerErrorException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
 import { Contractor, Prisma } from '@prisma/client';
+
+import { PrismaService } from '../prisma/prisma.service';
 import { CreateContractorDto } from './dto/create-contractor.dto';
-import { UpdateContractorDto } from './dto/update-contractor.dto';
 import { GetContractorsFilterDto } from './dto/get-contractors-filter.dto';
+import { UpdateContractorDto } from './dto/update-contractor.dto';
 
 @Injectable()
 export class ContractorsService {

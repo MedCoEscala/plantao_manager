@@ -1,8 +1,8 @@
-import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { useAuth } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useAuth } from '@clerk/clerk-expo';
+import React from 'react';
+import { View, Text, TouchableOpacity } from 'react-native';
 
 const ProfileActions: React.FC = () => {
   const router = useRouter();

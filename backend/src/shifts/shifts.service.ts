@@ -5,15 +5,16 @@ import {
   BadRequestException,
   InternalServerErrorException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
 import { Plantao, Prisma } from '@prisma/client';
+
+import { PrismaService } from '../prisma/prisma.service';
 import { CreateShiftDto } from './dto/create-shift.dto';
-import { UpdateShiftDto } from './dto/update-shift.dto';
-import { GetShiftsFilterDto } from './dto/get-shifts-filter.dto';
 import {
   CreateShiftsBatchDto,
   CreateShiftBatchItemDto,
 } from './dto/create-shifts-batch.dto';
+import { GetShiftsFilterDto } from './dto/get-shifts-filter.dto';
+import { UpdateShiftDto } from './dto/update-shift.dto';
 
 export interface BatchCreateResult {
   created: Plantao[];
@@ -212,11 +213,11 @@ export class ShiftsService {
         data: {
           date: shiftDate,
           value: createShiftDto.value,
-          startTime: startTime,
-          endTime: endTime,
+          startTime,
+          endTime,
           isFixed: createShiftDto.isFixed || false,
           paymentType: createShiftDto.paymentType,
-          notes: notes,
+          notes,
           user: {
             connect: { id: user.id },
           },
@@ -536,11 +537,11 @@ export class ShiftsService {
             data: {
               date: shiftDate,
               value: shiftData.value,
-              startTime: startTime,
-              endTime: endTime,
+              startTime,
+              endTime,
               isFixed: shiftData.isFixed || false,
               paymentType: shiftData.paymentType,
-              notes: notes,
+              notes,
               user: {
                 connect: { id: user.id },
               },

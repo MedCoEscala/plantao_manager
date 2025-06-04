@@ -1,3 +1,7 @@
+import { useSignIn } from '@clerk/clerk-expo';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter, useLocalSearchParams, Link } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
 import {
   View,
@@ -9,11 +13,8 @@ import {
   KeyboardAvoidingView,
   StyleSheet,
 } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter, useLocalSearchParams, Link } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { useSignIn } from '@clerk/clerk-expo';
+
 // Assumindo componentes UI
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';

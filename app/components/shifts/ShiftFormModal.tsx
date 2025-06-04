@@ -1,8 +1,9 @@
-import React, { useState, useCallback } from 'react';
-import { View, Text, Modal, TouchableOpacity, StatusBar } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Ionicons } from '@expo/vector-icons';
+import React, { useState, useCallback } from 'react';
+import { View, Text, Modal, TouchableOpacity, StatusBar } from 'react-native';
+
 import ShiftForm from './ShiftForm';
 
 interface ShiftFormModalProps {
@@ -78,7 +79,7 @@ const ShiftFormModal: React.FC<ShiftFormModalProps> = ({
           initialDate={initialDate}
           onSuccess={handleSuccess}
           onCancel={handleCancel}
-          isModal={true}
+          isModal
         />
       </View>
     </Modal>

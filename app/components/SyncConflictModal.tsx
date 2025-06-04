@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
-import { Modal, View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { ConflictData } from '@app/services/sync/syncManager';
 import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ConflictData } from '@app/services/sync/syncManager';
+import React, { useState } from 'react';
+import { Modal, View, Text, TouchableOpacity, ScrollView } from 'react-native';
 
 interface SyncConflictModalProps {
   visible: boolean;

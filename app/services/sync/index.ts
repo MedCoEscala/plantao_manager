@@ -1,5 +1,5 @@
-import userSyncService from './userSyncService';
 import type { SyncResponse, SyncService } from './syncTypes';
+import userSyncService from './userSyncService';
 
 export { userSyncService };
 export type { SyncResponse, SyncService };

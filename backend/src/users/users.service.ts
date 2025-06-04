@@ -1,14 +1,14 @@
+import clerkClient from '@clerk/clerk-sdk-node';
 import {
   Injectable,
   InternalServerErrorException,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { User } from '@prisma/client';
-import clerkClient from '@clerk/clerk-sdk-node';
+import { User, Prisma } from '@prisma/client';
+
 import { UpdateProfileDto } from './users.controller';
-import { Prisma } from '@prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class UsersService {
@@ -59,23 +59,23 @@ export class UsersService {
       );
 
       const user = await this.prisma.user.upsert({
-        where: { clerkId: clerkId },
+        where: { clerkId },
         update: {
-          email: email,
+          email,
           firstName: firstName || null,
           lastName: lastName || null,
           name: fullName,
-          imageUrl: imageUrl,
-          phoneNumber: phoneNumber,
+          imageUrl,
+          phoneNumber,
         },
         create: {
-          clerkId: clerkId,
-          email: email,
+          clerkId,
+          email,
           firstName: firstName || null,
           lastName: lastName || null,
           name: fullName,
-          imageUrl: imageUrl,
-          phoneNumber: phoneNumber,
+          imageUrl,
+          phoneNumber,
         },
       });
 
@@ -182,7 +182,7 @@ export class UsersService {
 
     try {
       const user = await this.prisma.user.update({
-        where: { clerkId: clerkId },
+        where: { clerkId },
         data: updateData,
       });
 

@@ -1,3 +1,6 @@
+import { Ionicons } from '@expo/vector-icons';
+import { parseISO, format, isValid } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   View,
@@ -10,24 +13,22 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { parseISO, format, isValid } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-import Card from '@/components/ui/Card';
-import SectionHeader from '@/components/ui/SectionHeader';
-import DateField from '@/components/form/DateField';
-import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
-import { formatCurrency, formatDate, formatTime } from '@/utils/formatters';
-import { Ionicons } from '@expo/vector-icons';
+
 import { useNotification } from '@/components';
+import ContractorsSelector from '@/components/contractors/ContractorsSelector';
+import DateField from '@/components/form/DateField';
+import SelectField from '@/components/form/SelectField';
+import SwitchField from '@/components/form/SwitchField';
+import RecurrenceSelector from '@/components/shifts/RecurrenceSelector';
+import Button from '@/components/ui/Button';
+import Card from '@/components/ui/Card';
+import Input from '@/components/ui/Input';
+import SectionHeader from '@/components/ui/SectionHeader';
 import { useLocationsSelector } from '@/hooks/useLocationsSelector';
 import { useShiftsApi, CreateShiftData, UpdateShiftData, Shift } from '@/services/shifts-api';
 import { RecurrenceConfig } from '@/types/recurrence';
+import { formatCurrency, formatDate, formatTime } from '@/utils/formatters';
 import { RecurrenceCalculator } from '@/utils/recurrence';
-import RecurrenceSelector from '@/components/shifts/RecurrenceSelector';
-import SelectField from '@/components/form/SelectField';
-import SwitchField from '@/components/form/SwitchField';
-import ContractorsSelector from '@/components/contractors/ContractorsSelector';
 
 const PAYMENT_TYPE_OPTIONS = [
   { label: 'Pessoa Física (PF)', value: 'PF', icon: 'person-outline' },

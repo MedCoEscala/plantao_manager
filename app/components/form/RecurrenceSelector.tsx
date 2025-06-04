@@ -1,9 +1,11 @@
-import React, { useMemo } from 'react';
-import { View, Text } from 'react-native';
 import { format, addWeeks, addMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import React, { useMemo } from 'react';
+import { View, Text } from 'react-native';
+
 import SelectField from './SelectField';
 import SwitchField from './SwitchField';
+
 import Input from '@/components/ui/Input';
 
 const RECURRENCE_OPTIONS = [

@@ -1,12 +1,13 @@
+import { useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { StatusBar } from 'expo-status-bar';
-import { useRouter } from 'expo-router';
-import { useProfile } from '@/hooks/useProfile';
+
 import ContractorsList from '@/components/profile/ContractorsList';
-import ProfileHeader from '@/components/profile/ProfileHeader';
 import ProfileActions from '@/components/profile/ProfileActions';
+import ProfileHeader from '@/components/profile/ProfileHeader';
+import { useProfile } from '@/hooks/useProfile';
 
 export default function ProfileScreen() {
   const router = useRouter();

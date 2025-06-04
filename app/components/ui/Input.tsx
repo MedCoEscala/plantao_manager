@@ -1,7 +1,8 @@
 // app/components/ui/Input.tsx (modificado)
+import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import { View, TextInput, Text, TextInputProps, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+
 import { FieldWrapper } from '../form/FormField';
 
 export interface InputProps extends TextInputProps {

@@ -1,7 +1,8 @@
 // app/components/form/SelectField.tsx
+import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+
 import { FieldWrapper } from './FormField';
 
 interface SelectOption {

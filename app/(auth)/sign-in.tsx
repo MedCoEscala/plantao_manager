@@ -1,52 +1,87 @@
-import React, { useState } from 'react';
+import { useSignIn, useAuth } from '@clerk/clerk-expo';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter, Link } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
-  TextInput,
-  TouchableOpacity,
   ScrollView,
   Platform,
   KeyboardAvoidingView,
-  StyleSheet,
+  Animated,
+  Dimensions,
 } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter, Link } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { useSignIn, useAuth } from '@clerk/clerk-expo';
-// Assumindo que Button, Input e useToast existem e funcionam
-// Se der erro, precisaremos ajustar ou usar componentes padrão
-import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
-import { useNotification } from '@/components';
-import apiClient from '@/lib/axios'; // Importar apiClient
 
-export default function LoginScreen() {
+import Logo from '../components/auth/Logo';
+
+import { useNotification } from '@/components';
+import AuthButton from '@/components/auth/AuthButton';
+import AuthInput from '@/components/auth/AuthInput';
+import apiClient from '@/lib/axios';
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+export default function SignInScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
 
   const { isLoaded, signIn, setActive } = useSignIn();
-  const { getToken } = useAuth(); // Obter getToken de useAuth
+  const { getToken } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { showError, showSuccess } = useNotification();
 
+  // Animations
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(50)).current;
+  const logoAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    // Entrance animation
+    Animated.stagger(300, [
+      Animated.timing(logoAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.spring(slideAnim, {
+          toValue: 0,
+          friction: 8,
+          tension: 40,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start();
+  }, []);
+
   const validateForm = () => {
+    const newErrors: { email?: string; password?: string } = {};
+
     if (!email.trim()) {
-      showError('Por favor, informe seu email');
-      return false;
+      newErrors.email = 'Email é obrigatório';
+    } else {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email.trim())) {
+        newErrors.email = 'Email inválido';
+      }
     }
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email.trim())) {
-      showError('Por favor, informe um email válido');
-      return false;
-    }
+
     if (!password.trim()) {
-      showError('Por favor, informe sua senha');
-      return false;
+      newErrors.password = 'Senha é obrigatória';
     }
-    return true;
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleLogin = async () => {
@@ -56,47 +91,39 @@ export default function LoginScreen() {
 
     setIsLoading(true);
     try {
-      // 1. Tentar login com Clerk
       const signInAttempt = await signIn.create({
         identifier: email.trim(),
         password: password.trim(),
       });
 
       if (signInAttempt.status === 'complete') {
-        // 2. Ativar a sessão no Clerk
         await setActive({ session: signInAttempt.createdSessionId });
 
-        // 3. Obter o token JWT da sessão ativa
         const token = await getToken();
         if (!token) {
           throw new Error('Não foi possível obter o token de autenticação.');
         }
 
-        // 4. Chamar o endpoint de sincronização no backend com o token
         try {
           console.log('🔄 Sincronizando usuário com o backend...');
           await apiClient.post(
-            '/users/sync', // Endpoint de sincronização
-            {}, // Corpo vazio, o backend usa o token para identificar o usuário
+            '/users/sync',
+            {},
             {
               headers: {
-                Authorization: `Bearer ${token}`, // Adicionar o token ao cabeçalho
+                Authorization: `Bearer ${token}`,
               },
             }
           );
           console.log('✅ Usuário sincronizado com sucesso!');
         } catch (syncError) {
           console.error('❌ Erro ao sincronizar usuário:', syncError);
-          // Decidir como lidar com erro de sincronização (ex: mostrar toast, mas continuar?)
-          // Por ora, vamos mostrar um erro mas permitir o redirecionamento
           showError('Erro ao sincronizar seus dados. Tente novamente mais tarde.');
         }
 
-        // 5. Redirecionar se tudo correu bem (ou se erro de sync for ignorado)
         showSuccess('Login realizado com sucesso!');
-        router.replace('/(root)/profile'); // Redireciona para o perfil após login
+        router.replace('/(root)/profile');
       } else {
-        // Status inesperado (ex: 'needs_second_factor')
         console.error(
           'Status inesperado do Clerk Sign In:',
           JSON.stringify(signInAttempt, null, 2)
@@ -104,13 +131,12 @@ export default function LoginScreen() {
         showError('Status de login inesperado.');
       }
     } catch (err: any) {
-      // Erro durante a tentativa de login ou obtenção de token
       console.error('Erro de Login Clerk ou Token:', JSON.stringify(err, null, 2));
       const firstError = err.errors?.[0];
       const errorMessage =
         firstError?.longMessage ||
         firstError?.message ||
-        err.message || // Capturar erro de getToken
+        err.message ||
         'Email ou senha inválidos.';
       showError(errorMessage);
     } finally {
@@ -118,168 +144,169 @@ export default function LoginScreen() {
     }
   };
 
-  // Mostra loading enquanto Clerk inicializa
   if (!isLoaded) {
     return (
-      <SafeAreaView style={styles.loadingContainer}>
-        <Text>Carregando...</Text>
+      <SafeAreaView className="flex-1 bg-gray-50">
+        <View className="flex-1 items-center justify-center">
+          <Logo size="lg" />
+          <Text className="mt-4 text-gray-900">Carregando...</Text>
+        </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView className="flex-1" edges={['top']}>
       <StatusBar style="dark" />
+
+      {/* Background Gradient */}
+      <LinearGradient
+        colors={['#f8f9fb', '#e8eef7', '#f1f5f9']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        className="absolute inset-0"
+      />
+
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}>
-        <ScrollView contentContainerStyle={styles.scrollViewContent}>
-          <View style={styles.container}>
-            <View style={styles.header}>
-              <Text style={styles.title}>Entrar</Text>
-              <Text style={styles.subtitle}>Faça login para gerenciar seus plantões</Text>
+        className="flex-1">
+        <ScrollView
+          className="flex-1"
+          contentContainerStyle={{ flexGrow: 1 }}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled">
+          {/* Header Section */}
+          <View className="flex-1 items-center justify-center px-6 pt-5">
+            <Animated.View
+              style={{
+                opacity: logoAnim,
+                transform: [
+                  {
+                    scale: logoAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0.8, 1],
+                    }),
+                  },
+                ],
+              }}>
+              <Logo size="lg" animated />
+            </Animated.View>
+
+            <Animated.View className="mt-8 items-center" style={{ opacity: fadeAnim }}>
+              <Text className="text-center text-3xl font-bold tracking-tight text-gray-900">
+                Bem-vindo de volta!
+              </Text>
+              <Text className="mt-2 text-center text-base font-normal text-gray-600">
+                Entre na sua conta para continuar
+              </Text>
+            </Animated.View>
+          </View>
+
+          {/* Form Section */}
+          <Animated.View
+            className="mx-5 mb-8 rounded-3xl border border-white/30 bg-white/90 p-7 shadow-xl"
+            style={{
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+              minHeight: SCREEN_HEIGHT * 0.5,
+            }}>
+            {/* Welcome Message */}
+            <View className="mb-7 items-center">
+              <Text className="text-center text-3xl font-bold tracking-tight text-gray-900">
+                Entrar
+              </Text>
+              <Text className="mt-2 text-center text-base font-normal text-gray-700">
+                Acesse sua conta de forma segura
+              </Text>
             </View>
 
-            <View style={styles.inputGroup}>
-              <Input
+            {/* Form Fields */}
+            <View className="space-y-5">
+              <AuthInput
                 label="Email"
-                placeholder="Seu email"
+                placeholder="seu@email.com"
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={(text) => {
+                  setEmail(text);
+                  if (errors.email) setErrors((prev) => ({ ...prev, email: undefined }));
+                }}
+                error={errors.email}
+                required
+                autoFocus
                 keyboardType="email-address"
-                autoCapitalize="none"
-                // Adapte props se Input for diferente
+                leftIcon="mail"
+              />
+
+              <AuthInput
+                label="Senha"
+                placeholder="Sua senha"
+                value={password}
+                onChangeText={(text) => {
+                  setPassword(text);
+                  if (errors.password) setErrors((prev) => ({ ...prev, password: undefined }));
+                }}
+                error={errors.password}
+                required
+                secureTextEntry
+                leftIcon="lock-closed"
               />
             </View>
 
-            <View style={styles.inputGroup}>
-              {/* Input de Senha com ícone */}
-              <Text style={styles.label}>Senha</Text>
-              <View style={styles.passwordInputContainer}>
-                <Ionicons name="lock-closed-outline" size={20} color="#666" style={styles.icon} />
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="Sua senha"
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry={!showPassword}
-                />
-                <TouchableOpacity
-                  onPress={() => setShowPassword(!showPassword)}
-                  style={styles.eyeIcon}>
-                  <Ionicons
-                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                    size={24}
-                    color="#666"
-                  />
-                </TouchableOpacity>
+            {/* Forgot Password Link */}
+            <View className="mt-5 items-end">
+              <Link href="/(auth)/forgot-password" asChild>
+                <Text className="text-sm font-semibold text-primary underline">
+                  Esqueci minha senha
+                </Text>
+              </Link>
+            </View>
+
+            {/* Login Button */}
+            <View className="mt-7">
+              <AuthButton
+                title="Entrar"
+                onPress={handleLogin}
+                loading={isLoading}
+                leftIcon="log-in-outline"
+              />
+            </View>
+
+            {/* Divider */}
+            <View className="my-7 flex-row items-center">
+              <View className="h-px flex-1 bg-gray-300" />
+              <Text className="mx-4 text-sm font-medium text-gray-500">ou</Text>
+              <View className="h-px flex-1 bg-gray-300" />
+            </View>
+
+            {/* Sign Up Link */}
+            <View className="items-center">
+              <Text className="text-base text-gray-600">
+                Não tem uma conta?{' '}
+                <Link href="/(auth)/sign-up" asChild>
+                  <Text className="text-base font-semibold text-primary underline">
+                    Criar conta
+                  </Text>
+                </Link>
+              </Text>
+            </View>
+
+            {/* Additional Info */}
+            <View className="mt-6 rounded-2xl border border-gray-100 bg-gray-50/80 p-4">
+              <View className="flex-row items-center">
+                <View className="mr-3 h-8 w-8 items-center justify-center rounded-2xl bg-green-100">
+                  <Ionicons name="shield-checkmark" size={16} color="#34C759" />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-sm font-semibold text-gray-900">Seguro e Protegido</Text>
+                  <Text className="mt-0.5 text-xs text-gray-700">
+                    Seus dados são protegidos com criptografia de ponta
+                  </Text>
+                </View>
               </View>
             </View>
-
-            <Button
-              variant="primary" // Adapte se necessário
-              loading={isLoading}
-              onPress={handleLogin}
-              // Adapte props se Button for diferente
-              style={styles.loginButton} // Adiciona margem inferior
-            >
-              Entrar
-            </Button>
-
-            <View style={styles.linksContainer}>
-              <Link href="/(auth)/sign-up" asChild>
-                <TouchableOpacity>
-                  <Text style={styles.linkTextPrimary}>Criar conta</Text>
-                </TouchableOpacity>
-              </Link>
-              <Link href="/(auth)/forgot-password" asChild>
-                <TouchableOpacity>
-                  <Text style={styles.linkTextSecondary}>Esqueci minha senha</Text>
-                </TouchableOpacity>
-              </Link>
-            </View>
-          </View>
+          </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
-
-// Estilos (adaptados para componentes padrão ou mantidos se Input/Button existirem)
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: 'white',
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  scrollViewContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
-  },
-  container: {
-    paddingHorizontal: 24, // Equivalente a px-6
-    paddingVertical: 32, // Equivalente a py-8
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  header: {
-    marginBottom: 32, // Equivalente a mb-8
-  },
-  title: {
-    fontSize: 30, // Equivalente a text-3xl
-    fontWeight: 'bold',
-    color: '#4F46E5', // Cor primária (ajuste se necessário)
-    marginBottom: 8, // Equivalente a mb-2
-  },
-  subtitle: {
-    color: '#6B7280', // Equivalente a text-text-light
-  },
-  inputGroup: {
-    marginBottom: 16, // Equivalente a mb-4 ou mb-6
-  },
-  label: {
-    marginBottom: 4, // Equivalente a mb-1
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#6B7280', // text-text-light
-  },
-  passwordInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 8, // rounded-lg
-    borderWidth: 1,
-    borderColor: '#D1D5DB', // border-gray-300
-    paddingHorizontal: 12, // px-3
-  },
-  icon: {
-    marginRight: 8,
-  },
-  textInput: {
-    flex: 1,
-    color: '#1F2937', // text-text-dark
-    height: 48, // Ajuste conforme necessário para equivaler a py-2/py-3 implícito no Input
-  },
-  eyeIcon: {
-    padding: 5, // Área de toque para o ícone
-  },
-  loginButton: {
-    marginBottom: 16, // mb-4
-  },
-  linksContainer: {
-    marginTop: 24, // mt-6
-    alignItems: 'center',
-  },
-  linkTextPrimary: {
-    fontWeight: '500',
-    color: '#4F46E5', // primary
-    marginBottom: 10, // Espaçamento entre links
-  },
-  linkTextSecondary: {
-    color: '#6B7280', // text-text-light
-  },
-});

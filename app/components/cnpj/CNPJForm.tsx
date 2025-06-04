@@ -1,7 +1,8 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { View, Text } from 'react-native';
-import Input from '@/components/ui/Input';
+
 import Button from '@/components/ui/Button';
+import Input from '@/components/ui/Input';
 import { CNPJData, CreateCNPJData } from '@/services/cnpj-api';
 
 interface CNPJFormProps {

@@ -1,19 +1,16 @@
 let toastCallback:
-  | ((message: string, type?: "success" | "error" | "info" | "warning") => void)
+  | ((message: string, type?: 'success' | 'error' | 'info' | 'warning') => void)
   | null = null;
 
 export const registerToastCallback = (
-  callback: (
-    message: string,
-    type?: "success" | "error" | "info" | "warning"
-  ) => void
+  callback: (message: string, type?: 'success' | 'error' | 'info' | 'warning') => void
 ) => {
   toastCallback = callback;
 };
 
 export const showToast = (
   message: string,
-  type: "success" | "error" | "info" | "warning" = "info"
+  type: 'success' | 'error' | 'info' | 'warning' = 'info'
 ) => {
   if (toastCallback) {
     toastCallback(message, type);

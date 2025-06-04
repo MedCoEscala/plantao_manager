@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Platform } from 'react-native';
-import DateTimePicker from 'react-native-modal-datetime-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import React, { useState } from 'react';
+import { View, Text, TextInput, TouchableOpacity, Platform } from 'react-native';
+import DateTimePicker from 'react-native-modal-datetime-picker';
 
 interface BaseFieldProps {
   label: string;
@@ -181,7 +181,7 @@ export function DateField({
 export interface SelectFieldProps extends BaseFieldProps {
   value: string;
   onValueChange: (value: string) => void;
-  options: Array<{ label: string; value: string; icon?: string; color?: string }>;
+  options: { label: string; value: string; icon?: string; color?: string }[];
   placeholder?: string;
 }
 
@@ -302,7 +302,7 @@ export function SwitchField({
 export interface ColorFieldProps extends BaseFieldProps {
   value: string;
   onValueChange: (value: string) => void;
-  options: Array<{ color: string; name: string }>;
+  options: { color: string; name: string }[];
 }
 
 export function ColorField({
@@ -377,7 +377,7 @@ export function ColorField({
 export interface ButtonGroupProps extends BaseFieldProps {
   value: string;
   onValueChange: (value: string) => void;
-  options: Array<{ label: string; value: string }>;
+  options: { label: string; value: string }[];
 }
 
 export function ButtonGroup({

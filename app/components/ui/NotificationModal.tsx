@@ -1,7 +1,8 @@
+import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { View, Text, Modal, TouchableOpacity, TouchableWithoutFeedback } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+
 import { cn } from '@/utils/cn';
 
 export type NotificationType = 'success' | 'error' | 'info' | 'warning';

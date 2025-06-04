@@ -1,6 +1,7 @@
+import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+
 import { UserProfile } from '@/hooks/useProfile';
 import { getDisplayName, getInitials } from '@/utils/userNameHelper';
 

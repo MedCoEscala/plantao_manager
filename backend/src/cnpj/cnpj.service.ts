@@ -4,8 +4,9 @@ import {
   NotFoundException,
   InternalServerErrorException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
 import { CNPJData } from '@prisma/client';
+
+import { PrismaService } from '../prisma/prisma.service';
 import { CreateCNPJDto } from './dto/create-cnpj.dto';
 import { UpdateCNPJDto } from './dto/update-cnpj.dto';
 

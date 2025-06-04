@@ -1,11 +1,13 @@
 // app/components/shifts/EnhancedShiftForm.tsx
-import React, { useState, useEffect } from 'react';
-import { View, Text, Alert } from 'react-native';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import Form from '../ui/Form';
+import React, { useState, useEffect } from 'react';
+import { View, Text, Alert } from 'react-native';
+
 import Button from '../ui/Button';
+import Form from '../ui/Form';
 import { TextField, DateField, SelectField, SwitchField, ButtonGroup } from '../ui/FormField';
+
 import { useToast } from '@/components/ui/Toast';
 
 // Constantes e tipos

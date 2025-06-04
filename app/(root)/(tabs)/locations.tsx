@@ -1,3 +1,6 @@
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
@@ -9,12 +12,10 @@ import {
   Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { StatusBar } from 'expo-status-bar';
-import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { useDialog } from '@/contexts/DialogContext';
-import { useToast } from '@/components/ui/Toast';
+
 import { LocationFormModal } from '@/components/ui';
+import { useToast } from '@/components/ui/Toast';
+import { useDialog } from '@/contexts/DialogContext';
 import { useLocationsApi, Location, LocationsFilters } from '@/services/locations-api';
 
 const LocationsScreen = () => {

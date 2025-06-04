@@ -1,7 +1,7 @@
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
 import { TouchableOpacity, Text, View, TouchableOpacityProps } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
 
 type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'success' | 'warning' | 'danger';
 type ButtonSize = 'sm' | 'md' | 'lg';

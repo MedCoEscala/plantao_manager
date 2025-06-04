@@ -1,14 +1,3 @@
-import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import {
-  View,
-  Text,
-  Pressable,
-  FlatList,
-  Dimensions,
-  StyleSheet,
-  ViewStyle,
-  TextStyle,
-} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import {
   format,
@@ -32,6 +21,17 @@ import {
   subWeeks,
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import {
+  View,
+  Text,
+  Pressable,
+  FlatList,
+  Dimensions,
+  StyleSheet,
+  ViewStyle,
+  TextStyle,
+} from 'react-native';
 
 interface Shift {
   id: string;

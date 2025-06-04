@@ -1,5 +1,6 @@
-import apiClient from '@/lib/axios';
 import { useAuth } from '@clerk/clerk-expo';
+
+import apiClient from '@/lib/axios';
 
 export interface Location {
   id: string;

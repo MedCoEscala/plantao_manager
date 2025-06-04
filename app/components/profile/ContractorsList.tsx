@@ -1,11 +1,12 @@
+import { Ionicons } from '@expo/vector-icons';
 import React, { useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useDialog } from '@/contexts/DialogContext';
-import { useToast } from '@/components/ui/Toast';
+
 import { ContractorFormModal } from '@/components/contractors/ContractorFormModal';
-import { useContractorsApi, Contractor } from '@/services/contractors-api';
+import { useToast } from '@/components/ui/Toast';
+import { useDialog } from '@/contexts/DialogContext';
 import { useContractorsSelector } from '@/hooks/useContractorsSelector';
+import { useContractorsApi, Contractor } from '@/services/contractors-api';
 
 interface ContractorsListProps {
   title?: string;
@@ -158,7 +159,7 @@ const ContractorsList: React.FC<ContractorsListProps> = ({ title = 'Contratantes
           renderItem={renderContractorItem}
           keyExtractor={(item) => item.id}
           ListEmptyComponent={renderEmptyComponent}
-          showsVerticalScrollIndicator={true}
+          showsVerticalScrollIndicator
           style={{ flex: 1 }}
           contentContainerStyle={{ flexGrow: 1, paddingBottom: 8 }}
         />

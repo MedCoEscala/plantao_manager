@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import React, { useState, useEffect, ReactNode } from 'react';
 import {
   Modal,
@@ -12,7 +13,6 @@ import {
   TouchableWithoutFeedback,
   StyleSheet,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -123,7 +123,7 @@ const FormModal: React.FC<FormModalProps> = ({
             <ScrollView
               style={styles.scrollView}
               contentContainerStyle={styles.scrollViewContent}
-              showsVerticalScrollIndicator={true}
+              showsVerticalScrollIndicator
               keyboardShouldPersistTaps="handled">
               {children}
             </ScrollView>

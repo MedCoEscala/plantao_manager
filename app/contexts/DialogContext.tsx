@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, ReactNode } from "react";
-import Dialog, { DialogType } from "../components/ui/Dialog";
+import React, { createContext, useContext, useState, ReactNode } from 'react';
+
+import Dialog, { DialogType } from '../components/ui/Dialog';
 
 interface DialogOptions {
   type?: DialogType;
@@ -25,9 +26,9 @@ interface DialogProviderProps {
 export const DialogProvider: React.FC<DialogProviderProps> = ({ children }) => {
   const [visible, setVisible] = useState(false);
   const [options, setOptions] = useState<DialogOptions>({
-    type: "info",
-    message: "",
-    title: "",
+    type: 'info',
+    message: '',
+    title: '',
   });
 
   const showDialog = (dialogOptions: DialogOptions) => {
@@ -75,7 +76,7 @@ export const useDialog = (): DialogContextType => {
   const context = useContext(DialogContext);
 
   if (context === undefined) {
-    throw new Error("useDialog deve ser usado dentro de um DialogProvider");
+    throw new Error('useDialog deve ser usado dentro de um DialogProvider');
   }
 
   return context;

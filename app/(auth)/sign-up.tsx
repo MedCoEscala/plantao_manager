@@ -1,123 +1,189 @@
-import React, { useState } from 'react';
+import { useSignUp, useAuth } from '@clerk/clerk-expo';
+import { Ionicons } from '@expo/vector-icons';
+import { format } from 'date-fns';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter, Link } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
-  TextInput,
-  TouchableOpacity,
   ScrollView,
   Platform,
   KeyboardAvoidingView,
-  StyleSheet,
+  Animated,
+  TouchableOpacity,
+  Dimensions,
 } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter, Link } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { useSignUp, useAuth } from '@clerk/clerk-expo';
-import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
-import { useToast } from '@/components/ui/Toast';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
-import apiClient from '@/lib/axios';
-import { format } from 'date-fns';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-const GENDER_OPTIONS = ['Masculino', 'Feminino', 'Outro', 'Não informado'];
+import Logo from '../components/auth/Logo';
+
+import AuthButton from '@/components/auth/AuthButton';
+import AuthInput from '@/components/auth/AuthInput';
+import { useNotification } from '@/components';
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+const GENDER_OPTIONS = [
+  { value: 'Masculino', label: 'Masculino', icon: 'male' },
+  { value: 'Feminino', label: 'Feminino', icon: 'female' },
+  { value: 'Outro', label: 'Outro', icon: 'transgender' },
+  { value: 'Não informado', label: 'Prefiro não dizer', icon: 'help-circle' },
+];
 
 export default function SignUpScreen() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [birthDate, setBirthDate] = useState<Date | null>(null);
-  const [gender, setGender] = useState<string>('');
-  const [phoneNumber, setPhoneNumber] = useState('');
+  const [currentStep, setCurrentStep] = useState(1);
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+    confirmPassword: '',
+    firstName: '',
+    lastName: '',
+    birthDate: null as Date | null,
+    gender: '',
+    phoneNumber: '',
+  });
+
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
 
-  const { isLoaded, signUp, setActive } = useSignUp();
+  const { isLoaded, signUp } = useSignUp();
   const { getToken } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
-  const { showToast } = useToast();
+  const { showInfo, showError } = useNotification();
 
-  const validateForm = () => {
-    if (!firstName.trim()) {
-      showToast('Por favor, informe seu nome', 'error');
-      return false;
+  // Animations
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(50)).current;
+  const stepAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    // Entrance animation
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        friction: 8,
+        tension: 40,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
+
+  useEffect(() => {
+    // Step transition animation
+    Animated.spring(stepAnim, {
+      toValue: currentStep,
+      friction: 8,
+      tension: 40,
+      useNativeDriver: true,
+    }).start();
+  }, [currentStep]);
+
+  const updateField = (field: string, value: any) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+    // Clear error for this field
+    if (errors[field]) {
+      setErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors[field];
+        return newErrors;
+      });
     }
-    if (!lastName.trim()) {
-      showToast('Por favor, informe seu sobrenome', 'error');
-      return false;
-    }
-    if (!email.trim()) {
-      showToast('Por favor, informe seu email', 'error');
-      return false;
-    }
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email.trim())) {
-      showToast('Por favor, informe um email válido', 'error');
-      return false;
-    }
-    if (!password.trim()) {
-      showToast('Por favor, informe sua senha', 'error');
-      return false;
-    }
-    if (password.length < 8) {
-      showToast('A senha deve ter pelo menos 8 caracteres', 'error');
-      return false;
-    }
-    if (password !== confirmPassword) {
-      showToast('As senhas não conferem', 'error');
-      return false;
-    }
-    if (phoneNumber.trim() && !/^[\d\s\-\(\)]+$/.test(phoneNumber.trim())) {
-      showToast('Formato de telefone inválido', 'error');
-      return false;
-    }
-    return true;
   };
 
-  const handleConfirmDate = (date: Date) => {
-    setBirthDate(date);
-    hideDatePicker();
-  };
+  const validateStep1 = () => {
+    const newErrors: Record<string, string> = {};
 
-  const showDatePicker = () => {
-    setDatePickerVisibility(true);
-  };
-
-  const hideDatePicker = () => {
-    setDatePickerVisibility(false);
-  };
-
-  const handleRegisterAndSync = async () => {
-    if (!validateForm() || !isLoaded) {
-      return;
+    if (!formData.firstName.trim()) {
+      newErrors.firstName = 'Nome é obrigatório';
     }
+    if (!formData.lastName.trim()) {
+      newErrors.lastName = 'Sobrenome é obrigatório';
+    }
+    if (!formData.email.trim()) {
+      newErrors.email = 'Email é obrigatório';
+    } else {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formData.email.trim())) {
+        newErrors.email = 'Email inválido';
+      }
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const validateStep2 = () => {
+    const newErrors: Record<string, string> = {};
+
+    if (!formData.password.trim()) {
+      newErrors.password = 'Senha é obrigatória';
+    } else if (formData.password.length < 8) {
+      newErrors.password = 'Senha deve ter pelo menos 8 caracteres';
+    }
+
+    if (!formData.confirmPassword.trim()) {
+      newErrors.confirmPassword = 'Confirmação de senha é obrigatória';
+    } else if (formData.password !== formData.confirmPassword) {
+      newErrors.confirmPassword = 'Senhas não conferem';
+    }
+
+    if (formData.phoneNumber.trim() && !/^[\d\s\-\(\)]+$/.test(formData.phoneNumber.trim())) {
+      newErrors.phoneNumber = 'Formato de telefone inválido';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleNext = () => {
+    if (currentStep === 1 && validateStep1()) {
+      setCurrentStep(2);
+    } else if (currentStep === 2 && validateStep2()) {
+      handleSubmit();
+    }
+  };
+
+  const handleBack = () => {
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1);
+    } else {
+      router.back();
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!isLoaded) return;
 
     setIsLoading(true);
     try {
       await signUp.create({
-        emailAddress: email.trim(),
-        password: password.trim(),
+        emailAddress: formData.email.trim(),
+        password: formData.password.trim(),
       });
 
       await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
 
-      showToast('Código de verificação enviado!', 'info');
+      showInfo('Código de verificação enviado!');
 
-      const birthDateString = birthDate ? format(birthDate, 'yyyy-MM-dd') : '';
+      const birthDateString = formData.birthDate ? format(formData.birthDate, 'yyyy-MM-dd') : '';
       router.push({
         pathname: '/(auth)/verify-code',
         params: {
-          email: email.trim(),
-          firstName: firstName.trim(),
-          lastName: lastName.trim(),
+          email: formData.email.trim(),
+          firstName: formData.firstName.trim(),
+          lastName: formData.lastName.trim(),
           birthDate: birthDateString,
-          gender: gender || '',
-          phoneNumber: phoneNumber.trim(),
+          gender: formData.gender || '',
+          phoneNumber: formData.phoneNumber.trim(),
         },
       });
     } catch (err: any) {
@@ -128,260 +194,309 @@ export default function SignUpScreen() {
         firstError?.message ||
         'Erro ao criar conta. Verifique os dados e tente novamente.';
       if (firstError?.code === 'form_identifier_exists') {
-        showToast('Este email já está cadastrado.', 'error');
+        showError('Este email já está cadastrado.');
       } else {
-        showToast(errorMessage, 'error');
+        showError(errorMessage);
       }
     } finally {
       setIsLoading(false);
     }
   };
 
+  const renderStepIndicator = () => (
+    <View className="mb-6 flex-row items-center justify-center gap-2">
+      {[1, 2].map((step) => (
+        <View
+          key={step}
+          className={`h-1.5 w-7 rounded-sm ${step <= currentStep ? 'bg-primary' : 'bg-gray-300'}`}
+        />
+      ))}
+    </View>
+  );
+
+  const renderStep1 = () => (
+    <View className="space-y-5">
+      <AuthInput
+        label="Nome"
+        placeholder="Seu primeiro nome"
+        value={formData.firstName}
+        onChangeText={(text) => updateField('firstName', text)}
+        error={errors.firstName}
+        required
+        autoFocus
+        leftIcon="person-outline"
+      />
+
+      <AuthInput
+        label="Sobrenome"
+        placeholder="Seu sobrenome"
+        value={formData.lastName}
+        onChangeText={(text) => updateField('lastName', text)}
+        error={errors.lastName}
+        required
+        leftIcon="person-outline"
+      />
+
+      <AuthInput
+        label="Email"
+        placeholder="seu@email.com"
+        value={formData.email}
+        onChangeText={(text) => updateField('email', text)}
+        error={errors.email}
+        required
+        keyboardType="email-address"
+        leftIcon="mail"
+      />
+    </View>
+  );
+
+  const renderStep2 = () => (
+    <View className="space-y-5">
+      <AuthInput
+        label="Senha"
+        placeholder="Crie uma senha segura"
+        value={formData.password}
+        onChangeText={(text) => updateField('password', text)}
+        error={errors.password}
+        required
+        helperText="Mínimo 8 caracteres"
+        secureTextEntry
+        leftIcon="lock-closed"
+      />
+
+      <AuthInput
+        label="Confirmar Senha"
+        placeholder="Digite a senha novamente"
+        value={formData.confirmPassword}
+        onChangeText={(text) => updateField('confirmPassword', text)}
+        error={errors.confirmPassword}
+        required
+        secureTextEntry
+        leftIcon="lock-closed"
+      />
+
+      {/* Date Picker */}
+      <View>
+        <Text className="mb-2 text-base font-semibold text-gray-900">
+          Data de Nascimento <Text className="font-normal text-gray-700">(opcional)</Text>
+        </Text>
+        <TouchableOpacity
+          onPress={() => setDatePickerVisibility(true)}
+          className="border-1.5 flex-row items-center justify-between rounded-2xl border-gray-300 bg-gray-50 p-4">
+          <View className="flex-row items-center">
+            <Ionicons
+              name="calendar-outline"
+              size={20}
+              color="#18cb96"
+              style={{ marginRight: 12 }}
+            />
+            <Text
+              className={
+                formData.birthDate
+                  ? 'text-base font-medium text-gray-900'
+                  : 'text-base text-gray-600'
+              }>
+              {formData.birthDate
+                ? format(formData.birthDate, 'dd/MM/yyyy')
+                : 'Selecionar data de nascimento'}
+            </Text>
+          </View>
+        </TouchableOpacity>
+
+        <DateTimePickerModal
+          isVisible={isDatePickerVisible}
+          mode="date"
+          onConfirm={(date) => {
+            updateField('birthDate', date);
+            setDatePickerVisibility(false);
+          }}
+          onCancel={() => setDatePickerVisibility(false)}
+          locale="pt_BR"
+          maximumDate={new Date()}
+        />
+      </View>
+
+      {/* Gender Selection */}
+      <View>
+        <Text className="mb-2 text-base font-semibold text-gray-900">
+          Gênero <Text className="font-normal text-gray-700">(opcional)</Text>
+        </Text>
+        <View className="flex-row flex-wrap gap-3">
+          {GENDER_OPTIONS.map((option) => (
+            <TouchableOpacity
+              key={option.value}
+              onPress={() => updateField('gender', option.value)}
+              className={`border-1.5 min-w-[45%] flex-row items-center rounded-xl px-4 py-3 ${
+                formData.gender === option.value
+                  ? 'border-primary bg-primary/10'
+                  : 'border-gray-300 bg-gray-50'
+              }`}>
+              <Ionicons
+                name={option.icon as any}
+                size={16}
+                color={formData.gender === option.value ? '#18cb96' : 'rgba(60, 60, 67, 0.6)'}
+              />
+              <Text
+                className={`ml-2 text-sm font-medium ${
+                  formData.gender === option.value ? 'text-primary' : 'text-gray-600'
+                }`}>
+                {option.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      <AuthInput
+        label="Telefone"
+        placeholder="(11) 99999-9999"
+        value={formData.phoneNumber}
+        onChangeText={(text) => updateField('phoneNumber', text)}
+        error={errors.phoneNumber}
+        helperText="Opcional"
+        keyboardType="phone-pad"
+        leftIcon="call"
+      />
+    </View>
+  );
+
   if (!isLoaded) {
     return (
-      <SafeAreaView style={styles.loadingContainer}>
-        <Text>Carregando...</Text>
+      <SafeAreaView className="flex-1 bg-gray-50">
+        <View className="flex-1 items-center justify-center">
+          <Logo size="lg" />
+          <Text className="mt-4 text-gray-900">Carregando...</Text>
+        </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView className="flex-1" edges={['top']}>
       <StatusBar style="dark" />
+
+      {/* Background Gradient */}
+      <LinearGradient
+        colors={['#f8f9fb', '#e8eef7', '#f1f5f9']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        className="absolute inset-0"
+      />
+
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}>
-        <ScrollView contentContainerStyle={styles.scrollViewContent}>
-          <View style={styles.container}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-              <Ionicons name="arrow-back" size={24} color="#333" />
-            </TouchableOpacity>
+        className="flex-1">
+        {/* Header with Back Button */}
+        <View className="flex-row items-center justify-between px-5 pt-4">
+          <TouchableOpacity
+            onPress={handleBack}
+            className="h-11 w-11 items-center justify-center rounded-full bg-gray-200">
+            <Ionicons name="arrow-back" size={24} color="#1a1a1a" />
+          </TouchableOpacity>
 
-            <View style={styles.header}>
-              <Text style={styles.title}>Criar Conta</Text>
-              <Text style={styles.subtitle}>Informe seu email e senha para começar</Text>
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Input
-                label="Nome"
-                placeholder="Seu nome"
-                value={firstName}
-                onChangeText={setFirstName}
-                autoCapitalize="words"
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Input
-                label="Sobrenome"
-                placeholder="Seu sobrenome"
-                value={lastName}
-                onChangeText={setLastName}
-                autoCapitalize="words"
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Data de Nascimento</Text>
-              <TouchableOpacity onPress={showDatePicker} style={styles.datePickerButton}>
-                <Text style={styles.datePickerText}>
-                  {birthDate ? format(birthDate, 'dd/MM/yyyy') : 'Selecione a data'}
-                </Text>
-                <Ionicons name="calendar-outline" size={20} color="#666" />
-              </TouchableOpacity>
-              <DateTimePickerModal
-                isVisible={isDatePickerVisible}
-                mode="date"
-                onConfirm={handleConfirmDate}
-                onCancel={hideDatePicker}
-                locale="pt_BR"
-                maximumDate={new Date()}
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Gênero</Text>
-              <View style={styles.genderOptionsContainer}>
-                {GENDER_OPTIONS.map((option) => (
-                  <TouchableOpacity
-                    key={option}
-                    style={[
-                      styles.genderOptionButton,
-                      gender === option && styles.genderOptionButtonSelected,
-                    ]}
-                    onPress={() => setGender(option)}>
-                    <Text
-                      style={[
-                        styles.genderOptionText,
-                        gender === option && styles.genderOptionTextSelected,
-                      ]}>
-                      {option === 'Não informado' ? 'Prefiro não dizer' : option}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Input
-                label="Telefone (Opcional)"
-                placeholder="(XX) XXXXX-XXXX"
-                value={phoneNumber}
-                onChangeText={setPhoneNumber}
-                keyboardType="phone-pad"
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Input
-                label="Email"
-                placeholder="Seu email"
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Senha</Text>
-              <View style={styles.passwordInputContainer}>
-                <Ionicons name="lock-closed-outline" size={20} color="#666" style={styles.icon} />
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="Sua senha (mínimo 8 caracteres)"
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry={!showPassword}
-                />
-                <TouchableOpacity
-                  onPress={() => setShowPassword(!showPassword)}
-                  style={styles.eyeIcon}>
-                  <Ionicons
-                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                    size={24}
-                    color="#666"
-                  />
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Confirmar Senha</Text>
-              <View style={styles.passwordInputContainer}>
-                <Ionicons name="lock-closed-outline" size={20} color="#666" style={styles.icon} />
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="Confirme sua senha"
-                  value={confirmPassword}
-                  onChangeText={setConfirmPassword}
-                  secureTextEntry={!showConfirmPassword}
-                />
-                <TouchableOpacity
-                  onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-                  style={styles.eyeIcon}>
-                  <Ionicons
-                    name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
-                    size={24}
-                    color="#666"
-                  />
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            <Button
-              variant="primary"
-              loading={isLoading}
-              onPress={handleRegisterAndSync}
-              style={styles.actionButton}>
-              Criar Conta e Verificar Email
-            </Button>
-
-            <View style={styles.linksContainer}>
-              <Text style={styles.footerText}>Já possui uma conta? </Text>
-              <Link href="/(auth)/sign-in" asChild>
-                <TouchableOpacity>
-                  <Text style={styles.footerLink}>Entrar</Text>
-                </TouchableOpacity>
-              </Link>
-            </View>
+          <View className="flex-1 items-center">
+            <Logo size="sm" animated={false} />
           </View>
+
+          <View className="h-11 w-11" />
+        </View>
+
+        <ScrollView
+          className="flex-1"
+          contentContainerStyle={{ flexGrow: 1 }}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled">
+          {/* Header Section */}
+          <View className="flex-1 items-center justify-center px-6 pt-5">
+            <Animated.View className="items-center" style={{ opacity: fadeAnim }}>
+              <Text className="text-center text-3xl font-bold tracking-tight text-gray-900">
+                Criar Conta
+              </Text>
+              <Text className="mt-2 text-center text-base font-normal text-gray-600">
+                {currentStep === 1
+                  ? 'Vamos começar com suas informações básicas'
+                  : 'Complete seu cadastro com segurança'}
+              </Text>
+            </Animated.View>
+          </View>
+
+          {/* Form Section */}
+          <Animated.View
+            className="mx-5 mb-8 rounded-3xl border border-white/30 bg-white/90 p-7 shadow-xl"
+            style={{
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+              minHeight: SCREEN_HEIGHT * 0.6,
+            }}>
+            {/* Step Indicator */}
+            {renderStepIndicator()}
+
+            {/* Step Title */}
+            <View className="mb-6 items-center">
+              <Text className="text-center text-2xl font-bold tracking-tight text-gray-900">
+                {currentStep === 1 ? 'Informações Pessoais' : 'Dados de Acesso'}
+              </Text>
+              <Text className="mt-1.5 text-center text-base font-normal text-gray-700">
+                {currentStep === 1 ? 'Como podemos te chamar?' : 'Crie suas credenciais de acesso'}
+              </Text>
+            </View>
+
+            {/* Form Steps */}
+            <Animated.View
+              style={{
+                transform: [
+                  {
+                    translateX: stepAnim.interpolate({
+                      inputRange: [1, 2],
+                      outputRange: [0, -20],
+                    }),
+                  },
+                ],
+              }}>
+              {currentStep === 1 ? renderStep1() : renderStep2()}
+            </Animated.View>
+
+            {/* Action Buttons */}
+            <View className="mt-7 space-y-4">
+              <AuthButton
+                title={currentStep === 1 ? 'Continuar' : 'Criar Conta'}
+                onPress={currentStep === 1 ? handleNext : handleSubmit}
+                loading={isLoading}
+                leftIcon={currentStep === 1 ? 'arrow-forward' : 'person-add-outline'}
+              />
+
+              {/* Sign In Link */}
+              <View className="items-center">
+                <Text className="text-base text-gray-600">
+                  Já tem uma conta?{' '}
+                  <Link href="/(auth)/sign-in" asChild>
+                    <Text className="text-base font-semibold text-primary underline">
+                      Fazer login
+                    </Text>
+                  </Link>
+                </Text>
+              </View>
+            </View>
+
+            {/* Security Note */}
+            {currentStep === 2 && (
+              <View className="mt-6 rounded-2xl border border-gray-100 bg-gray-50/80 p-4">
+                <View className="flex-row items-center">
+                  <View className="mr-3 h-8 w-8 items-center justify-center rounded-2xl bg-green-100">
+                    <Ionicons name="shield-checkmark" size={16} color="#34C759" />
+                  </View>
+                  <View className="flex-1">
+                    <Text className="text-sm font-semibold text-gray-900">Dados Protegidos</Text>
+                    <Text className="mt-0.5 text-xs text-gray-700">
+                      Suas informações são criptografadas e mantidas em segurança
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            )}
+          </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: 'white' },
-  keyboardView: { flex: 1 },
-  scrollViewContent: { flexGrow: 1, justifyContent: 'center' },
-  container: { paddingHorizontal: 24, paddingVertical: 32 },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  backButton: { marginBottom: 16, alignSelf: 'flex-start' },
-  header: { marginBottom: 32 },
-  title: { fontSize: 30, fontWeight: 'bold', color: '#4F46E5', marginBottom: 8 },
-  subtitle: { color: '#6B7280' },
-  inputGroup: { marginBottom: 20 },
-  label: { marginBottom: 8, fontSize: 14, fontWeight: '500', color: '#6B7280' },
-  passwordInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    paddingHorizontal: 12,
-  },
-  icon: { marginRight: 8 },
-  textInput: { flex: 1, color: '#1F2937', height: 48 },
-  eyeIcon: { padding: 5 },
-  actionButton: {
-    marginTop: 8,
-    marginBottom: 16,
-  },
-  linksContainer: { marginTop: 24, flexDirection: 'row', justifyContent: 'center' },
-  footerText: { color: '#6B7280' },
-  footerLink: { fontWeight: '500', color: '#4F46E5' },
-  datePickerButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    paddingHorizontal: 12,
-    height: 48,
-    backgroundColor: 'white',
-  },
-  datePickerText: {
-    color: '#1F2937',
-  },
-  genderOptionsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  genderOptionButton: {
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 20,
-    paddingVertical: 10,
-    paddingHorizontal: 15,
-    marginRight: 10,
-    marginBottom: 10,
-    alignItems: 'center',
-  },
-  genderOptionButtonSelected: {
-    backgroundColor: '#4F46E5',
-    borderColor: '#4F46E5',
-  },
-  genderOptionText: {
-    color: '#374151',
-    fontWeight: '500',
-  },
-  genderOptionTextSelected: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-  },
-});

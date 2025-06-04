@@ -104,11 +104,11 @@ declare module 'react-native' {
     static alert: (
       title: string,
       message?: string,
-      buttons?: Array<{
+      buttons?: {
         text: string;
         onPress?: () => void;
         style?: 'default' | 'cancel' | 'destructive';
-      }>,
+      }[],
       options?: {
         cancelable: boolean;
         onDismiss?: () => void;

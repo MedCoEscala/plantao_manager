@@ -1,6 +1,6 @@
+import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useRef } from 'react';
 import { View, Animated, ViewStyle } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 
 interface CheckboxProps {
   checked: boolean;

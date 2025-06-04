@@ -1,6 +1,6 @@
 // Configurações da aplicação
-import { Platform } from 'react-native';
 import Constants from 'expo-constants';
+import { Platform } from 'react-native';
 
 // Função para detectar se está rodando no Expo Go
 function isRunningInExpoGo(): boolean {

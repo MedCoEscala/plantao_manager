@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import React, { useState, useEffect, ReactNode } from 'react';
 import {
   View,
@@ -14,9 +15,9 @@ import {
   TextStyle,
   TextInputProps,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useDialog } from '@/contexts/DialogContext';
+
 import Button from '@/components/ui/Button';
+import { useDialog } from '@/contexts/DialogContext';
 
 // Tipo para definição de um campo de formulário
 export interface FormField {
@@ -103,7 +104,7 @@ const FormBuilder: React.FC<FormBuilderProps> = ({
 
   // Inicializar valores ao carregar
   useEffect(() => {
-    let newValues = { ...initialValues };
+    const newValues = { ...initialValues };
 
     // Para cada campo, garantir que há um valor inicial
     fields.forEach((field) => {

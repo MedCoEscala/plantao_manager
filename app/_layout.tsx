@@ -1,14 +1,15 @@
 import 'react-native-get-random-values';
+import { ClerkProvider, useAuth } from '@clerk/clerk-expo';
 import { useFonts } from 'expo-font';
 import { Redirect, SplashScreen, Stack, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { ClerkProvider, useAuth } from '@clerk/clerk-expo';
 import * as SecureStore from 'expo-secure-store';
+import { useEffect, useState } from 'react';
+import { Platform, LogBox } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+
 import { DialogProvider } from '@/contexts/DialogContext';
 import { NotificationProvider } from '@/contexts/NotificationContext';
 import './styles/global.css';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { Platform, LogBox } from 'react-native';
 
 LogBox.ignoreLogs(['Constants.platform.ios.model has been deprecated in favor of expo-device']);
 
@@ -26,7 +27,6 @@ const tokenCache = {
       return SecureStore.setItemAsync(key, value);
     } catch (err) {
       console.error('SecureStore.setItemAsync error:', err);
-      return;
     }
   },
 };

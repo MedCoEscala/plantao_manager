@@ -65,11 +65,11 @@ export interface PaymentSchema {
 
 // Constantes de nome das tabelas
 export const Tables = {
-  USERS: "users",
-  LOCATIONS: "locations",
-  CONTRACTORS: "contractors",
-  SHIFTS: "shifts",
-  PAYMENTS: "payments",
+  USERS: 'users',
+  LOCATIONS: 'locations',
+  CONTRACTORS: 'contractors',
+  SHIFTS: 'shifts',
+  PAYMENTS: 'payments',
 };
 
 // Definições SQL para criação das tabelas

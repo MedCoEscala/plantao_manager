@@ -6,16 +6,16 @@ Este documento descreve o sistema de design baseado em TailwindCSS/NativeWind ut
 
 O sistema de cores é baseado no seguinte esquema:
 
-- **Primary**: `#0077B6` - Cor principal utilizada para ações primárias, links e elementos de destaque
-- **Secondary**: `#90E0EF` - Cor secundária utilizada para elementos complementares
+- **Primary**: `#18cb96` - Cor principal utilizada para ações primárias, links e elementos de destaque
+- **Secondary**: `#0f766e` - Cor secundária utilizada para elementos complementares
 - **Text**:
-  - Dark: `#2B2D42` - Texto principal
-  - Light: `#8D99AE` - Texto secundário, legendas
+  - Dark: `#1e293b` - Texto principal
+  - Light: `#64748b` - Texto secundário, legendas
 - **Estados**:
-  - Error: `#E63946` - Mensagens de erro, alertas críticos
-  - Success: `#2A9D8F` - Confirmações, ações concluídas com sucesso
-  - Warning: `#E9C46A` - Alertas, avisos
-- **Background**: `#F8F9FA` - Cor de fundo padrão
+  - Error: `#ef4444` - Mensagens de erro, alertas críticos
+  - Success: `#10b981` - Confirmações, ações concluídas com sucesso
+  - Warning: `#f59e0b` - Alertas, avisos
+- **Background**: `#f8fafc` - Cor de fundo padrão
 
 Cada cor possui variações de intensidade, de 50 (mais clara) a 900 (mais escura).
 
@@ -47,14 +47,9 @@ import { Button } from "@app/components/ui";
 ### Input
 
 ```jsx
-import { Input } from "@app/components/ui";
+import { Input } from '@app/components/ui';
 
-<Input
-  label="Email"
-  placeholder="Digite seu email"
-  error="Email inválido"
-  fullWidth
-/>;
+<Input label="Email" placeholder="Digite seu email" error="Email inválido" fullWidth />;
 ```
 
 ### Card
@@ -142,13 +137,13 @@ import { Divider } from "@app/components/ui";
 ### Toast
 
 ```jsx
-import { useToast } from "@app/components/ui";
+import { useToast } from '@app/components/ui';
 
 function MyComponent() {
   const { showToast } = useToast();
 
   const handleAction = () => {
-    showToast("Operação realizada com sucesso", "success");
+    showToast('Operação realizada com sucesso', 'success');
     // Tipos: "success" | "error" | "info" | "warning"
   };
 

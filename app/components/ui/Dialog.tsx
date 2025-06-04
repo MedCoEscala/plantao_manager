@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import {
   View,
@@ -7,7 +8,6 @@ import {
   TouchableWithoutFeedback,
   StyleSheet,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 
 export type DialogType = 'success' | 'error' | 'info' | 'warning' | 'confirm';
 

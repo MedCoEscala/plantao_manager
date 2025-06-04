@@ -1,7 +1,7 @@
 // app/components/form/Field.tsx
+import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 
 export interface FieldProps {
   label: string;

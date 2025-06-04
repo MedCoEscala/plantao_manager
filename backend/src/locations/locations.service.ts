@@ -5,11 +5,12 @@ import {
   BadRequestException,
   InternalServerErrorException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
 import { Location, Prisma } from '@prisma/client';
+
+import { PrismaService } from '../prisma/prisma.service';
 import { CreateLocationDto } from './dto/create-locations.dto';
-import { UpdateLocationDto } from './dto/update-locations.dto';
 import { GetLocationsFilterDto } from './dto/get-locations-filter.dto';
+import { UpdateLocationDto } from './dto/update-locations.dto';
 
 @Injectable()
 export class LocationsService {

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { useCNPJApi, CNPJData, CreateCNPJData, UpdateCNPJData } from '@/services/cnpj-api';
+
 import { useToast } from '@/components/ui/Toast';
+import { useCNPJApi, CNPJData, CreateCNPJData, UpdateCNPJData } from '@/services/cnpj-api';
 
 export function useCNPJData() {
   const [cnpjData, setCnpjData] = useState<CNPJData | null>(null);

@@ -1,7 +1,8 @@
-import * as SecureStore from 'expo-secure-store';
-import { Platform } from 'react-native';
 import { TokenCache } from '@clerk/clerk-expo/dist/cache';
 import * as AuthSession from 'expo-auth-session';
+import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
+
 import { fetchAPI } from './app/lib/fetch';
 
 const createTokenCache = (): TokenCache => {

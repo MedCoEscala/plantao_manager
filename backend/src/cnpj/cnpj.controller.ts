@@ -9,12 +9,13 @@ import {
   Logger,
   Req,
 } from '@nestjs/common';
+import { CNPJData } from '@prisma/client';
+import { Request } from 'express';
+
 import { CNPJService } from './cnpj.service';
 import { CreateCNPJDto } from './dto/create-cnpj.dto';
 import { UpdateCNPJDto } from './dto/update-cnpj.dto';
 import { ClerkAuthGuard } from '../auth/guards/clerk-auth.guard';
-import { Request } from 'express';
-import { CNPJData } from '@prisma/client';
 
 interface RequestWithUserContext extends Request {
   userContext: Record<string, any>;

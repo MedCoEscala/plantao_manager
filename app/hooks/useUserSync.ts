@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
-import { useNotification } from '@/components';
 import { useAuth, useUser } from '@clerk/clerk-expo';
+import { useEffect, useState } from 'react';
+
+import { useNotification } from '@/components';
 import { useAuthenticatedFetch } from '@/utils/api-client';
 
 export const useUserSync = () => {

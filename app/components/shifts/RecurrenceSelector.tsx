@@ -1,3 +1,6 @@
+import { Ionicons } from '@expo/vector-icons';
+import { format, addMonths, getDay } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
@@ -9,9 +12,7 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { format, addMonths, getDay } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+
 import DateField from '@/components/form/DateField';
 import Card from '@/components/ui/Card';
 import SectionHeader from '@/components/ui/SectionHeader';
@@ -22,8 +23,8 @@ import {
   WEEKDAYS,
   WEEK_NUMBERS,
 } from '@/types/recurrence';
-import { RecurrenceCalculator } from '@/utils/recurrence';
 import { cn } from '@/utils/cn';
+import { RecurrenceCalculator } from '@/utils/recurrence';
 
 interface RecurrenceSelectorProps {
   startDate: Date;
@@ -446,7 +447,7 @@ export default function RecurrenceSelector({
                       {previewDates.length} plantões serão criados
                     </Text>
                   </View>
-                  <ScrollView className="max-h-48" showsVerticalScrollIndicator={true}>
+                  <ScrollView className="max-h-48" showsVerticalScrollIndicator>
                     {previewDates.slice(0, 20).map((date, index) => (
                       <View key={index} className="mb-2 flex-row items-center">
                         <View className="mr-3 h-2 w-2 rounded-full bg-primary" />

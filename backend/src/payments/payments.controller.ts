@@ -13,14 +13,14 @@ import {
   Req,
   NotFoundException,
 } from '@nestjs/common';
-import { CreatePaymentDto } from './dto/create-payment.dto';
-import { UpdatePaymentDto } from './dto/update-payment.dto';
-import { GetPaymentsFilterDto } from './dto/getPaymentsFilter.dto';
-
-import { ClerkAuthGuard } from '../auth/guards/clerk-auth.guard';
-import { Request } from 'express';
 import { Payment } from '@prisma/client';
+import { Request } from 'express';
+
+import { CreatePaymentDto } from './dto/create-payment.dto';
+import { GetPaymentsFilterDto } from './dto/getPaymentsFilter.dto';
+import { UpdatePaymentDto } from './dto/update-payment.dto';
 import { PaymentsService } from './payments.service';
+import { ClerkAuthGuard } from '../auth/guards/clerk-auth.guard';
 
 interface RequestWithUserContext extends Request {
   userContext: Record<string, any>;

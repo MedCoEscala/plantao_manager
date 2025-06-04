@@ -1,4 +1,5 @@
 import { openDatabaseAsync, SQLiteDatabase } from 'expo-sqlite';
+
 import { TableDefinitions, Tables } from './schema';
 
 let db: SQLiteDatabase | null = null;

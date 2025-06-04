@@ -1,3 +1,9 @@
+import { useAuth } from '@clerk/clerk-react';
+import { Ionicons } from '@expo/vector-icons';
+import { format, isSameDay, parseISO, isValid } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import {
   View,
@@ -9,19 +15,14 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { StatusBar } from 'expo-status-bar';
-import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { useDialog } from '@/contexts/DialogContext';
-import { format, isSameDay, parseISO, isValid } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-import CalendarComponent from '@/components/CalendarComponent';
-import { useProfile } from '@/hooks/useProfile';
-import ShiftFormModal from '@/components/shifts/ShiftFormModal';
+
 import { Button, useNotification } from '@/components';
+import CalendarComponent from '@/components/CalendarComponent';
+import ShiftFormModal from '@/components/shifts/ShiftFormModal';
+import { useDialog } from '@/contexts/DialogContext';
+import { useProfile } from '@/hooks/useProfile';
 import { useShiftsApi, Shift } from '@/services/shifts-api';
 import { formatDate, formatTime, formatCurrency } from '@/utils/formatters';
-import { useAuth } from '@clerk/clerk-react';
 
 export default function ShiftsScreen() {
   const [shifts, setShifts] = useState<Shift[]>([]);

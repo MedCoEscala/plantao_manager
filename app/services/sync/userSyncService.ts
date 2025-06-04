@@ -1,5 +1,6 @@
 import * as SecureStore from 'expo-secure-store';
 import { SQLiteDatabase, SQLTransaction, SQLResultSet } from 'expo-sqlite';
+
 import { SyncResponse, SyncService } from './syncTypes';
 import { User } from '../../types/user';
 import clerkProfileService from '../profile/clerkProfileService';

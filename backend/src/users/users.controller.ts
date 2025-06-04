@@ -19,19 +19,20 @@ import {
   NotFoundException,
   Logger,
 } from '@nestjs/common';
+import { User } from '@prisma/client';
+import { IsString, IsOptional, IsDateString, IsIn } from 'class-validator';
+import { Request } from 'express';
+
 import { UsersService } from './users.service';
 import { ClerkAuthGuard } from '../auth/guards/clerk-auth.guard';
-import { Request } from 'express';
-import { User } from '@prisma/client';
+
+// --- DTO para atualização do perfil ---
+// (Idealmente, mover para src/users/dto/update-profile.dto.ts)
 
 // Adicionar tipo para request com userContext
 interface RequestWithUserContext extends Request {
   userContext: Record<string, any>; // Payload do token
 }
-
-// --- DTO para atualização do perfil ---
-// (Idealmente, mover para src/users/dto/update-profile.dto.ts)
-import { IsString, IsOptional, IsDateString, IsIn } from 'class-validator';
 
 export class UpdateProfileDto {
   @IsString()

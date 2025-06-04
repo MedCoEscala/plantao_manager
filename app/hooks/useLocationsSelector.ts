@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useLocationsApi, Location } from '@/services/locations-api';
+
 import { useToast } from '@/components/ui/Toast';
+import { useLocationsApi, Location } from '@/services/locations-api';
 
 interface LocationOption {
   value: string;

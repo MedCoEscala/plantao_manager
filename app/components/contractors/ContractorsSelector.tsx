@@ -1,8 +1,9 @@
+import { Ionicons } from '@expo/vector-icons';
 import React, { useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useContractorsSelector } from '@/hooks/useContractorsSelector';
+
 import ContractorFormModal from '@/components/contractors/ContractorFormModal';
+import { useContractorsSelector } from '@/hooks/useContractorsSelector';
 import { Contractor } from '@/services/contractors-api';
 
 interface ContractorsSelectorProps {

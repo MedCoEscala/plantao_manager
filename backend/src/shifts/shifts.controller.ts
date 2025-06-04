@@ -13,14 +13,15 @@ import {
   ForbiddenException,
   Req,
 } from '@nestjs/common';
-import { ShiftsService, BatchCreateResult } from './shifts.service';
-import { CreateShiftDto } from './dto/create-shift.dto';
-import { UpdateShiftDto } from './dto/update-shift.dto';
-import { GetShiftsFilterDto } from './dto/get-shifts-filter.dto';
-import { CreateShiftsBatchDto } from './dto/create-shifts-batch.dto';
-import { ClerkAuthGuard } from '../auth/guards/clerk-auth.guard';
-import { Request } from 'express';
 import { Plantao } from '@prisma/client';
+import { Request } from 'express';
+
+import { CreateShiftDto } from './dto/create-shift.dto';
+import { CreateShiftsBatchDto } from './dto/create-shifts-batch.dto';
+import { GetShiftsFilterDto } from './dto/get-shifts-filter.dto';
+import { UpdateShiftDto } from './dto/update-shift.dto';
+import { ShiftsService, BatchCreateResult } from './shifts.service';
+import { ClerkAuthGuard } from '../auth/guards/clerk-auth.guard';
 
 interface RequestWithUserContext extends Request {
   userContext: Record<string, any>;

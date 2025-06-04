@@ -1,4 +1,4 @@
-declare module "expo-sqlite" {
+declare module 'expo-sqlite' {
   // Tipos para a versão 15.1.3
   export interface SQLiteDatabase {
     // Métodos assíncronos (preferidos na nova API)
@@ -15,10 +15,7 @@ declare module "expo-sqlite" {
     execSync(sqlStatement: string | string[]): void;
     getAllSync<T = any>(sqlStatement: string, params?: any[]): T[];
     getFirstSync<T = any>(sqlStatement: string, params?: any[]): T;
-    runSync(
-      sqlStatement: string,
-      ...params: any[]
-    ): { changes: number; lastInsertRowId?: number };
+    runSync(sqlStatement: string, ...params: any[]): { changes: number; lastInsertRowId?: number };
     withTransactionSync<T>(callback: () => T): T;
 
     // Métodos para compatibilidade com WebSQL
