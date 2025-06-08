@@ -15,6 +15,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
 
 import { useProfile } from '../../hooks/useProfile';
+import { getInitials } from '@/utils/userNameHelper';
 
 const ProfileSettingsScreen = () => {
   const { profile, isLoading, updateProfile } = useProfile();
@@ -88,44 +89,11 @@ const ProfileSettingsScreen = () => {
   };
 
   const handleChangePassword = async () => {
-    try {
-      Alert.alert(
-        'Alterar Senha',
-        'Você receberá um email com instruções para alterar sua senha.',
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          {
-            text: 'Enviar Email',
-            onPress: async () => {
-              try {
-                // Usar o Clerk para enviar email de reset de senha
-                const clerk = globalThis.Clerk;
-                if (clerk && clerk.user) {
-                  await clerk.user.createEmailAddressVerification({
-                    strategy: 'email_code',
-                  });
-                  Alert.alert(
-                    'Email Enviado',
-                    'Verifique sua caixa de entrada para instruções de alteração de senha.'
-                  );
-                } else {
-                  Alert.alert('Erro', 'Não foi possível iniciar o processo. Tente novamente.');
-                }
-              } catch (error) {
-                console.error('Erro ao solicitar alteração de senha:', error);
-                Alert.alert(
-                  'Informação',
-                  'Para alterar sua senha, acesse as configurações da sua conta no menu principal e selecione "Gerenciar Conta".'
-                );
-              }
-            },
-          },
-        ]
-      );
-    } catch (error) {
-      console.error('Erro ao iniciar processo de alteração de senha:', error);
-      Alert.alert('Erro', 'Não foi possível iniciar o processo. Tente novamente.');
-    }
+    Alert.alert(
+      'Alterar Senha',
+      'Para alterar sua senha, acesse as configurações da sua conta no aplicativo Clerk ou solicite um reset de senha por email.',
+      [{ text: 'Entendi', style: 'default' }]
+    );
   };
 
   const formatDate = (date: Date | null): string => {
@@ -163,7 +131,7 @@ const ProfileSettingsScreen = () => {
 
   if (isLoading) {
     return (
-      <SafeAreaView className="flex-1 items-center justify-center bg-white">
+      <SafeAreaView className="flex-1 items-center justify-center bg-gray-50">
         <ActivityIndicator size="large" color="#0077B6" />
         <Text className="mt-4 text-gray-600">Carregando dados do perfil...</Text>
       </SafeAreaView>
@@ -172,7 +140,7 @@ const ProfileSettingsScreen = () => {
 
   if (!profile) {
     return (
-      <SafeAreaView className="flex-1 items-center justify-center bg-white p-6">
+      <SafeAreaView className="flex-1 items-center justify-center bg-gray-50 p-6">
         <Ionicons name="person-circle-outline" size={64} color="#9ca3af" />
         <Text className="mt-4 text-center text-lg font-medium text-gray-600">
           Não foi possível carregar os dados do perfil
@@ -185,22 +153,34 @@ const ProfileSettingsScreen = () => {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
-      <ScrollView className="flex-1">
+    <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
+      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
         {/* Header */}
-        <View className="bg-white px-6 py-4">
-          <Text className="text-2xl font-bold text-gray-900">Configurações de Perfil</Text>
-          <Text className="mt-1 text-gray-600">Gerencie suas informações pessoais</Text>
+        <View className="border-b border-gray-200 bg-white">
+          <View className="px-6 py-4">
+            <Text className="text-2xl font-bold text-gray-900">Configurações de Perfil</Text>
+            <Text className="mt-1 text-gray-600">Gerencie suas informações pessoais</Text>
+          </View>
         </View>
 
         {/* User Info Card */}
         <View className="mx-6 mt-6 rounded-xl bg-white p-4 shadow-sm">
           <View className="flex-row items-center">
-            <View className="mr-4 h-16 w-16 items-center justify-center rounded-full bg-purple-100">
-              <Ionicons name="person" size={32} color="#7c3aed" />
+            <View className="mr-4">
+              <View className="h-16 w-16 items-center justify-center rounded-full bg-primary/20">
+                <Text className="text-xl font-bold text-primary">
+                  {getInitials({
+                    ...profile,
+                    firstName: firstName || profile?.firstName,
+                    lastName: lastName || profile?.lastName,
+                  }) || '?'}
+                </Text>
+              </View>
             </View>
             <View className="flex-1">
-              <Text className="text-lg font-semibold text-gray-900">{profile.name}</Text>
+              <Text className="text-lg font-semibold text-gray-900">
+                {profile.name || `${firstName} ${lastName}`.trim() || 'Usuário'}
+              </Text>
               <Text className="text-gray-600">{profile.email}</Text>
             </View>
           </View>
@@ -210,72 +190,74 @@ const ProfileSettingsScreen = () => {
         <View className="mx-6 mt-6">
           <Text className="mb-4 text-lg font-semibold text-gray-900">Informações Pessoais</Text>
 
-          {/* First Name */}
-          <View className="mb-4 rounded-xl bg-white p-4 shadow-sm">
-            <Text className="mb-2 text-sm font-medium text-gray-700">Primeiro Nome *</Text>
-            <TextInput
-              value={firstName}
-              onChangeText={setFirstName}
-              placeholder="Digite seu primeiro nome"
-              className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-3 text-gray-900"
-              placeholderTextColor="#9ca3af"
-            />
-          </View>
-
-          {/* Last Name */}
-          <View className="mb-4 rounded-xl bg-white p-4 shadow-sm">
-            <Text className="mb-2 text-sm font-medium text-gray-700">Sobrenome</Text>
-            <TextInput
-              value={lastName}
-              onChangeText={setLastName}
-              placeholder="Digite seu sobrenome"
-              className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-3 text-gray-900"
-              placeholderTextColor="#9ca3af"
-            />
-          </View>
-
-          {/* Phone */}
-          <View className="mb-4 rounded-xl bg-white p-4 shadow-sm">
-            <Text className="mb-2 text-sm font-medium text-gray-700">Telefone</Text>
-            <TextInput
-              value={phoneNumber}
-              onChangeText={handlePhoneChange}
-              placeholder="(00) 00000-0000"
-              keyboardType="phone-pad"
-              maxLength={15}
-              className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-3 text-gray-900"
-              placeholderTextColor="#9ca3af"
-            />
-          </View>
-
-          {/* Gender */}
-          <View className="mb-4 rounded-xl bg-white p-4 shadow-sm">
-            <Text className="mb-2 text-sm font-medium text-gray-700">Gênero</Text>
-            <View className="rounded-lg border border-gray-200 bg-gray-50">
-              <Picker
-                selectedValue={gender}
-                onValueChange={(itemValue) => setGender(itemValue)}
-                style={{ color: '#374151' }}>
-                <Picker.Item label="Selecione..." value="" />
-                <Picker.Item label="Masculino" value="Masculino" />
-                <Picker.Item label="Feminino" value="Feminino" />
-                <Picker.Item label="Outro" value="Outro" />
-                <Picker.Item label="Não informado" value="Não informado" />
-              </Picker>
+          <View className="space-y-4">
+            {/* First Name */}
+            <View className="rounded-xl bg-white p-4 shadow-sm">
+              <Text className="mb-2 text-sm font-medium text-gray-700">Primeiro Nome *</Text>
+              <TextInput
+                value={firstName}
+                onChangeText={setFirstName}
+                placeholder="Digite seu primeiro nome"
+                className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-3 text-gray-900"
+                placeholderTextColor="#9ca3af"
+              />
             </View>
-          </View>
 
-          {/* Birth Date */}
-          <View className="mb-4 rounded-xl bg-white p-4 shadow-sm">
-            <Text className="mb-2 text-sm font-medium text-gray-700">Data de Nascimento</Text>
-            <TouchableOpacity
-              onPress={() => setShowDatePicker(true)}
-              className="flex-row items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-3 py-3">
-              <Text className={`${birthDate ? 'text-gray-900' : 'text-gray-400'}`}>
-                {formatDate(birthDate)}
-              </Text>
-              <Ionicons name="calendar-outline" size={20} color="#9ca3af" />
-            </TouchableOpacity>
+            {/* Last Name */}
+            <View className="rounded-xl bg-white p-4 shadow-sm">
+              <Text className="mb-2 text-sm font-medium text-gray-700">Sobrenome</Text>
+              <TextInput
+                value={lastName}
+                onChangeText={setLastName}
+                placeholder="Digite seu sobrenome"
+                className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-3 text-gray-900"
+                placeholderTextColor="#9ca3af"
+              />
+            </View>
+
+            {/* Phone */}
+            <View className="rounded-xl bg-white p-4 shadow-sm">
+              <Text className="mb-2 text-sm font-medium text-gray-700">Telefone</Text>
+              <TextInput
+                value={phoneNumber}
+                onChangeText={handlePhoneChange}
+                placeholder="(00) 00000-0000"
+                keyboardType="phone-pad"
+                maxLength={15}
+                className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-3 text-gray-900"
+                placeholderTextColor="#9ca3af"
+              />
+            </View>
+
+            {/* Gender */}
+            <View className="rounded-xl bg-white p-4 shadow-sm">
+              <Text className="mb-2 text-sm font-medium text-gray-700">Gênero</Text>
+              <View className="rounded-lg border border-gray-200 bg-gray-50">
+                <Picker
+                  selectedValue={gender}
+                  onValueChange={(itemValue) => setGender(itemValue)}
+                  style={{ color: '#374151' }}>
+                  <Picker.Item label="Selecione..." value="" />
+                  <Picker.Item label="Masculino" value="Masculino" />
+                  <Picker.Item label="Feminino" value="Feminino" />
+                  <Picker.Item label="Outro" value="Outro" />
+                  <Picker.Item label="Não informado" value="Não informado" />
+                </Picker>
+              </View>
+            </View>
+
+            {/* Birth Date */}
+            <View className="rounded-xl bg-white p-4 shadow-sm">
+              <Text className="mb-2 text-sm font-medium text-gray-700">Data de Nascimento</Text>
+              <TouchableOpacity
+                onPress={() => setShowDatePicker(true)}
+                className="flex-row items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-3 py-3">
+                <Text className={`${birthDate ? 'text-gray-900' : 'text-gray-400'}`}>
+                  {formatDate(birthDate)}
+                </Text>
+                <Ionicons name="calendar-outline" size={20} color="#9ca3af" />
+              </TouchableOpacity>
+            </View>
           </View>
 
           {showDatePicker && (
@@ -291,7 +273,7 @@ const ProfileSettingsScreen = () => {
         </View>
 
         {/* Security Section */}
-        <View className="mx-6 mt-6">
+        <View className="mx-6 mt-8">
           <Text className="mb-4 text-lg font-semibold text-gray-900">Segurança</Text>
 
           <TouchableOpacity
@@ -311,7 +293,7 @@ const ProfileSettingsScreen = () => {
         </View>
 
         {/* Save Button */}
-        <View className="mx-6 mb-6 mt-8">
+        <View className="mx-6 mb-8 mt-8">
           <TouchableOpacity
             onPress={handleSave}
             disabled={saving}
@@ -327,20 +309,6 @@ const ProfileSettingsScreen = () => {
               {saving ? 'Salvando...' : 'Salvar Alterações'}
             </Text>
           </TouchableOpacity>
-        </View>
-
-        {/* Info Note */}
-        <View className="mx-6 mb-6">
-          <View className="rounded-xl bg-blue-50 p-4">
-            <View className="flex-row items-center">
-              <Ionicons name="information-circle" size={20} color="#3b82f6" />
-              <Text className="ml-2 font-medium text-blue-900">Informação</Text>
-            </View>
-            <Text className="mt-2 text-sm text-blue-800">
-              Suas informações pessoais são seguras e usadas apenas para melhorar sua experiência no
-              aplicativo. Campos marcados com * são obrigatórios.
-            </Text>
-          </View>
         </View>
       </ScrollView>
     </SafeAreaView>

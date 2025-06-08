@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { View, TextInput, Text, Animated, TouchableOpacity } from 'react-native';
 
 interface CodeInputProps {
@@ -25,6 +25,7 @@ export default function CodeInput({
   const inputRefs = useRef<(TextInput | null)[]>([]);
   const animatedValues = useRef(Array.from({ length }, () => new Animated.Value(0))).current;
   const shakeAnim = useRef(new Animated.Value(0)).current;
+  const completedRef = useRef<string>(''); // Para evitar múltiplas chamadas
 
   useEffect(() => {
     if (autoFocus && inputRefs.current[0]) {
@@ -32,11 +33,25 @@ export default function CodeInput({
     }
   }, [autoFocus]);
 
+  // Memorizar a função de complete para evitar recreações
+  const handleComplete = useCallback(
+    (code: string) => {
+      if (onComplete && code !== completedRef.current) {
+        completedRef.current = code;
+        onComplete(code);
+      }
+    },
+    [onComplete]
+  );
+
   useEffect(() => {
-    if (value.length === length && onComplete) {
-      onComplete(value);
+    if (value.length === length) {
+      handleComplete(value);
+    } else {
+      // Resetar quando o código não está completo
+      completedRef.current = '';
     }
-  }, [value, length, onComplete]);
+  }, [value, length, handleComplete]);
 
   useEffect(() => {
     if (error) {

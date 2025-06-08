@@ -26,6 +26,28 @@ export class UserNameHelper {
   }
 
   static getInitials(profile: UserProfile | null | undefined): string {
+    if (!profile) return '?';
+
+    // Priorizar firstName e lastName se disponíveis
+    const firstName = profile.firstName?.trim() || '';
+    const lastName = profile.lastName?.trim() || '';
+
+    if (firstName && lastName) {
+      // Se tem firstName e lastName, pega a inicial de cada
+      return `${firstName.charAt(0).toUpperCase()}${lastName.charAt(0).toUpperCase()}`;
+    }
+
+    if (firstName && firstName.length >= 2) {
+      // Se só tem firstName com 2+ caracteres, pega as duas primeiras letras
+      return `${firstName.charAt(0).toUpperCase()}${firstName.charAt(1).toUpperCase()}`;
+    }
+
+    if (firstName) {
+      // Se só tem firstName com 1 caractere
+      return firstName.charAt(0).toUpperCase();
+    }
+
+    // Fallback para o nome completo (campo name)
     const displayName = UserNameHelper.getDisplayName(profile);
 
     if (displayName === 'Usuário') return '?';
@@ -36,12 +58,19 @@ export class UserNameHelper {
       .filter((part) => part.length > 0);
 
     if (parts.length === 0) return '?';
-    if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+    if (parts.length === 1) {
+      const word = parts[0];
+      if (word.length >= 2) {
+        return `${word.charAt(0).toUpperCase()}${word.charAt(1).toUpperCase()}`;
+      }
+      return word.charAt(0).toUpperCase();
+    }
 
+    // Para múltiplas palavras, pega as iniciais das duas primeiras
     const firstInitial = parts[0].charAt(0).toUpperCase();
-    const lastInitial = parts[parts.length - 1].charAt(0).toUpperCase();
+    const secondInitial = parts[1].charAt(0).toUpperCase();
 
-    return `${firstInitial}${lastInitial}`;
+    return `${firstInitial}${secondInitial}`;
   }
 
   static getFirstName(profile: UserProfile | null | undefined): string {

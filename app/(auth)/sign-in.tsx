@@ -99,28 +99,6 @@ export default function SignInScreen() {
       if (signInAttempt.status === 'complete') {
         await setActive({ session: signInAttempt.createdSessionId });
 
-        const token = await getToken();
-        if (!token) {
-          throw new Error('Não foi possível obter o token de autenticação.');
-        }
-
-        try {
-          console.log('🔄 Sincronizando usuário com o backend...');
-          await apiClient.post(
-            '/users/sync',
-            {},
-            {
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
-            }
-          );
-          console.log('✅ Usuário sincronizado com sucesso!');
-        } catch (syncError) {
-          console.error('❌ Erro ao sincronizar usuário:', syncError);
-          showError('Erro ao sincronizar seus dados. Tente novamente mais tarde.');
-        }
-
         showSuccess('Login realizado com sucesso!');
         router.replace('/(root)/profile');
       } else {
@@ -131,13 +109,13 @@ export default function SignInScreen() {
         showError('Status de login inesperado.');
       }
     } catch (err: any) {
-      console.error('Erro de Login Clerk ou Token:', JSON.stringify(err, null, 2));
+      console.error('Erro de Login Clerk:', JSON.stringify(err, null, 2));
       const firstError = err.errors?.[0];
       const errorMessage =
         firstError?.longMessage ||
         firstError?.message ||
-        err.message ||
-        'Email ou senha inválidos.';
+        'Erro ao fazer login. Verifique suas credenciais.';
+
       showError(errorMessage);
     } finally {
       setIsLoading(false);

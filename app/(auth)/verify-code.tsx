@@ -3,7 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -44,6 +44,7 @@ export default function VerifyCodeScreen() {
   }>();
   const router = useRouter();
   const { showToast } = useToast();
+  const mountedRef = useRef(true);
 
   // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -51,6 +52,8 @@ export default function VerifyCodeScreen() {
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
+    mountedRef.current = true;
+
     if (!params.email) {
       showToast('Email não fornecido para verificação.', 'error');
       router.replace('/(auth)/sign-up');
@@ -74,19 +77,27 @@ export default function VerifyCodeScreen() {
 
     // Start countdown for resend
     setCountdown(60);
+
+    return () => {
+      mountedRef.current = false;
+    };
   }, []);
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
-    if (countdown > 0) {
-      timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+    if (countdown > 0 && mountedRef.current) {
+      timer = setTimeout(() => {
+        if (mountedRef.current) {
+          setCountdown(countdown - 1);
+        }
+      }, 1000);
     }
     return () => clearTimeout(timer);
   }, [countdown]);
 
   useEffect(() => {
     // Pulse animation for the icon
-    Animated.loop(
+    const animation = Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {
           toValue: 1.1,
@@ -99,15 +110,26 @@ export default function VerifyCodeScreen() {
           useNativeDriver: true,
         }),
       ])
-    ).start();
+    );
+
+    animation.start();
+
+    return () => {
+      animation.stop();
+    };
   }, []);
 
-  const handleCodeComplete = async (verificationCode: string) => {
-    await handleVerifyCodeAndSync(verificationCode);
-  };
+  const handleCodeComplete = useCallback(
+    async (verificationCode: string) => {
+      // Evita múltiplas chamadas simultâneas
+      if (isLoading || !mountedRef.current) return;
+      await handleVerifyCodeAndSync(verificationCode);
+    },
+    [isLoading]
+  );
 
   const handleVerifyCodeAndSync = async (verificationCode?: string) => {
-    if (!isLoaded) return;
+    if (!isLoaded || !mountedRef.current) return;
 
     const codeToVerify = verificationCode || code;
     if (!codeToVerify || codeToVerify.length !== 6) {
@@ -118,67 +140,87 @@ export default function VerifyCodeScreen() {
     setIsLoading(true);
     setError('');
 
-    let sessionActivated = false;
-    let token: string | null = null;
-
     try {
+      console.log('🔐 Iniciando verificação de código...');
+
       // 1. Verificar o código
       const completeSignUp = await signUp.attemptEmailAddressVerification({
         code: codeToVerify,
       });
 
+      if (!mountedRef.current) return;
+
       if (completeSignUp.status !== 'complete') {
         throw new Error('Falha na verificação do código.');
       }
 
+      console.log('✅ Código verificado com sucesso');
+
       // 2. Ativar sessão e obter token
       await setActive({ session: completeSignUp.createdSessionId });
-      sessionActivated = true;
-      token = await getToken();
+
+      if (!mountedRef.current) return;
+
+      const token = await getToken();
 
       if (!token) {
         throw new Error('Falha ao obter token de autenticação.');
       }
 
-      // 3. Sincronização Básica
-      const authHeader = { headers: { Authorization: `Bearer ${token}` } };
+      console.log('🔐 Token de autenticação obtido');
 
-      try {
-        console.log('🔄 [1/2] Sincronização básica do usuário...');
-        await apiClient.post('/users/sync', {}, authHeader);
-        console.log('✅ [1/2] Sincronização básica concluída.');
-      } catch (syncError) {
-        console.error('❌ Erro na sincronização básica:', syncError);
-        showToast('Erro na sincronização inicial. Tente novamente.', 'error');
-      }
-
-      // 4. Atualização do Perfil
-      const profileData: { [key: string]: string | undefined } = {};
+      // 3. Preparar dados do perfil para sincronização
+      const profileData: any = {};
       if (params.firstName) profileData.firstName = params.firstName;
       if (params.lastName) profileData.lastName = params.lastName;
       if (params.birthDate) profileData.birthDate = params.birthDate;
       if (params.gender) profileData.gender = params.gender;
       if (params.phoneNumber) profileData.phoneNumber = params.phoneNumber;
 
-      if (Object.keys(profileData).length > 0) {
-        try {
-          console.log('🔄 [2/2] Atualizando perfil com dados adicionais...', profileData);
+      const authHeader = { headers: { Authorization: `Bearer ${token}` } };
+
+      // 4. Sincronização completa em uma única operação
+      try {
+        console.log('🔄 Sincronizando usuário com dados completos...');
+
+        // Primeiro faz a sincronização básica
+        await apiClient.post('/users/sync', {}, authHeader);
+        console.log('✅ Sincronização básica concluída');
+
+        // Se tem dados adicionais, atualiza o perfil
+        if (Object.keys(profileData).length > 0 && mountedRef.current) {
+          console.log('🔄 Atualizando perfil com dados adicionais...', profileData);
           await apiClient.patch('/users/me', profileData, authHeader);
-          console.log('✅ [2/2] Atualização do perfil concluída.');
-        } catch (updateError) {
-          console.error('❌ Erro ao atualizar perfil:', updateError);
-          showToast(
-            'Erro ao salvar dados do perfil. Você pode atualizá-los mais tarde.',
-            'warning'
-          );
+          console.log('✅ Perfil atualizado com dados adicionais');
+        }
+      } catch (syncError: any) {
+        console.error('❌ Erro na sincronização:', syncError);
+
+        // Se for erro 404 (usuário não encontrado), pode continuar
+        // pois o perfil será criado quando acessar a aplicação
+        if (syncError.response?.status === 404) {
+          console.log('⚠️ Usuário não sincronizado ainda, será criado no primeiro acesso');
+        } else {
+          // Para outros erros, mostra aviso mas não falha o fluxo
+          if (mountedRef.current) {
+            showToast(
+              'Alguns dados podem não ter sido salvos. Você pode atualizá-los no perfil.',
+              'warning'
+            );
+          }
         }
       }
 
-      // 5. Redirecionamento Final
-      showToast('Conta verificada com sucesso!', 'success');
-      router.replace('/(root)/profile');
+      // 5. Redirecionamento final
+      if (mountedRef.current) {
+        showToast('Conta verificada com sucesso!', 'success');
+        router.replace('/(root)/(tabs)');
+      }
     } catch (err: any) {
-      console.error('Erro no fluxo de verificação:', err);
+      console.error('❌ Erro no fluxo de verificação:', err);
+
+      if (!mountedRef.current) return;
+
       const firstError = err.errors?.[0];
       let errorMessage =
         firstError?.longMessage || firstError?.message || err.message || 'Ocorreu um erro.';
@@ -191,12 +233,14 @@ export default function VerifyCodeScreen() {
 
       setError(errorMessage);
     } finally {
-      setIsLoading(false);
+      if (mountedRef.current) {
+        setIsLoading(false);
+      }
     }
   };
 
   const handleResendCode = async () => {
-    if (!isLoaded || resendLoading || countdown > 0) return;
+    if (!isLoaded || resendLoading || countdown > 0 || !mountedRef.current) return;
 
     setResendLoading(true);
     try {

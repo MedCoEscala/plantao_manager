@@ -58,17 +58,64 @@ export class UsersService {
         `Sincronizando ${clerkId} com dados: nome="${fullName}", email="${email}"`,
       );
 
-      const user = await this.prisma.user.upsert({
+      // Primeiro, verifica se já existe um usuário com este clerkId
+      const existingUser = await this.prisma.user.findUnique({
         where: { clerkId },
-        update: {
-          email,
-          firstName: firstName || null,
-          lastName: lastName || null,
-          name: fullName,
-          imageUrl,
-          phoneNumber,
-        },
-        create: {
+      });
+
+      if (existingUser) {
+        // Usuário já existe, apenas atualiza
+        const user = await this.prisma.user.update({
+          where: { clerkId },
+          data: {
+            email,
+            firstName: firstName || null,
+            lastName: lastName || null,
+            name: fullName,
+            imageUrl,
+            phoneNumber,
+          },
+        });
+
+        this.logger.log(
+          `Usuário atualizado: DB ID ${user.id}, nome: "${user.name}"`,
+        );
+        return user;
+      }
+
+      // Verifica se existe outro usuário com o mesmo email
+      const userWithSameEmail = await this.prisma.user.findUnique({
+        where: { email },
+      });
+
+      if (userWithSameEmail) {
+        // Se existe usuário com mesmo email mas clerkId diferente,
+        // provavelmente é uma inconsistência. Vamos atualizar o clerkId.
+        this.logger.warn(
+          `Usuário com email ${email} já existe com clerkId diferente. Atualizando clerkId de ${userWithSameEmail.clerkId} para ${clerkId}`,
+        );
+
+        const user = await this.prisma.user.update({
+          where: { email },
+          data: {
+            clerkId,
+            firstName: firstName || null,
+            lastName: lastName || null,
+            name: fullName,
+            imageUrl,
+            phoneNumber,
+          },
+        });
+
+        this.logger.log(
+          `Usuário sincronizado (email existente): DB ID ${user.id}, nome: "${user.name}"`,
+        );
+        return user;
+      }
+
+      // Nenhum usuário encontrado, criar novo
+      const user = await this.prisma.user.create({
+        data: {
           clerkId,
           email,
           firstName: firstName || null,
@@ -80,22 +127,48 @@ export class UsersService {
       });
 
       this.logger.log(
-        `Usuário sincronizado: DB ID ${user.id}, nome: "${user.name}"`,
+        `Novo usuário criado: DB ID ${user.id}, nome: "${user.name}"`,
       );
 
       return user;
     } catch (error: any) {
       this.logger.error(`Falha ao sincronizar usuário ${clerkId}:`, error);
 
-      if (error.code === 'P2002' && error.meta?.target?.includes('email')) {
-        this.logger.error(`Email já existe (P2002).`);
-        throw new InternalServerErrorException(`Email já cadastrado.`);
-      } else if (error.code === 'P2002') {
+      // Tratamento específico para erros de constraint único
+      if (error.code === 'P2002') {
+        const constraintField = error.meta?.target;
         this.logger.error(
-          `Constraint único falhou em ${error.meta?.target} (P2002).`,
+          `Constraint único falhou em ${constraintField} (P2002).`,
         );
-        throw new InternalServerErrorException(`Erro de constraint único.`);
+
+        if (constraintField?.includes('email')) {
+          // Tenta recuperar o usuário existente com este email
+          try {
+            const existingUser = await this.prisma.user.findFirst({
+              where: {
+                OR: [{ clerkId }, { email: tokenPayload.email }],
+              },
+            });
+
+            if (existingUser) {
+              this.logger.log(
+                `Retornando usuário existente após erro P2002: ${existingUser.id}`,
+              );
+              return existingUser;
+            }
+          } catch (recoveryError) {
+            this.logger.error(
+              'Falha na recuperação após P2002:',
+              recoveryError,
+            );
+          }
+        }
+
+        throw new InternalServerErrorException(
+          `Erro de constraint único: ${constraintField?.join(', ') || 'campo desconhecido'}`,
+        );
       }
+
       throw new InternalServerErrorException(
         'Falha na sincronização do usuário.',
       );

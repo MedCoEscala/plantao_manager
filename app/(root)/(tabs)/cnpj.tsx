@@ -42,10 +42,6 @@ const CNPJScreen = React.memo(() => {
     });
   }, [deleteData, showDialog]);
 
-  const handleRefresh = useCallback(() => {
-    loadData(true); // força reload
-  }, [loadData]);
-
   const handleToggleForm = useCallback(() => {
     setShowForm(true);
   }, []);
@@ -63,16 +59,10 @@ const CNPJScreen = React.memo(() => {
             <Text className="text-2xl font-bold text-gray-900">Meu CNPJ</Text>
             <Text className="mt-1 text-sm text-gray-600">Gerencie seus dados empresariais</Text>
           </View>
-          <TouchableOpacity
-            className="h-10 w-10 items-center justify-center rounded-lg border border-gray-200 bg-gray-100"
-            onPress={handleRefresh}
-            activeOpacity={0.7}>
-            <Ionicons name="refresh-outline" size={18} color="#374151" />
-          </TouchableOpacity>
         </View>
       </View>
     ),
-    [handleRefresh]
+    []
   );
 
   if (isLoading) {
@@ -167,18 +157,6 @@ const CNPJScreen = React.memo(() => {
               onCancel={showForm && cnpjData ? handleCancelForm : undefined}
               isSubmitting={isSubmitting}
             />
-          )}
-
-          {!cnpjData && !showForm && (
-            <TouchableOpacity
-              className="flex-row items-center justify-center rounded-lg bg-primary p-4 shadow-sm"
-              onPress={handleToggleForm}
-              activeOpacity={0.8}>
-              <Ionicons name="add-outline" size={20} color="#FFFFFF" />
-              <Text className="ml-2 text-base font-semibold text-white">
-                Adicionar Dados do CNPJ
-              </Text>
-            </TouchableOpacity>
           )}
         </Card>
       </ScrollView>

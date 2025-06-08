@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
+import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 
 import { UserProfile } from '@/hooks/useProfile';
 import { getDisplayName, getInitials } from '@/utils/userNameHelper';
@@ -33,17 +33,9 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   return (
     <View className="w-full items-center bg-white py-6">
       <View className="relative">
-        {profile?.imageUrl ? (
-          <Image
-            source={{ uri: profile.imageUrl }}
-            className="h-24 w-24 rounded-full"
-            resizeMode="cover"
-          />
-        ) : (
-          <View className="h-24 w-24 items-center justify-center rounded-full bg-primary/20">
-            <Text className="text-2xl font-bold text-primary">{userInitials}</Text>
-          </View>
-        )}
+        <View className="h-24 w-24 items-center justify-center rounded-full bg-primary/20">
+          <Text className="text-2xl font-bold text-primary">{userInitials}</Text>
+        </View>
 
         {allowEdit && onEditPress && (
           <TouchableOpacity
@@ -68,14 +60,6 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
         <View className="mt-1 flex-row items-center">
           <Ionicons name="call-outline" size={14} color="#64748b" style={{ marginRight: 4 }} />
           <Text className="text-sm text-text-light">{profile.phoneNumber}</Text>
-        </View>
-      )}
-
-      {!allowEdit && (
-        <View className="mt-3 rounded-lg bg-gray-50 px-4 py-2">
-          <Text className="text-center text-xs text-gray-500">
-            Edição temporariamente desabilitada
-          </Text>
         </View>
       )}
     </View>

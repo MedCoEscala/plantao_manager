@@ -78,7 +78,7 @@ export default function ResetPasswordScreen() {
         // Senha redefinida com sucesso, ativa a nova sessão
         await setActive({ session: result.createdSessionId });
         showToast('Senha redefinida com sucesso!', 'success');
-        router.replace('/(root)/profile'); // Redireciona para o perfil
+        router.replace('/(root)/(tabs)'); // Redireciona para a tela principal
       } else {
         // Status inesperado
         console.error('Status inesperado ao resetar senha:', JSON.stringify(result, null, 2));
