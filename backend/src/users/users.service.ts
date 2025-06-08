@@ -49,7 +49,13 @@ export class UsersService {
 
       const firstName = clerkUser.firstName || '';
       const lastName = clerkUser.lastName || '';
-      const fullName = `${firstName} ${lastName}`.trim() || email.split('@')[0];
+      let fullName = `${firstName} ${lastName}`.trim();
+
+      // Se não tiver nome no Clerk, usar um nome padrão mais amigável
+      if (!fullName) {
+        const emailName = email.split('@')[0];
+        fullName = emailName.charAt(0).toUpperCase() + emailName.slice(1);
+      }
 
       const imageUrl = clerkUser.imageUrl || null;
       const phoneNumber = clerkUser.phoneNumbers?.[0]?.phoneNumber || null;
