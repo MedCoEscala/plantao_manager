@@ -2,11 +2,31 @@ import { useAuth } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, Linking, Alert } from 'react-native';
 
 const ProfileActions: React.FC = () => {
   const router = useRouter();
   const { signOut } = useAuth();
+
+  const handleOpenTutorials = async () => {
+    const youtubeUrl = 'https://www.youtube.com/channel/UC5DNKKDTJ7mOwlHkyRXUGqQ';
+
+    try {
+      const canOpen = await Linking.canOpenURL(youtubeUrl);
+      if (canOpen) {
+        await Linking.openURL(youtubeUrl);
+      } else {
+        Alert.alert(
+          'Erro',
+          'Não foi possível abrir o link. Verifique se você tem o YouTube instalado.',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error) {
+      console.error('Erro ao abrir URL:', error);
+      Alert.alert('Erro', 'Não foi possível abrir o link dos tutoriais.', [{ text: 'OK' }]);
+    }
+  };
 
   const actions = [
     {
@@ -18,16 +38,10 @@ const ProfileActions: React.FC = () => {
       },
     },
     {
-      title: 'Ajuda & Suporte',
-      icon: 'help-circle-outline',
-      color: '#0891b2',
-      onPress: () => {},
-    },
-    {
-      title: 'Sobre o App',
-      icon: 'information-circle-outline',
-      color: '#0d9488',
-      onPress: () => {},
+      title: 'Tutoriais',
+      icon: 'play-circle-outline',
+      color: '#dc2626',
+      onPress: handleOpenTutorials,
     },
     {
       title: 'Sair',
