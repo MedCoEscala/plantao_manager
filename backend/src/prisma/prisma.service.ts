@@ -7,8 +7,9 @@ export class PrismaService
   implements OnModuleInit, OnModuleDestroy
 {
   constructor() {
-    // Configurações simplificadas para produção
+    // Configurações do PrismaClient com logs básicos
     super({
+      log: ['info', 'warn', 'error'],
       errorFormat: 'pretty',
     });
   }
