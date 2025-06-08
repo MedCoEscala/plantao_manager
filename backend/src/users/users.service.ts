@@ -247,9 +247,21 @@ export class UsersService {
     if (needsNameUpdate) {
       updateData.firstName = newFirstName;
       updateData.lastName = newLastName;
-      updateData.name =
-        `${newFirstName} ${newLastName}`.trim() ||
-        currentUser.email.split('@')[0];
+
+      // Construir o nome completo - só usar email se ambos estiverem realmente vazios
+      const firstName = newFirstName?.trim() || '';
+      const lastName = newLastName?.trim() || '';
+      const fullName = `${firstName} ${lastName}`.trim();
+
+      // Se temos pelo menos um nome não vazio, usar o fullName, senão usar o email
+      if (fullName.length > 0) {
+        updateData.name = fullName;
+      } else {
+        // Capitalizar a primeira letra do email para melhor apresentação
+        const emailPrefix = currentUser.email.split('@')[0];
+        updateData.name =
+          emailPrefix.charAt(0).toUpperCase() + emailPrefix.slice(1);
+      }
     }
 
     if (Object.keys(updateData).length === 0) {
