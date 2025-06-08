@@ -23,8 +23,19 @@ function updateEnvFile(useLocalhost = true) {
   const envPath = path.join(process.cwd(), '.env');
   const currentIP = getLocalIP();
 
+  // Verificar se já existe um .env com chave do Clerk
+  let existingClerkKey = '';
+  if (fs.existsSync(envPath)) {
+    const existingContent = fs.readFileSync(envPath, 'utf8');
+    const clerkMatch = existingContent.match(/EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=(.+)/);
+    if (clerkMatch) {
+      existingClerkKey = `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=${clerkMatch[1]}`;
+    }
+  }
+
+  // Se não tiver chave existente, usar placeholder
   const clerkKey =
-    'EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_d2l0dHktbWFuLTEzLmNsZXJrLmFjY291bnRzLmRldiQ';
+    existingClerkKey || 'EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=YOUR_CLERK_PUBLISHABLE_KEY_HERE';
 
   let envContent;
 
@@ -53,6 +64,11 @@ EXPO_PUBLIC_API_URL="http://${currentIP}:3000"
   console.log('✅ Arquivo .env atualizado!');
   console.log(`📱 Configuração: ${useLocalhost ? 'localhost' : currentIP}`);
   console.log(`🌐 IP atual da rede: ${currentIP}`);
+
+  if (!existingClerkKey) {
+    console.log('\n⚠️  IMPORTANTE: Configure sua chave do Clerk no arquivo .env');
+    console.log('   Substitua YOUR_CLERK_PUBLISHABLE_KEY_HERE pela sua chave real');
+  }
 
   if (useLocalhost) {
     console.log('\n💡 Usando localhost - funciona em qualquer rede!');
