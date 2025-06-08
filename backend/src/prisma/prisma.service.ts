@@ -7,31 +7,9 @@ export class PrismaService
   implements OnModuleInit, OnModuleDestroy
 {
   constructor() {
-    // Configurações adicionais do PrismaClient podem ir aqui, como logging
+    // Configurações simplificadas para produção
     super({
-      log: [
-        { emit: 'event', level: 'query' },
-        { emit: 'event', level: 'error' },
-        { emit: 'event', level: 'warn' },
-      ],
       errorFormat: 'pretty',
-    });
-
-    // Logs de debugging para queries
-    this.$on('query', (e) => {
-      console.log(`🔍 [DB Query] ${e.query}`);
-      console.log(`⏱️ [DB Duration] ${e.duration}ms`);
-      if (e.params && e.params !== '[]') {
-        console.log(`📄 [DB Params] ${e.params}`);
-      }
-    });
-
-    this.$on('error', (e) => {
-      console.error(`❌ [DB Error] ${e.message}`);
-    });
-
-    this.$on('warn', (e) => {
-      console.warn(`⚠️ [DB Warning] ${e.message}`);
     });
   }
 
