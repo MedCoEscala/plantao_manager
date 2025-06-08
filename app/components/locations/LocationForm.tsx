@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useNotification } from '@/components';
+import { useNotification } from '@/contexts/NotificationContext';
 import ColorField from '@/components/form/ColorField';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
@@ -262,8 +262,6 @@ export default function LocationForm({
           locationData.phone = Number(phoneDigits);
         }
       }
-
-      console.log(`[LocationForm] ${locationId ? 'Atualizando' : 'Criando'} local:`, locationData);
 
       if (locationId) {
         await locationsApi.updateLocation(locationId, locationData);

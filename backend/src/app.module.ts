@@ -6,6 +6,7 @@ import { AppService } from './app.service';
 import { CNPJModule } from './cnpj/cnpj.module';
 import { ContractorsModule } from './contractors/contractors.module';
 import { LocationsModule } from './locations/location.module';
+import { NotificationsModule } from './notifications/notifications.module';
 import { PaymentsModule } from './payments/payments.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ShiftsModule } from './shifts/shifts.module';
@@ -21,6 +22,7 @@ import { UsersModule } from './users/users.module';
     ContractorsModule,
     PaymentsModule,
     CNPJModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -28,12 +28,10 @@ export function useLocationsSelector() {
       const now = Date.now();
 
       if (isLoadingRef.current && !force) {
-        console.log('[Locations] Carregamento já em andamento');
         return;
       }
 
       if (dataLoadedRef.current && !force && now - lastLoadTimeRef.current < 300000) {
-        console.log('[Locations] Dados já carregados e recentes');
         return;
       }
 
@@ -43,7 +41,6 @@ export function useLocationsSelector() {
       lastLoadTimeRef.current = now;
 
       try {
-        console.log('[Locations] Carregando locais...');
         const data = await locationsApi.getLocations();
 
         setLocations(data);
@@ -57,7 +54,6 @@ export function useLocationsSelector() {
         }));
 
         setLocationOptions(options);
-        console.log(`[Locations] ${data.length} locais carregados`);
       } catch (error: any) {
         console.error('[Locations] Erro ao carregar:', error);
         setError(error.message || 'Erro ao carregar locais');

@@ -1,5 +1,5 @@
 {
-  "name": "plantao_manager",
+  "name": "medescala",
   "version": "1.0.0",
   "scripts": {
     "android": "expo start --android",
@@ -12,7 +12,10 @@
     "web": "expo start --web",
     "config:localhost": "node scripts/configure-network.js --localhost",
     "config:ip": "node scripts/configure-network.js --ip",
-    "config:status": "cat .env && echo '\\n🌐 Backend rodando em:' && curl -s http://localhost:3000/api || echo '❌ Backend não está rodando'"
+    "config:status": "cat .env && echo '\\n🌐 Backend rodando em:' && curl -s http://localhost:3000/api || echo '❌ Backend não está rodando'",
+    "setup:notifications": "node scripts/setup-notifications.js",
+    "build:dev": "eas build --profile development",
+    "build:prod": "eas build --profile production"
   },
   "dependencies": {
     "@clerk/clerk-expo": "^2.9.6",
@@ -31,9 +34,11 @@
     "expo": "^53.0.0",
     "expo-clipboard": "~7.1.4",
     "expo-constants": "~17.1.6",
+    "expo-device": "~7.1.4",
     "expo-linking": "~7.1.4",
     "expo-local-authentication": "~16.0.4",
     "expo-location": "~18.1.4",
+    "expo-notifications": "~0.31.2",
     "expo-router": "~5.0.6",
     "expo-secure-store": "~14.2.3",
     "expo-sqlite": "~15.2.9",

@@ -480,7 +480,6 @@ const FormBuilder: React.FC<FormBuilderProps> = ({
               style={[styles.inputContainer, error ? styles.inputError : null, field.inputStyle]}
               onPress={() => {
                 // Aqui implementaria lógica para mostrar um DatePicker
-                console.log('Abrir seletor de data');
               }}>
               <Text style={[styles.selectText, !value ? styles.placeholderText : null]}>
                 {value || field.placeholder || 'Selecione uma data'}

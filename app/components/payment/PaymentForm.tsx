@@ -141,8 +141,6 @@ export default function PaymentForm({ paymentId, shiftId, onSuccess, onCancel }:
         paid: isPaid,
       };
 
-      console.log('Enviando dados:', formData);
-
       if (paymentId) {
         await paymentsApi.updatePayment(paymentId, formData);
       } else {

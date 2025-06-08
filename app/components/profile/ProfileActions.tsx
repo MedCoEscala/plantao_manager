@@ -14,25 +14,20 @@ const ProfileActions: React.FC = () => {
       icon: 'settings-outline',
       color: '#64748b',
       onPress: () => {
-        // Navegar para configurações (quando implementado)
-        console.log('Acessar configurações');
+        router.push('/settings');
       },
     },
     {
       title: 'Ajuda & Suporte',
       icon: 'help-circle-outline',
       color: '#0891b2',
-      onPress: () => {
-        console.log('Acessar ajuda e suporte');
-      },
+      onPress: () => {},
     },
     {
       title: 'Sobre o App',
       icon: 'information-circle-outline',
       color: '#0d9488',
-      onPress: () => {
-        console.log('Acessar sobre o app');
-      },
+      onPress: () => {},
     },
     {
       title: 'Sair',

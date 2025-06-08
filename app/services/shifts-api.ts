@@ -11,7 +11,7 @@ export interface Shift {
   status?: string;
   notes?: string;
   paymentType: string;
-  isFixed: boolean;
+
   locationId?: string;
   contractorId?: string;
   location?: {
@@ -31,7 +31,6 @@ export interface CreateShiftData {
   endTime: string;
   value: number;
   paymentType: string;
-  isFixed?: boolean;
   notes?: string;
   locationId?: string;
   contractorId?: string;
@@ -61,7 +60,6 @@ export interface UpdateShiftData {
   endTime?: string;
   value?: number;
   paymentType?: string;
-  isFixed?: boolean;
   notes?: string;
   status?: string;
   locationId?: string;

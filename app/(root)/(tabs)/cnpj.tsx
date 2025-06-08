@@ -1,15 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import React, { useState, useCallback, useMemo } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  ScrollView,
-  ActivityIndicator,
-  Linking,
-  Alert,
-} from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import CNPJForm from '@/components/cnpj/CNPJForm';
@@ -17,8 +9,6 @@ import Card from '@/components/ui/Card';
 import SectionHeader from '@/components/ui/SectionHeader';
 import { useDialog } from '@/contexts/DialogContext';
 import { useCNPJData } from '@/hooks/useCNPJData';
-
-const MEDCO_URL = 'https://medcocontabilidade.com.br/';
 
 const CNPJScreen = React.memo(() => {
   const [showForm, setShowForm] = useState(false);
@@ -51,20 +41,6 @@ const CNPJScreen = React.memo(() => {
       },
     });
   }, [deleteData, showDialog]);
-
-  const handleOpenURL = useCallback(async () => {
-    try {
-      const supported = await Linking.canOpenURL(MEDCO_URL);
-      if (supported) {
-        await Linking.openURL(MEDCO_URL);
-      } else {
-        Alert.alert('Erro', 'Não foi possível abrir o link');
-      }
-    } catch (error) {
-      console.error('Erro ao abrir URL:', error);
-      Alert.alert('Erro', 'Não foi possível abrir o link');
-    }
-  }, []);
 
   const handleRefresh = useCallback(() => {
     loadData(true); // força reload
@@ -99,78 +75,6 @@ const CNPJScreen = React.memo(() => {
     [handleRefresh]
   );
 
-  const servicesSection = useMemo(
-    () => (
-      <Card className="mx-6 mb-5 mt-6">
-        <SectionHeader
-          title="Serviços de Contabilidade"
-          subtitle="Precisa de ajuda com seu CNPJ?"
-          icon="briefcase-outline"
-        />
-
-        <View className="mt-4 space-y-5">
-          <TouchableOpacity
-            onPress={handleOpenURL}
-            activeOpacity={0.8}
-            className="flex-row items-center rounded-xl bg-primary p-4 shadow-sm">
-            <View className="mr-4 h-12 w-12 items-center justify-center rounded-lg bg-white/20">
-              <Ionicons name="add-circle-outline" size={24} color="#FFFFFF" />
-            </View>
-            <View className="flex-1">
-              <Text className="text-lg font-semibold text-white">Abrir CNPJ</Text>
-              <Text className="mt-1 text-sm text-white/90">Abertura completa do seu CNPJ</Text>
-            </View>
-            <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={handleOpenURL}
-            activeOpacity={0.8}
-            className="flex-row items-center rounded-xl bg-blue-600 p-4 shadow-sm">
-            <View className="mr-4 h-12 w-12 items-center justify-center rounded-lg bg-white/20">
-              <Ionicons name="swap-horizontal-outline" size={24} color="#FFFFFF" />
-            </View>
-            <View className="flex-1">
-              <Text className="text-lg font-semibold text-white">Trocar de Contador</Text>
-              <Text className="mt-1 text-sm text-white/90">Migre sua contabilidade para nós</Text>
-            </View>
-            <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
-          </TouchableOpacity>
-        </View>
-      </Card>
-    ),
-    [handleOpenURL]
-  );
-
-  const servicesInfoSection = useMemo(
-    () => (
-      <Card className="mx-6 mb-8">
-        <SectionHeader
-          title="Nossos Serviços"
-          subtitle="O que oferecemos"
-          icon="information-circle-outline"
-        />
-
-        <View className="mt-4 space-y-3">
-          {[
-            'Abertura de CNPJ completa e rápida',
-            'Migração gratuita da sua contabilidade',
-            'Suporte especializado para profissionais da saúde',
-            'Preços competitivos e transparentes',
-          ].map((service, index) => (
-            <View key={index} className="flex-row items-center">
-              <View className="mr-3 h-6 w-6 items-center justify-center rounded-full bg-green-100">
-                <Ionicons name="checkmark" size={14} color="#059669" />
-              </View>
-              <Text className="flex-1 text-sm text-gray-700">{service}</Text>
-            </View>
-          ))}
-        </View>
-      </Card>
-    ),
-    []
-  );
-
   if (isLoading) {
     return (
       <View className="flex-1 items-center justify-center bg-gray-50">
@@ -187,9 +91,7 @@ const CNPJScreen = React.memo(() => {
       {headerSection}
 
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-        {servicesSection}
-
-        <Card className="mx-6 mb-5">
+        <Card className="mx-6 mb-5 mt-6">
           <View className="mb-6 flex-row items-center justify-between">
             <SectionHeader
               title="Dados do CNPJ"
@@ -279,8 +181,6 @@ const CNPJScreen = React.memo(() => {
             </TouchableOpacity>
           )}
         </Card>
-
-        {servicesInfoSection}
       </ScrollView>
     </SafeAreaView>
   );

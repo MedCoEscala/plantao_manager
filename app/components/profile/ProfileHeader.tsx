@@ -30,20 +30,6 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   const displayName = getDisplayName(profile);
   const userInitials = getInitials(profile);
 
-  console.log('🎨 ProfileHeader renderizando:', {
-    displayName,
-    userInitials,
-    allowEdit,
-    profile: profile
-      ? {
-          name: profile.name,
-          firstName: profile.firstName,
-          lastName: profile.lastName,
-          email: profile.email,
-        }
-      : null,
-  });
-
   return (
     <View className="w-full items-center bg-white py-6">
       <View className="relative">

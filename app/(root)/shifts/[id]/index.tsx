@@ -42,7 +42,6 @@ interface ShiftDetails {
   notes?: string;
   status: string;
   paymentType: 'PF' | 'PJ';
-  isFixed: boolean;
 }
 
 export default function ShiftDetailsScreen() {
@@ -117,7 +116,6 @@ export default function ShiftDetailsScreen() {
         notes: shiftData.notes || '',
         status: shiftData.status || 'Agendado',
         paymentType: shiftData.paymentType as 'PF' | 'PJ',
-        isFixed: Boolean(shiftData.isFixed),
       });
 
       // Limpe estados de erro e retry
@@ -353,13 +351,6 @@ export default function ShiftDetailsScreen() {
             <View>
               <Text className="text-xs text-text-light">Duração</Text>
               <Text className="text-base font-medium text-text-dark">{getShiftDuration()}</Text>
-            </View>
-
-            <View className="items-end">
-              <Text className="text-xs text-text-light">Plantão Fixo</Text>
-              <Text className="text-base font-medium text-text-dark">
-                {shift.isFixed ? 'Sim' : 'Não'}
-              </Text>
             </View>
           </View>
         </View>

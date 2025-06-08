@@ -53,7 +53,7 @@ export function EnhancedShiftForm({ shiftId, initialDate, onSuccess, onCancel }:
   const [contractorId, setContractorId] = useState<string>('');
   const [value, setValue] = useState<string>('');
   const [paymentType, setPaymentType] = useState<string>('PF');
-  const [isFixed, setIsFixed] = useState<boolean>(false);
+
   const [notes, setNotes] = useState<string>('');
 
   // Estados de validação e UI
@@ -77,7 +77,6 @@ export function EnhancedShiftForm({ shiftId, initialDate, onSuccess, onCancel }:
           contractorId: 'cont1',
           value: '1200',
           paymentType: 'PF',
-          isFixed: false,
           notes: 'Plantão de emergência na ala de trauma.',
         };
 
@@ -88,7 +87,7 @@ export function EnhancedShiftForm({ shiftId, initialDate, onSuccess, onCancel }:
         setContractorId(mockShift.contractorId);
         setValue(mockShift.value);
         setPaymentType(mockShift.paymentType);
-        setIsFixed(mockShift.isFixed);
+
         setNotes(mockShift.notes);
 
         setIsLoading(false);
@@ -154,11 +153,8 @@ export function EnhancedShiftForm({ shiftId, initialDate, onSuccess, onCancel }:
         contractorId: contractorId || undefined,
         value: parseFloat(formattedValue),
         paymentType,
-        isFixed,
         notes: notes || undefined,
       };
-
-      console.log('Enviando dados:', formData);
 
       // Simular chamada de API (substituir por chamada real)
       await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -262,13 +258,6 @@ export function EnhancedShiftForm({ shiftId, initialDate, onSuccess, onCancel }:
         onValueChange={setPaymentType}
         options={PAYMENT_TYPE_OPTIONS}
         required
-      />
-
-      <SwitchField
-        label="Plantão Fixo"
-        value={isFixed}
-        onValueChange={setIsFixed}
-        helperText="Ative para plantões que se repetem regularmente"
       />
 
       <TextField

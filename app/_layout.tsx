@@ -83,27 +83,21 @@ function RootLayoutNav() {
   }, [appIsReady, fontsLoaded, fontError]);
 
   useEffect(() => {
-    console.log('[_layout.tsx useEffect Auth] Check:', { isLoaded, isSignedIn });
     if (!isLoaded || !appIsReady || (!fontsLoaded && fontError)) {
-      console.log('[_layout.tsx useEffect Auth] Not ready yet, skipping redirect.');
       return;
     }
 
     if (isSignedIn) {
-      console.log('[_layout.tsx useEffect Auth] User is signed in, redirecting to (root)');
       router.replace('/(root)/');
     } else {
-      console.log('[_layout.tsx useEffect Auth] User is signed out, redirecting to (auth)/sign-in');
       router.replace('/(auth)/sign-in');
     }
   }, [isLoaded, isSignedIn, appIsReady, fontsLoaded, fontError, router]);
 
   if (!isLoaded || !appIsReady || (!fontsLoaded && !fontError)) {
-    console.log('[_layout.tsx Render] Auth/App not ready, returning null.');
     return null;
   }
 
-  console.log('[_layout.tsx Render] Auth/App ready, rendering main Stack.');
   return (
     <NotificationProvider>
       <DialogProvider>

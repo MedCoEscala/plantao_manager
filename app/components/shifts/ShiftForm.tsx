@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useNotification } from '@/components';
+import { useNotification } from '@/contexts/NotificationContext';
 import ContractorsSelector from '@/components/contractors/ContractorsSelector';
 import DateField from '@/components/form/DateField';
 import SelectField from '@/components/form/SelectField';
@@ -52,7 +52,7 @@ interface FormData {
   contractorId: string;
   value: string;
   paymentType: string;
-  isFixed: boolean;
+
   notes: string;
 }
 
@@ -106,7 +106,7 @@ export default function ShiftForm({
       contractorId: initialData?.contractorId || '',
       value: initialData?.value?.toString() || '',
       paymentType: initialData?.paymentType || 'PF',
-      isFixed: initialData?.isFixed || false,
+
       notes: initialData?.notes || '',
     };
   });
@@ -189,8 +189,6 @@ export default function ShiftForm({
   const handleSubmit = useCallback(async () => {
     if (isSubmitting) return;
 
-    console.log('[ShiftForm] Iniciando submissão...');
-
     if (!validateForm()) {
       return;
     }
@@ -213,7 +211,7 @@ export default function ShiftForm({
         endTime: formattedEndTime,
         value: numericValue,
         paymentType: formData.paymentType,
-        isFixed: formData.isFixed,
+
         notes: formData.notes || undefined,
         locationId: formData.locationId || undefined,
         contractorId: formData.contractorId || undefined,
@@ -252,7 +250,6 @@ export default function ShiftForm({
         const shiftsData = dates.map((shiftDate) => ({
           ...shiftData,
           date: format(shiftDate, 'yyyy-MM-dd'),
-          isFixed: true,
         }));
 
         const result = await shiftsApi.createShiftsBatch({
@@ -418,14 +415,6 @@ export default function ShiftForm({
           options={PAYMENT_TYPE_OPTIONS}
           placeholder="Selecione o tipo"
           error={errors.paymentType}
-          className="mb-4"
-        />
-
-        <SwitchField
-          label="Plantão Fixo"
-          value={formData.isFixed}
-          onValueChange={(value: boolean) => updateField('isFixed', value)}
-          helperText="Marque se é um plantão fixo"
           className="mb-4"
         />
       </Card>

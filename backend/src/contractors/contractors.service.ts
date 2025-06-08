@@ -133,10 +133,30 @@ export class ContractorsService {
         );
       }
 
+      // Validação manual do email
+      let validatedEmail: string | null = null;
+      if (
+        createContractorDto.email !== undefined &&
+        createContractorDto.email !== null
+      ) {
+        const trimmedEmail = createContractorDto.email.trim();
+
+        // Se não está vazio após trim, valida
+        if (trimmedEmail !== '') {
+          // Validação básica de email
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          if (!emailRegex.test(trimmedEmail)) {
+            throw new BadRequestException('Email inválido');
+          }
+          validatedEmail = trimmedEmail;
+        }
+        // Se está vazio, validatedEmail permanece null
+      }
+
       return this.prisma.contractor.create({
         data: {
           name: createContractorDto.name,
-          email: createContractorDto.email,
+          email: validatedEmail,
           phone: createContractorDto.phone,
           userId: user.id,
         },

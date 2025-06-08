@@ -26,7 +26,6 @@ export function useCNPJData() {
 
       // Evitar múltiplas requisições simultâneas
       if (isLoadingRef.current && !force) {
-        console.log('[CNPJ] Carregamento já em andamento');
         return;
       }
 
@@ -36,7 +35,6 @@ export function useCNPJData() {
         !force &&
         now - lastLoadTimeRef.current < 30000 // 30 segundos de cache
       ) {
-        console.log('[CNPJ] Dados já carregados e recentes');
         return;
       }
 
@@ -46,11 +44,9 @@ export function useCNPJData() {
       lastLoadTimeRef.current = now;
 
       try {
-        console.log('[CNPJ] Carregando dados...');
         const data = await api.getCNPJData();
         setCnpjData(data);
         dataLoadedRef.current = true;
-        console.log('[CNPJ] Dados carregados com sucesso:', !!data);
       } catch (err: any) {
         console.error('Erro ao carregar dados CNPJ:', err);
         setError(err.message || 'Erro ao carregar dados');
