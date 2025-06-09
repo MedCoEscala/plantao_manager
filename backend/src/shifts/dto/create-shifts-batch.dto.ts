@@ -52,7 +52,7 @@ export class CreateShiftBatchItemDto {
   @IsBoolean()
   @Type(() => Boolean)
   @IsOptional()
-  isFixed?: boolean;
+  isFixed: boolean = false;
 
   @IsString()
   @IsOptional()

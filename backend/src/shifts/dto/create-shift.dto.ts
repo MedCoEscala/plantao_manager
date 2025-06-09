@@ -50,7 +50,7 @@ export class CreateShiftDto {
   @IsBoolean()
   @Type(() => Boolean)
   @IsOptional()
-  isFixed: boolean;
+  isFixed: boolean = false;
 
   @IsString()
   @IsOptional()

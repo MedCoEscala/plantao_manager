@@ -23,6 +23,7 @@ import { useDialog } from '@/contexts/DialogContext';
 import { useProfile } from '@/hooks/useProfile';
 import { useShiftsApi, Shift } from '@/services/shifts-api';
 import { formatDate, formatTime, formatCurrency } from '@/utils/formatters';
+import formatters from '@/utils/formatters';
 
 export default function ShiftsScreen() {
   const [shifts, setShifts] = useState<Shift[]>([]);
@@ -36,7 +37,7 @@ export default function ShiftsScreen() {
   const prevMonthRef = useRef<string>('');
   const currentMonthRef = useRef<string>('');
 
-  const { profile, isLoading: isProfileLoading } = useProfile();
+  const { profile, loading: isProfileLoading } = useProfile();
   const { showDialog } = useDialog();
   const { showError, showSuccess } = useNotification();
   const router = useRouter();
@@ -146,37 +147,45 @@ export default function ShiftsScreen() {
   const shiftsForSelectedDate = useMemo(() => {
     if (!shifts || shifts.length === 0) return [];
 
-    console.log(
-      `Filtrando ${shifts.length} plantões para data: ${format(selectedDate, 'yyyy-MM-dd')}`
-    );
+    const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
+    console.log(`[DEBUG] Filtrando ${shifts.length} plantões para data: ${selectedDateStr}`);
 
     const filteredShifts = shifts.filter((shift) => {
       if (!shift.date) {
-        console.log('Plantão sem data descartado');
+        console.log('[DEBUG] Plantão sem data descartado');
         return false;
       }
 
       try {
-        const shiftDate = parseISO(shift.date);
+        // Usar normalizeToLocalDate para garantir consistência de timezone
+        const shiftDate = formatters.normalizeToLocalDate(shift.date);
         if (!isValid(shiftDate)) {
-          console.log(`Data inválida descartada: ${shift.date}`);
+          console.log(`[DEBUG] Data inválida descartada: ${shift.date}`);
           return false;
         }
 
+        const shiftDateStr = format(shiftDate, 'yyyy-MM-dd');
         const isSame = isSameDay(shiftDate, selectedDate);
 
+        console.log(`[DEBUG] Comparando datas:
+          - Plantão ${shift.id}: ${shift.date} -> ${shiftDateStr}
+          - Data selecionada: ${selectedDateStr}
+          - São iguais: ${isSame}`);
+
         if (isSame) {
-          console.log(`Plantão incluído: ${shift.id} - ${format(shiftDate, 'yyyy-MM-dd')}`);
+          console.log(`[DEBUG] ✅ Plantão incluído: ${shift.id} - ${shiftDateStr}`);
+        } else {
+          console.log(`[DEBUG] ❌ Plantão excluído: ${shift.id} - ${shiftDateStr}`);
         }
 
         return isSame;
       } catch (error) {
-        console.error(`Erro ao comparar datas para shift ${shift.id}:`, error);
+        console.error(`[DEBUG] Erro ao comparar datas para shift ${shift.id}:`, error);
         return false;
       }
     });
 
-    console.log(`Total de plantões filtrados: ${filteredShifts.length}`);
+    console.log(`[DEBUG] Total de plantões filtrados: ${filteredShifts.length}`);
     return filteredShifts;
   }, [shifts, selectedDate]);
 
