@@ -5,6 +5,8 @@ export { default as Button } from './Button';
 export { default as Input } from './Input';
 export { default as FormModal } from '../form/FormModal';
 export { default as Checkbox } from './CheckBox';
+export { default as Select } from './Select';
+export { default as DatePicker } from './DatePicker';
 
 // Shifts components
 export { default as ShiftForm } from '../shifts/ShiftForm';
