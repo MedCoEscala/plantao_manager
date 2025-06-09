@@ -1,6 +1,6 @@
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import React, { useState } from 'react';
+import React, { useCallback } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -11,14 +11,23 @@ import { useProfile } from '@/hooks/useProfile';
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { profile, isLoading } = useProfile();
+  const { profile, loading, refetch } = useProfile();
+
+  // Atualiza o perfil sempre que a tela ganhar foco
+  useFocusEffect(
+    useCallback(() => {
+      console.log('📱 [ProfileScreen] Tela ganhou foco, verificando atualizações...');
+      // Força uma verificação do cache atualizado (usa cache se disponível)
+      refetch();
+    }, [refetch])
+  );
 
   const handleEditProfile = () => {
     router.push('/profile/edit');
   };
 
   // Mostrar loading enquanto carrega o perfil
-  if (isLoading) {
+  if (loading) {
     return (
       <View className="flex-1 items-center justify-center bg-background">
         <ActivityIndicator size="large" color="#18cb96" />
@@ -30,7 +39,7 @@ export default function ProfileScreen() {
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
       <StatusBar style="dark" />
       <View className="flex-1">
-        <ProfileHeader profile={profile} isLoading={isLoading} onEditPress={handleEditProfile} />
+        <ProfileHeader profile={profile} isLoading={loading} onEditPress={handleEditProfile} />
 
         <View className="flex-1 p-4">
           <ProfileActions />

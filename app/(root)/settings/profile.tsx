@@ -25,7 +25,7 @@ interface PasswordData {
 
 const ProfileSettingsScreen = () => {
   const router = useRouter();
-  const { profile, loading: isProfileLoading, refetch } = useProfile();
+  const { profile, loading: isProfileLoading, refetch, updateLocalProfile } = useProfile();
   const { getToken } = useAuth();
   const { showToast } = useToast();
   const { showDialog } = useDialog();
@@ -123,6 +123,10 @@ const ProfileSettingsScreen = () => {
     if (!validateProfileForm() || !getToken) return;
 
     setSaving(true);
+
+    // Backup dos dados originais para possível rollback
+    const originalProfile = profile;
+
     try {
       const payload: {
         firstName?: string;
@@ -154,6 +158,9 @@ const ProfileSettingsScreen = () => {
 
       console.log('💾 Atualizando perfil:', payload);
 
+      // Atualiza localmente primeiro (atualização otimista)
+      updateLocalProfile(payload);
+
       await fetchWithAuth(
         '/users/me',
         {
@@ -165,9 +172,20 @@ const ProfileSettingsScreen = () => {
       );
 
       showToast('Perfil atualizado com sucesso!', 'success');
-      await refetch(); // Atualiza os dados do perfil
+
+      // Força atualização dos dados em todas as telas para sincronizar com servidor
+      await refetch();
+
+      // Volta para tela anterior
+      router.back();
     } catch (error: any) {
       console.error('❌ Erro ao atualizar perfil:', error);
+
+      // Reverte a atualização otimista em caso de erro
+      if (originalProfile) {
+        updateLocalProfile(originalProfile);
+      }
+
       showToast(
         error?.response?.data?.message || 'Erro ao atualizar perfil. Tente novamente.',
         'error'
@@ -273,14 +291,6 @@ const ProfileSettingsScreen = () => {
   return (
     <SafeAreaView className="flex-1 bg-gray-50">
       <StatusBar style="dark" />
-
-      {/* Header */}
-      <View className="flex-row items-center border-b border-gray-200 bg-white px-4 py-3">
-        <TouchableOpacity onPress={() => router.back()} className="mr-4 p-2">
-          <Ionicons name="arrow-back" size={24} color="#374151" />
-        </TouchableOpacity>
-        <Text className="flex-1 text-xl font-bold text-gray-900">Configurações de Perfil</Text>
-      </View>
 
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
         {/* User Info Card */}

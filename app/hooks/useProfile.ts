@@ -25,7 +25,60 @@ interface UseProfileResult {
   error: string | null;
   refetch: () => Promise<void>;
   syncUser: () => Promise<boolean>;
+  updateLocalProfile: (updates: Partial<UserProfile>) => void;
 }
+
+// Sistema global de notificação para sincronização entre telas
+class ProfileNotificationSystem {
+  private listeners: Set<() => void> = new Set();
+  private cache: Map<string, { profile: UserProfile; timestamp: number }> = new Map();
+  private readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
+
+  addListener(listener: () => void) {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+
+  notifyUpdate() {
+    console.log('🔄 [ProfileNotification] Notificando atualização para todas as telas');
+    this.listeners.forEach((listener) => listener());
+  }
+
+  getCache(userId: string): UserProfile | null {
+    const cached = this.cache.get(userId);
+    if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION) {
+      console.log('📋 [ProfileNotification] Usando perfil do cache global');
+      return cached.profile;
+    }
+    return null;
+  }
+
+  setCache(userId: string, profile: UserProfile) {
+    this.cache.set(userId, { profile, timestamp: Date.now() });
+  }
+
+  clearCache(userId?: string) {
+    if (userId) {
+      this.cache.delete(userId);
+    } else {
+      this.cache.clear();
+    }
+    this.notifyUpdate();
+  }
+
+  updateCache(userId: string, updates: Partial<UserProfile>) {
+    const cached = this.cache.get(userId);
+    if (cached) {
+      const updatedProfile = { ...cached.profile, ...updates };
+      this.setCache(userId, updatedProfile);
+      this.notifyUpdate();
+      console.log('📝 [ProfileNotification] Cache atualizado localmente');
+    }
+  }
+}
+
+// Instância global do sistema de notificação
+const profileNotificationSystem = new ProfileNotificationSystem();
 
 export function useProfile(): UseProfileResult {
   const { getToken, isLoaded: isAuthLoaded, userId } = useAuth();
@@ -37,9 +90,6 @@ export function useProfile(): UseProfileResult {
 
   // Referência para controle de montagem do componente
   const mountedRef = useRef(true);
-
-  // Cache simples baseado no userId
-  const profileCacheRef = useRef<Map<string, UserProfile>>(new Map());
 
   // Função para sincronizar usuário com retry
   const syncUserWithRetry = useCallback(
@@ -70,16 +120,15 @@ export function useProfile(): UseProfileResult {
 
   // Função interna para buscar perfil
   const fetchProfileInternal = useCallback(
-    async (userId: string): Promise<UserProfile | null> => {
+    async (userId: string, useCache: boolean = true): Promise<UserProfile | null> => {
       if (!mountedRef.current) return null;
 
-      const cacheKey = userId;
-      const cachedProfile = profileCacheRef.current.get(cacheKey);
-
-      // Se existe cache e tem menos de 5 minutos, usar cache
-      if (cachedProfile && mountedRef.current) {
-        console.log('📋 [useProfile] Usando perfil do cache');
-        return cachedProfile;
+      // Verificar cache global primeiro
+      if (useCache) {
+        const cachedProfile = profileNotificationSystem.getCache(userId);
+        if (cachedProfile && mountedRef.current) {
+          return cachedProfile;
+        }
       }
 
       // Previne múltiplas requisições simultâneas
@@ -120,7 +169,7 @@ export function useProfile(): UseProfileResult {
 
           if (!mountedRef.current) return null;
 
-          const profile: UserProfile = {
+          const profileData: UserProfile = {
             id: response.id,
             email: response.email,
             firstName: response.firstName,
@@ -135,11 +184,11 @@ export function useProfile(): UseProfileResult {
             updatedAt: response.updatedAt,
           };
 
-          // Salvar no cache
-          profileCacheRef.current.set(cacheKey, profile);
+          // Salvar no cache global
+          profileNotificationSystem.setCache(userId, profileData);
 
-          console.log('✅ [useProfile] Perfil carregado com sucesso:', profile);
-          return profile;
+          console.log('✅ [useProfile] Perfil carregado com sucesso:', profileData);
+          return profileData;
         } catch (error: any) {
           console.error('❌ [useProfile] Erro ao buscar perfil:', error);
           throw error;
@@ -158,33 +207,38 @@ export function useProfile(): UseProfileResult {
   );
 
   // Função para buscar perfil
-  const fetchProfile = useCallback(async () => {
-    if (!mountedRef.current || !isAuthLoaded || !userId) {
-      return;
-    }
+  const fetchProfile = useCallback(
+    async (useCache: boolean = true) => {
+      if (!mountedRef.current || !isAuthLoaded || !userId) {
+        return;
+      }
 
-    setLoading(true);
-    setError(null);
+      setLoading(true);
+      setError(null);
 
-    try {
-      const profileData = await fetchProfileInternal(userId);
-      if (mountedRef.current) {
-        setProfile(profileData);
+      try {
+        const profileData = await fetchProfileInternal(userId, useCache);
+        if (mountedRef.current) {
+          setProfile(profileData);
+        }
+      } catch (error: any) {
+        console.error('❌ [useProfile] Erro final ao buscar perfil:', error);
+        if (mountedRef.current) {
+          const errorMessage =
+            error?.response?.data?.message ||
+            error?.message ||
+            'Erro ao carregar perfil do usuário';
+          setError(errorMessage);
+          showToast('Erro ao carregar perfil. Tente novamente.', 'error');
+        }
+      } finally {
+        if (mountedRef.current) {
+          setLoading(false);
+        }
       }
-    } catch (error: any) {
-      console.error('❌ [useProfile] Erro final ao buscar perfil:', error);
-      if (mountedRef.current) {
-        const errorMessage =
-          error?.response?.data?.message || error?.message || 'Erro ao carregar perfil do usuário';
-        setError(errorMessage);
-        showToast('Erro ao carregar perfil. Tente novamente.', 'error');
-      }
-    } finally {
-      if (mountedRef.current) {
-        setLoading(false);
-      }
-    }
-  }, [isAuthLoaded, userId, fetchProfileInternal, showToast]);
+    },
+    [isAuthLoaded, userId, fetchProfileInternal, showToast]
+  );
 
   // Função pública para sincronizar usuário
   const syncUser = useCallback(async (): Promise<boolean> => {
@@ -204,11 +258,48 @@ export function useProfile(): UseProfileResult {
   // Função para forçar nova busca
   const refetch = useCallback(async () => {
     if (userId) {
-      // Limpar cache
-      profileCacheRef.current.delete(userId);
-      await fetchProfile();
+      // Primeiro verifica se há cache atualizado
+      const cachedProfile = profileNotificationSystem.getCache(userId);
+      if (cachedProfile && mountedRef.current) {
+        setProfile(cachedProfile);
+        console.log('🔄 [useProfile] Perfil atualizado via cache');
+        return;
+      }
+
+      // Se não há cache, limpa e busca novamente
+      profileNotificationSystem.clearCache(userId);
+      await fetchProfile(false); // Forçar busca sem cache
     }
   }, [userId, fetchProfile]);
+
+  // Função para atualizar perfil localmente
+  const updateLocalProfile = useCallback(
+    (updates: Partial<UserProfile>) => {
+      if (userId && profile) {
+        const updatedProfile = { ...profile, ...updates };
+        setProfile(updatedProfile);
+        profileNotificationSystem.updateCache(userId, updates);
+      }
+    },
+    [userId, profile]
+  );
+
+  // Listener para notificações globais
+  useEffect(() => {
+    const removeListener = profileNotificationSystem.addListener(() => {
+      if (userId && mountedRef.current) {
+        const cachedProfile = profileNotificationSystem.getCache(userId);
+        if (cachedProfile) {
+          setProfile(cachedProfile);
+          console.log('🔄 [useProfile] Perfil atualizado via notificação global');
+        }
+      }
+    });
+
+    return () => {
+      removeListener();
+    };
+  }, [userId]);
 
   // Efeito para buscar perfil quando disponível
   useEffect(() => {
@@ -235,13 +326,14 @@ export function useProfile(): UseProfileResult {
     error,
     refetch,
     syncUser,
+    updateLocalProfile,
   };
 }
 
 // Função para limpar cache (útil para testes ou logout completo)
 export const clearProfileCache = () => {
-  // Implementação para limpar cache global se necessário
-  console.log('Cache de perfil limpo');
+  profileNotificationSystem.clearCache();
+  console.log('🧹 Cache de perfil global limpo');
 };
 
 // Default export para resolver warning do React Router
