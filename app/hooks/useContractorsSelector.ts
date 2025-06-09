@@ -1,6 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-
-import { useToast } from '@/components/ui/Toast';
+import { useState, useEffect, useRef } from 'react';
 import { useContractorsApi, Contractor } from '@/services/contractors-api';
 
 interface ContractorOption {
@@ -9,113 +7,129 @@ interface ContractorOption {
   icon?: string;
 }
 
+// Cache global para evitar múltiplas requisições
+class ContractorsCache {
+  private static instance: ContractorsCache;
+  private cache: Map<string, { data: Contractor[]; timestamp: number; loading: boolean }> =
+    new Map();
+  private readonly CACHE_DURATION = 300000; // 5 minutos
+  private loadingPromises: Map<string, Promise<Contractor[]>> = new Map();
+
+  static getInstance(): ContractorsCache {
+    if (!ContractorsCache.instance) {
+      ContractorsCache.instance = new ContractorsCache();
+    }
+    return ContractorsCache.instance;
+  }
+
+  async getContractors(contractorsApi: any): Promise<Contractor[]> {
+    const key = 'contractors';
+    const now = Date.now();
+
+    // Verificar cache
+    const cached = this.cache.get(key);
+    if (cached && now - cached.timestamp < this.CACHE_DURATION) {
+      console.log('[ContractorsCache] Retornando dados do cache');
+      return cached.data;
+    }
+
+    // Verificar se já está carregando
+    const loadingPromise = this.loadingPromises.get(key);
+    if (loadingPromise) {
+      console.log('[ContractorsCache] Aguardando carregamento em andamento');
+      return loadingPromise;
+    }
+
+    // Iniciar novo carregamento
+    console.log('[ContractorsCache] Iniciando novo carregamento');
+    const promise = this.loadContractors(contractorsApi, key);
+    this.loadingPromises.set(key, promise);
+
+    try {
+      const data = await promise;
+      this.cache.set(key, { data, timestamp: now, loading: false });
+      return data;
+    } finally {
+      this.loadingPromises.delete(key);
+    }
+  }
+
+  private async loadContractors(contractorsApi: any, key: string): Promise<Contractor[]> {
+    try {
+      const data = await contractorsApi.getContractors();
+      console.log(`[ContractorsCache] ${data.length} contratantes carregados`);
+      return data;
+    } catch (error) {
+      console.error('[ContractorsCache] Erro ao carregar contratantes:', error);
+      throw error;
+    }
+  }
+
+  clearCache(): void {
+    console.log('[ContractorsCache] Cache limpo');
+    this.cache.clear();
+    this.loadingPromises.clear();
+  }
+
+  isLoading(): boolean {
+    return this.loadingPromises.size > 0;
+  }
+}
+
 export function useContractorsSelector() {
   const [contractors, setContractors] = useState<Contractor[]>([]);
   const [contractorOptions, setContractorOptions] = useState<ContractorOption[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Refs para controle de carregamento
-  const isLoadingRef = useRef(false);
-  const dataLoadedRef = useRef(false);
-  const lastLoadTimeRef = useRef(0);
-  const mountedRef = useRef(true);
-
   const contractorsApi = useContractorsApi();
-  const { showToast } = useToast();
+  const cache = ContractorsCache.getInstance();
+  const initializedRef = useRef(false);
 
-  const loadContractors = useCallback(
-    async (force = false) => {
-      const now = Date.now();
-
-      // Evitar múltiplas requisições simultâneas
-      if (isLoadingRef.current && !force) {
-        console.log('[Contractors] Carregamento já em andamento');
-        return;
-      }
-
-      // Não recarregar se já temos dados recentes, a menos que force=true
-      if (
-        dataLoadedRef.current &&
-        !force &&
-        now - lastLoadTimeRef.current < 300000 // 5 minutos
-      ) {
-        console.log('[Contractors] Dados já carregados e recentes');
-        return;
-      }
-
-      if (!mountedRef.current) return;
-
-      isLoadingRef.current = true;
-      setIsLoading(true);
-      setError(null);
-      lastLoadTimeRef.current = now;
-
-      try {
-        console.log('[Contractors] Carregando contratantes...');
-        const data = await contractorsApi.getContractors();
-
-        if (!mountedRef.current) return;
-
-        setContractors(data);
-        dataLoadedRef.current = true;
-
-        // Transformar em opções para select de forma otimizada
-        const options = data.map((contractor) => ({
-          value: contractor.id,
-          label: contractor.name,
-          icon: 'briefcase-outline',
-        }));
-
-        setContractorOptions(options);
-        console.log(`[Contractors] ${data.length} contratantes carregados`);
-      } catch (error: any) {
-        console.error('[Contractors] Erro ao carregar:', error);
-
-        if (!mountedRef.current) return;
-
-        setError(error.message || 'Erro ao carregar contratantes');
-
-        // Só mostra toast se for um carregamento forçado
-        if (force) {
-          showToast('Erro ao carregar lista de contratantes', 'error');
-        }
-      } finally {
-        if (mountedRef.current) {
-          setIsLoading(false);
-        }
-        isLoadingRef.current = false;
-      }
-    },
-    [] // Lista de dependências vazia para evitar re-criações
-  );
-
-  // Carregamento inicial mais controlado
-  useEffect(() => {
-    // Apenas carregar dados se ainda não tivermos carregado
-    if (!dataLoadedRef.current && !isLoadingRef.current) {
-      loadContractors(false);
+  // Função para carregar dados
+  const loadData = async (force = false) => {
+    if (force) {
+      cache.clearCache();
     }
-  }, [loadContractors]);
 
-  // Cleanup no unmount
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const data = await cache.getContractors(contractorsApi);
+
+      setContractors(data);
+
+      // Transformar em opções para select
+      const options = data.map((contractor) => ({
+        value: contractor.id,
+        label: contractor.name,
+        icon: 'briefcase-outline',
+      }));
+      setContractorOptions(options);
+    } catch (error: any) {
+      console.error('[useContractorsSelector] Erro:', error);
+      setError(error.message || 'Erro ao carregar contratantes');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Carregamento inicial - APENAS UMA VEZ
   useEffect(() => {
-    return () => {
-      mountedRef.current = false;
-    };
+    if (!initializedRef.current) {
+      initializedRef.current = true;
+      loadData();
+    }
   }, []);
 
-  const getContractorById = useCallback(
-    (id: string): Contractor | undefined => {
-      return contractors.find((contractor) => contractor.id === id);
-    },
-    [contractors]
-  );
+  const getContractorById = (id: string): Contractor | undefined => {
+    return contractors.find((contractor) => contractor.id === id);
+  };
 
-  // Função para forçar reload quando necessário
-  const reloadContractors = useCallback(() => {
-    loadContractors(true);
-  }, [loadContractors]);
+  const reloadContractors = () => {
+    loadData(true);
+  };
 
   return {
     contractors,
@@ -127,9 +141,4 @@ export function useContractorsSelector() {
   };
 }
 
-// Default export para resolver warning do React Router
-const contractorsSelectorHook = {
-  useContractorsSelector,
-};
-
-export default contractorsSelectorHook;
+export default useContractorsSelector;

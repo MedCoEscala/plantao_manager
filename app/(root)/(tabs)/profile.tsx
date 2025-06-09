@@ -1,6 +1,6 @@
 import { useRouter, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback, useRef, memo } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -9,33 +9,33 @@ import ProfileActions from '@/components/profile/ProfileActions';
 import ProfileHeader from '@/components/profile/ProfileHeader';
 import { useProfile } from '@/hooks/useProfile';
 
-export default function ProfileScreen() {
+const ProfileScreen = memo(() => {
   const router = useRouter();
   const { profile, loading, refetch } = useProfile();
 
   // Controle para evitar múltiplas chamadas do refetch
   const lastFocusTime = useRef(0);
+  const THROTTLE_TIME = 30000; // 30 segundos
 
-  // Atualiza o perfil sempre que a tela ganhar foco (com throttling)
+  // Throttled focus effect - totalmente estável
   useFocusEffect(
     useCallback(() => {
       const now = Date.now();
-      // Throttling: só permite refetch a cada 30 segundos
-      if (now - lastFocusTime.current > 30000) {
+      if (now - lastFocusTime.current > THROTTLE_TIME) {
         console.log('📱 [ProfileScreen] Tela ganhou foco, verificando atualizações...');
         lastFocusTime.current = now;
-        refetch();
+        refetch().catch(console.error);
       } else {
         console.log('📱 [ProfileScreen] Foco detectado, mas throttling ativo');
       }
-    }, []) // Dependências vazias para evitar re-criação
+    }, [refetch])
   );
 
-  const handleEditProfile = () => {
+  const handleEditProfile = useCallback(() => {
     router.push('/profile/edit');
-  };
+  }, [router]);
 
-  // Mostrar loading enquanto carrega o perfil
+  // Loading state
   if (loading) {
     return (
       <View className="flex-1 items-center justify-center bg-background">
@@ -60,4 +60,8 @@ export default function ProfileScreen() {
       </View>
     </SafeAreaView>
   );
-}
+});
+
+ProfileScreen.displayName = 'ProfileScreen';
+
+export default ProfileScreen;
