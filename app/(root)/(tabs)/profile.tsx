@@ -1,6 +1,6 @@
 import { useRouter, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import React, { useCallback } from 'react';
+import React, { useCallback, useRef } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -13,13 +13,22 @@ export default function ProfileScreen() {
   const router = useRouter();
   const { profile, loading, refetch } = useProfile();
 
-  // Atualiza o perfil sempre que a tela ganhar foco
+  // Controle para evitar múltiplas chamadas do refetch
+  const lastFocusTime = useRef(0);
+
+  // Atualiza o perfil sempre que a tela ganhar foco (com throttling)
   useFocusEffect(
     useCallback(() => {
-      console.log('📱 [ProfileScreen] Tela ganhou foco, verificando atualizações...');
-      // Força uma verificação do cache atualizado (usa cache se disponível)
-      refetch();
-    }, [refetch])
+      const now = Date.now();
+      // Throttling: só permite refetch a cada 30 segundos
+      if (now - lastFocusTime.current > 30000) {
+        console.log('📱 [ProfileScreen] Tela ganhou foco, verificando atualizações...');
+        lastFocusTime.current = now;
+        refetch();
+      } else {
+        console.log('📱 [ProfileScreen] Foco detectado, mas throttling ativo');
+      }
+    }, []) // Dependências vazias para evitar re-criação
   );
 
   const handleEditProfile = () => {

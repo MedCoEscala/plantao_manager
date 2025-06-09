@@ -19,6 +19,7 @@ export function useContractorsSelector() {
   const isLoadingRef = useRef(false);
   const dataLoadedRef = useRef(false);
   const lastLoadTimeRef = useRef(0);
+  const mountedRef = useRef(true);
 
   const contractorsApi = useContractorsApi();
   const { showToast } = useToast();
@@ -43,6 +44,8 @@ export function useContractorsSelector() {
         return;
       }
 
+      if (!mountedRef.current) return;
+
       isLoadingRef.current = true;
       setIsLoading(true);
       setError(null);
@@ -51,6 +54,8 @@ export function useContractorsSelector() {
       try {
         console.log('[Contractors] Carregando contratantes...');
         const data = await contractorsApi.getContractors();
+
+        if (!mountedRef.current) return;
 
         setContractors(data);
         dataLoadedRef.current = true;
@@ -66,18 +71,23 @@ export function useContractorsSelector() {
         console.log(`[Contractors] ${data.length} contratantes carregados`);
       } catch (error: any) {
         console.error('[Contractors] Erro ao carregar:', error);
+
+        if (!mountedRef.current) return;
+
         setError(error.message || 'Erro ao carregar contratantes');
 
-        // Só mostra toast se não for uma tentativa automática
+        // Só mostra toast se for um carregamento forçado
         if (force) {
           showToast('Erro ao carregar lista de contratantes', 'error');
         }
       } finally {
-        setIsLoading(false);
+        if (mountedRef.current) {
+          setIsLoading(false);
+        }
         isLoadingRef.current = false;
       }
     },
-    [contractorsApi, showToast]
+    [] // Lista de dependências vazia para evitar re-criações
   );
 
   // Carregamento inicial mais controlado
@@ -86,7 +96,14 @@ export function useContractorsSelector() {
     if (!dataLoadedRef.current && !isLoadingRef.current) {
       loadContractors(false);
     }
-  }, []); // Dependências vazias para carregar apenas uma vez
+  }, [loadContractors]);
+
+  // Cleanup no unmount
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   const getContractorById = useCallback(
     (id: string): Contractor | undefined => {
@@ -105,7 +122,7 @@ export function useContractorsSelector() {
     contractorOptions,
     isLoading,
     error,
-    loadContractors: reloadContractors, // Expor apenas a versão que força reload
+    loadContractors: reloadContractors,
     getContractorById,
   };
 }

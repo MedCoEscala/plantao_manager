@@ -237,7 +237,7 @@ export function useProfile(): UseProfileResult {
         }
       }
     },
-    [isAuthLoaded, userId, fetchProfileInternal, showToast]
+    [isAuthLoaded, userId, fetchProfileInternal]
   );
 
   // Função pública para sincronizar usuário
@@ -257,10 +257,10 @@ export function useProfile(): UseProfileResult {
 
   // Função para forçar nova busca
   const refetch = useCallback(async () => {
-    if (userId) {
+    if (userId && mountedRef.current) {
       // Primeiro verifica se há cache atualizado
       const cachedProfile = profileNotificationSystem.getCache(userId);
-      if (cachedProfile && mountedRef.current) {
+      if (cachedProfile) {
         setProfile(cachedProfile);
         console.log('🔄 [useProfile] Perfil atualizado via cache');
         return;
