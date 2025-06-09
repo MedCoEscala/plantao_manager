@@ -21,9 +21,6 @@ export class ClerkAuthGuard implements CanActivate {
     const request = context.switchToHttp().getRequest<RequestWithUserContext>();
 
     try {
-      console.log('🔐 [Auth] Verificando autenticação...');
-      // console.log('🔐 [Auth] Headers recebidos:', JSON.stringify(request.headers, null, 2)); // Comentado para evitar spam
-
       const authHeader = request.headers.authorization;
       if (!authHeader || !authHeader.startsWith('Bearer ')) {
         console.error('❌ [Auth] Token de autorização ausente ou malformatado');
@@ -35,12 +32,7 @@ export class ClerkAuthGuard implements CanActivate {
       }
 
       const token = authHeader.split(' ')[1];
-      console.log(
-        '🔐 [Auth] Token extraído (primeiros 20 chars):',
-        token.substring(0, 20) + '...',
-      );
 
-      console.log('🔐 [Auth] Verificando token com Clerk...');
       const payload = await clerkClient.verifyToken(token);
 
       if (!payload || typeof payload !== 'object') {
@@ -51,12 +43,7 @@ export class ClerkAuthGuard implements CanActivate {
         throw new UnauthorizedException('Token inválido ou expirado');
       }
 
-      console.log(
-        '✅ [Auth] Token válido, payload:',
-        JSON.stringify(payload, null, 2),
-      );
       request.userContext = payload;
-      this.logger.log(`Acesso autorizado para userId: ${payload.sub}`);
 
       return true;
     } catch (error) {

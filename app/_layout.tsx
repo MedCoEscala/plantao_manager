@@ -7,8 +7,11 @@ import { useEffect, useState } from 'react';
 import { Platform, LogBox } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
+import { ContractorsProvider } from '@/contexts/ContractorsContext';
 import { DialogProvider } from '@/contexts/DialogContext';
+import { LocationsProvider } from '@/contexts/LocationsContext';
 import { NotificationProvider } from '@/contexts/NotificationContext';
+import { ProfileProvider } from '@/contexts/ProfileContext';
 import './styles/global.css';
 
 LogBox.ignoreLogs(['Constants.platform.ios.model has been deprecated in favor of expo-device']);
@@ -101,10 +104,19 @@ function RootLayoutNav() {
   return (
     <NotificationProvider>
       <DialogProvider>
-        <Stack>
-          <Stack.Screen name="(root)" options={{ headerShown: false }} />
-          <Stack.Screen name="(auth)" options={{ presentation: 'modal', headerShown: false }} />
-        </Stack>
+        <ProfileProvider>
+          <LocationsProvider>
+            <ContractorsProvider>
+              <Stack>
+                <Stack.Screen name="(root)" options={{ headerShown: false }} />
+                <Stack.Screen
+                  name="(auth)"
+                  options={{ presentation: 'modal', headerShown: false }}
+                />
+              </Stack>
+            </ContractorsProvider>
+          </LocationsProvider>
+        </ProfileProvider>
       </DialogProvider>
     </NotificationProvider>
   );

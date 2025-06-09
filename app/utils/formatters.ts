@@ -9,9 +9,18 @@ const normalizeToLocalDate = (date: string | Date): Date => {
       const [year, month, day] = date.split('-').map(Number);
       return new Date(year, month - 1, day);
     }
-    return parseISO(date);
+
+    // Para strings ISO, extrair apenas a parte da data e criar data local
+    const dateOnly = date.split('T')[0]; // Pega apenas YYYY-MM-DD
+    const [year, month, day] = dateOnly.split('-').map(Number);
+    return new Date(year, month - 1, day);
   }
-  return date;
+
+  // Para objetos Date, criar data local explicitamente
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  const day = date.getDate();
+  return new Date(year, month, day, 0, 0, 0, 0);
 };
 
 // Função para formatar data de plantão (sempre como data local)
@@ -28,7 +37,6 @@ export const formatShiftDate = (
 
     return format(dateObj, formatStr, { locale: ptBR });
   } catch (error) {
-    console.error('Erro ao formatar data do plantão:', error);
     return 'Data inválida';
   }
 };
@@ -46,7 +54,6 @@ export const formatDate = (
 
     return format(dateObj, formatStr, { locale: ptBR });
   } catch (error) {
-    console.error('Erro ao formatar data:', error);
     return 'Data inválida';
   }
 };
@@ -77,7 +84,6 @@ export const formatTime = (time: string | Date | null | undefined): string => {
 
     return '';
   } catch (error) {
-    console.error('Erro ao formatar hora:', error);
     return '';
   }
 };
@@ -92,7 +98,6 @@ export const formatCurrency = (value: number | string | null | undefined): strin
 
     return `R$ ${numValue.toFixed(2).replace('.', ',')}`;
   } catch (error) {
-    console.error('Erro ao formatar valor:', error);
     return 'R$ --';
   }
 };

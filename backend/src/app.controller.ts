@@ -39,7 +39,6 @@ export class AppController {
         timestamp: new Date().toISOString(),
       };
     } catch (error) {
-      console.error('Erro ao enviar notificação de teste:', error);
       return {
         success: false,
         message: 'Erro ao enviar notificação de teste',
@@ -73,7 +72,6 @@ export class AppController {
       };
     } catch (error) {
       const dbTime = Date.now() - startTime;
-      console.error('❌ [Health Check] Database error:', error);
 
       return {
         status: 'unhealthy',

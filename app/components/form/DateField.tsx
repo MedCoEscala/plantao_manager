@@ -81,7 +81,11 @@ export function DateField({
 
       // Para modo date, sempre usar startOfDay para consistência
       if (mode === 'date') {
-        processedDate = startOfDay(selectedDate);
+        // Criar data local para evitar problemas de timezone
+        const year = selectedDate.getFullYear();
+        const month = selectedDate.getMonth();
+        const day = selectedDate.getDate();
+        processedDate = new Date(year, month, day, 0, 0, 0, 0);
       } else if (mode === 'time' && normalizedValue) {
         // Para modo time, manter a data base e só atualizar hora
         processedDate = new Date(normalizedValue);

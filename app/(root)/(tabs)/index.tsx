@@ -98,7 +98,6 @@ export default function ShiftsScreen() {
 
         prevMonthRef.current = monthKey;
       } catch (error: any) {
-        console.error('Erro ao carregar plantões:', error);
         showError(`Erro ao carregar plantões: ${error.message}`);
       } finally {
         setIsLoading(false);
@@ -109,7 +108,6 @@ export default function ShiftsScreen() {
 
   useEffect(() => {
     if (!isProfileLoading && !isDataLoaded) {
-      console.log('Iniciando carregamento inicial de plantões...');
       setIsDataLoaded(true);
       loadShifts(true).catch(() => {
         setTimeout(() => {
@@ -132,8 +130,6 @@ export default function ShiftsScreen() {
       monthKey !== currentMonthRef.current &&
       !loadingMonthRef.current
     ) {
-      console.log(`Mês alterado para ${format(currentMonth, 'yyyy-MM')}, recarregando dados...`);
-
       loadingMonthRef.current = true;
 
       currentMonthRef.current = monthKey;
@@ -148,44 +144,21 @@ export default function ShiftsScreen() {
     if (!shifts || shifts.length === 0) return [];
 
     const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
-    console.log(`[DEBUG] Filtrando ${shifts.length} plantões para data: ${selectedDateStr}`);
 
     const filteredShifts = shifts.filter((shift) => {
-      if (!shift.date) {
-        console.log('[DEBUG] Plantão sem data descartado');
-        return false;
-      }
+      if (!shift.date) return false;
 
       try {
-        // Usar normalizeToLocalDate para garantir consistência de timezone
         const shiftDate = formatters.normalizeToLocalDate(shift.date);
-        if (!isValid(shiftDate)) {
-          console.log(`[DEBUG] Data inválida descartada: ${shift.date}`);
-          return false;
-        }
+        if (!isValid(shiftDate)) return false;
 
         const shiftDateStr = format(shiftDate, 'yyyy-MM-dd');
-        const isSame = isSameDay(shiftDate, selectedDate);
-
-        console.log(`[DEBUG] Comparando datas:
-          - Plantão ${shift.id}: ${shift.date} -> ${shiftDateStr}
-          - Data selecionada: ${selectedDateStr}
-          - São iguais: ${isSame}`);
-
-        if (isSame) {
-          console.log(`[DEBUG] ✅ Plantão incluído: ${shift.id} - ${shiftDateStr}`);
-        } else {
-          console.log(`[DEBUG] ❌ Plantão excluído: ${shift.id} - ${shiftDateStr}`);
-        }
-
-        return isSame;
+        return shiftDateStr === selectedDateStr;
       } catch (error) {
-        console.error(`[DEBUG] Erro ao comparar datas para shift ${shift.id}:`, error);
         return false;
       }
     });
 
-    console.log(`[DEBUG] Total de plantões filtrados: ${filteredShifts.length}`);
     return filteredShifts;
   }, [shifts, selectedDate]);
 
@@ -195,20 +168,18 @@ export default function ShiftsScreen() {
       await loadShifts(true);
       showSuccess('Dados atualizados com sucesso!');
     } catch (error) {
-      console.error('Erro ao atualizar plantões:', error);
+      // Error já é tratado internamente no loadShifts
     } finally {
       setIsRefreshing(false);
     }
   }, [loadShifts, showSuccess]);
 
   const navigateToAddShift = useCallback(() => {
-    console.log('Abrindo modal para adicionar plantão sem data específica');
     setModalInitialDate(null);
     setIsAddModalVisible(true);
   }, []);
 
   const navigateToAddShiftOnDate = useCallback(() => {
-    console.log(`Abrindo modal para adicionar plantão em ${selectedDate.toISOString()}`);
     setModalInitialDate(selectedDate);
     setIsAddModalVisible(true);
   }, [selectedDate]);
@@ -225,7 +196,6 @@ export default function ShiftsScreen() {
           pathname: `/shifts/${shift.id}`,
         });
       } catch (error) {
-        console.error('Erro ao navegar para detalhes do plantão:', error);
         showError('Erro ao abrir detalhes do plantão');
       }
     },
@@ -233,13 +203,11 @@ export default function ShiftsScreen() {
   );
 
   const handleSelectDate = useCallback((date: Date) => {
-    console.log(`Data selecionada: ${date.toISOString()}`);
     setSelectedDate(date);
   }, []);
 
   const handleMonthChange = useCallback(
     (month: Date) => {
-      console.log(`Mês alterado para: ${format(month, 'MMMM yyyy', { locale: ptBR })}`);
       if (
         month.getMonth() !== currentMonth.getMonth() ||
         month.getFullYear() !== currentMonth.getFullYear()
@@ -251,7 +219,6 @@ export default function ShiftsScreen() {
   );
 
   const handleAddSuccess = useCallback(() => {
-    console.log('Plantão adicionado com sucesso, fechando modal');
     showSuccess('Plantão adicionado com sucesso!');
     setIsAddModalVisible(false);
 
@@ -259,7 +226,6 @@ export default function ShiftsScreen() {
   }, [showSuccess, loadShifts]);
 
   const handleCloseModal = useCallback(() => {
-    console.log('Fechando modal');
     setIsAddModalVisible(false);
   }, []);
 
@@ -280,7 +246,6 @@ export default function ShiftsScreen() {
   const renderShiftItem = useCallback(
     ({ item }: { item: Shift }) => {
       if (!item || !item.id) {
-        console.error('Tentativa de renderizar um plantão inválido');
         return null;
       }
 
@@ -289,7 +254,6 @@ export default function ShiftsScreen() {
           if (!item.date) return 'Data inválida';
           return formatDate(item.date, "dd 'de' MMMM");
         } catch (error) {
-          console.error('Erro ao formatar data:', error);
           return 'Data inválida';
         }
       };
@@ -298,7 +262,6 @@ export default function ShiftsScreen() {
         try {
           return formatCurrency(item.value);
         } catch (error) {
-          console.error('Erro ao formatar valor:', error);
           return 'R$ --';
         }
       };

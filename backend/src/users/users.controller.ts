@@ -84,10 +84,6 @@ export class UsersController {
   @HttpCode(HttpStatus.OK)
   // Não precisa mais de @Body()
   async syncUser(@Req() req: RequestWithUserContext): Promise<User> {
-    console.log(
-      `UsersController: syncUser (básico) chamado por Clerk ID: ${req.userContext.sub}`,
-    );
-    // Passa apenas o payload do token para o serviço simplificado
     return this.usersService.syncUserWithClerk(req.userContext);
   }
 
@@ -98,9 +94,6 @@ export class UsersController {
   @Get('me')
   async getMyProfile(@Req() req: RequestWithUserContext): Promise<User> {
     const clerkId = req.userContext.sub;
-    console.log(
-      `UsersController: getMyProfile chamado para Clerk ID: ${clerkId}`,
-    );
     try {
       return await this.usersService.findOneByClerkId(clerkId);
     } catch (error) {
@@ -127,17 +120,12 @@ export class UsersController {
     @Body() updateProfileDto: UpdateProfileDto, // Usar o DTO
   ): Promise<User> {
     const clerkId = req.userContext.sub;
-    console.log(
-      `UsersController: updateMyProfile chamado por Clerk ID: ${clerkId}`,
-    );
     return this.usersService.updateProfileByClerkId(clerkId, updateProfileDto);
   }
 
   @UseGuards(ClerkAuthGuard)
   @Get()
   findAll(@Req() req: RequestWithUserContext) {
-    console.log('UsersController: findAll chamado');
-    console.log('Usuário autenticado (Claims):', req.userContext); // Logar userContext
     return this.usersService.findAll();
   }
 
@@ -147,7 +135,6 @@ export class UsersController {
     @Param('id') id: string,
     @Req() req: RequestWithUserContext,
   ): Promise<User> {
-    console.log(`UsersController: findOne chamado para DB ID: ${id}`);
     const user = await this.usersService.findOne(id);
 
     // Comparar com o clerkId do usuário encontrado no DB
@@ -161,7 +148,6 @@ export class UsersController {
       );
     }
 
-    console.log(`Permissão concedida para ${clerkId} acessar DB ID ${id}`);
     return user;
   }
 
@@ -173,9 +159,6 @@ export class UsersController {
     @Req() req: RequestWithUserContext,
   ): Promise<User> {
     const clerkId = req.userContext.sub;
-    console.log(
-      `UsersController: update chamado para DB ID: ${id} por ${clerkId}`,
-    );
 
     const userToUpdate = await this.usersService.findOne(id);
 
@@ -188,7 +171,6 @@ export class UsersController {
       );
     }
 
-    console.log(`Permissão concedida para ${clerkId} atualizar DB ID ${id}`);
     return this.usersService.update(id, updateUserDto);
   }
 
@@ -199,9 +181,6 @@ export class UsersController {
     @Req() req: RequestWithUserContext,
   ): Promise<User> {
     const clerkId = req.userContext.sub;
-    console.log(
-      `UsersController: remove chamado para DB ID: ${id} por ${clerkId}`,
-    );
 
     const userToDelete = await this.usersService.findOne(id);
 
@@ -214,7 +193,6 @@ export class UsersController {
       );
     }
 
-    console.log(`Permissão concedida para ${clerkId} remover DB ID ${id}`);
     return this.usersService.remove(id);
   }
 }

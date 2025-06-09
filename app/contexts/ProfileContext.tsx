@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@clerk/clerk-expo';
 import { useToast } from '@/components/ui/Toast';
 import { fetchWithAuth } from '@/utils/api-client';
@@ -13,58 +13,97 @@ export interface UserProfile {
   birthDate?: string;
   gender?: string;
   imageUrl?: string;
-  clerkId?: string;
-  createdAt?: string;
-  updatedAt?: string;
+  clerkId: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
-interface ProfileContextData {
+interface ProfileContextType {
   profile: UserProfile | null;
-  loading: boolean;
+  isLoading: boolean;
   error: string | null;
   refreshProfile: () => Promise<void>;
-  updateProfile: (data: Partial<UserProfile>) => void;
-  clearProfile: () => void;
+  updateLocalProfile: (updates: Partial<UserProfile>) => void;
+  syncUser: () => Promise<boolean>;
 }
 
-const ProfileContext = createContext<ProfileContextData>({} as ProfileContextData);
+const ProfileContext = createContext<ProfileContextType | undefined>(undefined);
 
-export const useProfileContext = () => {
-  const context = useContext(ProfileContext);
-  if (!context) {
-    throw new Error('useProfileContext must be used within a ProfileProvider');
-  }
-  return context;
-};
-
-interface ProfileProviderProps {
-  children: React.ReactNode;
-}
-
-export const ProfileProvider: React.FC<ProfileProviderProps> = ({ children }) => {
+export function ProfileProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { getToken, isLoaded: isAuthLoaded, userId } = useAuth();
   const { showToast } = useToast();
-  const mountedRef = useRef(true);
+  const initialized = useRef(false);
+  const syncingRef = useRef(false);
+
+  // Função para sincronizar usuário com retry
+  const syncUserWithRetry = useCallback(
+    async (token: string, maxRetries: number = 2): Promise<boolean> => {
+      if (syncingRef.current) {
+        return false;
+      }
+
+      syncingRef.current = true;
+      let retries = 0;
+
+      try {
+        while (retries < maxRetries) {
+          try {
+            await fetchWithAuth('/users/sync', { method: 'POST' }, async () => token);
+            return true;
+          } catch (syncError: any) {
+            retries++;
+            console.error(`Erro na sincronização (tentativa ${retries}):`, syncError);
+
+            if (retries < maxRetries) {
+              // Aguardar um pouco antes de tentar novamente
+              await new Promise((resolve) => setTimeout(resolve, 1000));
+            }
+          }
+        }
+        return false;
+      } finally {
+        syncingRef.current = false;
+      }
+    },
+    []
+  );
 
   // Função para buscar perfil
-  const fetchProfile = async () => {
-    if (!isAuthLoaded || !userId || !getToken) return;
-
-    setLoading(true);
-    setError(null);
+  const fetchProfile = useCallback(async (): Promise<void> => {
+    if (!isAuthLoaded || !userId) {
+      setIsLoading(false);
+      return;
+    }
 
     try {
+      setIsLoading(true);
+      setError(null);
+
       const token = await getToken();
-      if (!token || !mountedRef.current) return;
+      if (!token) {
+        throw new Error('Token de autenticação não disponível');
+      }
 
-      console.log('🔍 [ProfileContext] Buscando perfil do usuário...');
+      let response;
+      try {
+        response = await fetchWithAuth('/users/me', { method: 'GET' }, async () => token);
+      } catch (error: any) {
+        // Se usuário não encontrado, tenta sincronizar UMA ÚNICA VEZ
+        if (error.response?.status === 404) {
+          const syncSuccess = await syncUserWithRetry(token, 1);
+          if (!syncSuccess) {
+            throw new Error('Falha na sincronização do usuário');
+          }
 
-      const response = await fetchWithAuth('/users/me', { method: 'GET' }, async () => token);
-
-      if (!mountedRef.current) return;
+          // Tenta buscar novamente após sincronização
+          response = await fetchWithAuth('/users/me', { method: 'GET' }, async () => token);
+        } else {
+          throw error;
+        }
+      }
 
       const profileData: UserProfile = {
         id: response.id,
@@ -82,60 +121,69 @@ export const ProfileProvider: React.FC<ProfileProviderProps> = ({ children }) =>
       };
 
       setProfile(profileData);
-      console.log('✅ [ProfileContext] Perfil carregado com sucesso');
     } catch (error: any) {
-      console.error('❌ [ProfileContext] Erro ao buscar perfil:', error);
-      if (mountedRef.current) {
-        const errorMessage = error?.response?.data?.message || 'Erro ao carregar perfil';
-        setError(errorMessage);
-      }
+      console.error('Erro ao buscar perfil:', error);
+      const errorMessage =
+        error?.response?.data?.message || error?.message || 'Erro ao carregar perfil do usuário';
+      setError(errorMessage);
+      showToast('Erro ao carregar perfil. Tente novamente.', 'error');
     } finally {
-      if (mountedRef.current) {
-        setLoading(false);
+      setIsLoading(false);
+    }
+  }, [isAuthLoaded, userId, getToken, showToast, syncUserWithRetry]);
+
+  const refreshProfile = useCallback(async () => {
+    await fetchProfile();
+  }, [fetchProfile]);
+
+  const updateLocalProfile = useCallback(
+    (updates: Partial<UserProfile>) => {
+      if (profile) {
+        const updatedProfile = { ...profile, ...updates };
+        setProfile(updatedProfile);
       }
+    },
+    [profile]
+  );
+
+  const syncUser = useCallback(async (): Promise<boolean> => {
+    if (!getToken) return false;
+
+    try {
+      const token = await getToken();
+      if (!token) return false;
+
+      return await syncUserWithRetry(token, 2);
+    } catch (error) {
+      console.error('Erro na sincronização pública:', error);
+      return false;
     }
-  };
+  }, [getToken, syncUserWithRetry]);
 
-  // Função para atualizar perfil local (otimista)
-  const updateProfile = (data: Partial<UserProfile>) => {
-    if (profile) {
-      setProfile({ ...profile, ...data });
-      console.log('📝 [ProfileContext] Perfil atualizado localmente');
-    }
-  };
-
-  // Função para limpar perfil
-  const clearProfile = () => {
-    setProfile(null);
-    setError(null);
-    console.log('🧹 [ProfileContext] Perfil limpo');
-  };
-
-  // Carregar perfil quando autenticação estiver pronta
+  // Carregar perfil apenas uma vez na inicialização
   useEffect(() => {
-    if (isAuthLoaded && userId) {
+    if (!initialized.current && isAuthLoaded && userId) {
+      initialized.current = true;
       fetchProfile();
-    } else if (isAuthLoaded && !userId) {
-      clearProfile();
-      setLoading(false);
     }
-  }, [isAuthLoaded, userId]);
+  }, [isAuthLoaded, userId, fetchProfile]);
 
-  // Cleanup
-  useEffect(() => {
-    return () => {
-      mountedRef.current = false;
-    };
-  }, []);
-
-  const contextValue: ProfileContextData = {
+  const value: ProfileContextType = {
     profile,
-    loading,
+    isLoading,
     error,
-    refreshProfile: fetchProfile,
-    updateProfile,
-    clearProfile,
+    refreshProfile,
+    updateLocalProfile,
+    syncUser,
   };
 
-  return <ProfileContext.Provider value={contextValue}>{children}</ProfileContext.Provider>;
-};
+  return <ProfileContext.Provider value={value}>{children}</ProfileContext.Provider>;
+}
+
+export function useProfileContext(): ProfileContextType {
+  const context = useContext(ProfileContext);
+  if (context === undefined) {
+    throw new Error('useProfileContext deve ser usado dentro de ProfileProvider');
+  }
+  return context;
+}
