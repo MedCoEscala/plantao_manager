@@ -34,6 +34,56 @@ export class ShiftsService {
 
   constructor(private prisma: PrismaService) {}
 
+  /**
+   * Criar um objeto Date local a partir de uma string de data (YYYY-MM-DD)
+   * Evita problemas de timezone tratando a data como local
+   */
+  private createLocalDate(dateString: string): Date {
+    const [year, month, day] = dateString.split('-').map(Number);
+    if (
+      !year ||
+      !month ||
+      !day ||
+      month < 1 ||
+      month > 12 ||
+      day < 1 ||
+      day > 31
+    ) {
+      throw new BadRequestException('Formato de data inválido. Use YYYY-MM-DD');
+    }
+    return new Date(year, month - 1, day);
+  }
+
+  /**
+   * Criar um objeto Date local com horário específico
+   */
+  private createLocalDateTime(dateString: string, timeString: string): Date {
+    const baseDate = this.createLocalDate(dateString);
+    const [hours, minutes] = timeString.split(':').map(Number);
+
+    if (
+      isNaN(hours) ||
+      isNaN(minutes) ||
+      hours < 0 ||
+      hours > 23 ||
+      minutes < 0 ||
+      minutes > 59
+    ) {
+      throw new BadRequestException('Formato de horário inválido. Use HH:MM');
+    }
+
+    baseDate.setHours(hours, minutes, 0, 0);
+    return baseDate;
+  }
+
+  /**
+   * Validar formato de horário
+   */
+  private validateTimeFormat(time: string): boolean {
+    const timeRegex = /^([01]?[0-9]|2[0-3]):([0-5][0-9])$/;
+    return timeRegex.test(time);
+  }
+
   async findAllByUserId(
     clerkId: string,
     filterDto: GetShiftsFilterDto,
@@ -54,9 +104,13 @@ export class ShiftsService {
         userId: user.id,
       };
 
+      // Filtros de data usando datas locais
       if (filterDto.startDate && filterDto.endDate) {
-        const startDate = new Date(filterDto.startDate);
-        const endDate = new Date(filterDto.endDate);
+        const startDate = this.createLocalDate(filterDto.startDate);
+        const endDate = this.createLocalDate(filterDto.endDate);
+
+        // Ajustar endDate para incluir todo o dia
+        endDate.setHours(23, 59, 59, 999);
 
         if (startDate > endDate) {
           throw new BadRequestException(
@@ -69,12 +123,15 @@ export class ShiftsService {
           lte: endDate,
         };
       } else if (filterDto.startDate) {
+        const startDate = this.createLocalDate(filterDto.startDate);
         where.date = {
-          gte: new Date(filterDto.startDate),
+          gte: startDate,
         };
       } else if (filterDto.endDate) {
+        const endDate = this.createLocalDate(filterDto.endDate);
+        endDate.setHours(23, 59, 59, 999);
         where.date = {
-          lte: new Date(filterDto.endDate),
+          lte: endDate,
         };
       }
 
@@ -160,44 +217,72 @@ export class ShiftsService {
         );
       }
 
-      // Validar formato de hora (HH:MM)
-      const timeRegex = /^([01]?[0-9]|2[0-3]):([0-5][0-9])$/;
-      if (
-        !timeRegex.test(createShiftDto.startTime) ||
-        !timeRegex.test(createShiftDto.endTime)
-      ) {
+      // Validar formatos de horário
+      if (!this.validateTimeFormat(createShiftDto.startTime)) {
         throw new BadRequestException(
-          'Os horários devem estar no formato HH:MM',
+          'Horário de início deve estar no formato HH:MM (ex: 08:00)',
         );
       }
 
-      // Preparar data base para combinar com horários
-      const shiftDate = new Date(createShiftDto.date);
+      if (!this.validateTimeFormat(createShiftDto.endTime)) {
+        throw new BadRequestException(
+          'Horário de término deve estar no formato HH:MM (ex: 14:00)',
+        );
+      }
 
-      // Criar objetos Date para início e fim
-      const startTime = new Date(shiftDate);
-      const endTime = new Date(shiftDate);
+      // Criar datas locais para o plantão
+      const shiftDate = this.createLocalDate(createShiftDto.date);
+      const startTime = this.createLocalDateTime(
+        createShiftDto.date,
+        createShiftDto.startTime,
+      );
+      const endTime = this.createLocalDateTime(
+        createShiftDto.date,
+        createShiftDto.endTime,
+      );
 
-      const [startHour, startMinute] = createShiftDto.startTime
-        .split(':')
-        .map(Number);
-      const [endHour, endMinute] = createShiftDto.endTime
-        .split(':')
-        .map(Number);
-
-      startTime.setHours(startHour, startMinute, 0, 0);
-      endTime.setHours(endHour, endMinute, 0, 0);
-
-      // Se o horário de término for antes do início, adiciona um dia ao término
-      // Isso lida com plantões noturnos (ex: 23:00 às 01:00)
+      // Verificar se o horário de término é após o início
+      // Para plantões noturnos, o endTime pode ser no dia seguinte
       if (endTime <= startTime) {
         endTime.setDate(endTime.getDate() + 1);
       }
 
-      const timeInfo = `Horário: ${createShiftDto.startTime} - ${createShiftDto.endTime}`;
-      const notes = createShiftDto.notes
-        ? `${createShiftDto.notes}\n${timeInfo}`
-        : timeInfo;
+      // Validar se a data não é muito antiga (opcional - pode ser configurável)
+      const oneYearAgo = new Date();
+      oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+
+      if (shiftDate < oneYearAgo) {
+        this.logger.warn(
+          `Plantão criado com data muito antiga: ${createShiftDto.date}`,
+        );
+      }
+
+      // Verificar conflitos de horário no mesmo dia (opcional)
+      const existingShifts = await this.prisma.plantao.findMany({
+        where: {
+          userId: user.id,
+          date: {
+            gte: new Date(
+              shiftDate.getFullYear(),
+              shiftDate.getMonth(),
+              shiftDate.getDate(),
+            ),
+            lt: new Date(
+              shiftDate.getFullYear(),
+              shiftDate.getMonth(),
+              shiftDate.getDate() + 1,
+            ),
+          },
+        },
+        select: { id: true, startTime: true, endTime: true },
+      });
+
+      // Log de conflitos para monitoramento
+      if (existingShifts.length > 0) {
+        this.logger.warn(
+          `Possível sobreposição de plantões para o dia ${createShiftDto.date}`,
+        );
+      }
 
       const locationId =
         createShiftDto.locationId && createShiftDto.locationId.trim() !== ''
@@ -209,7 +294,8 @@ export class ShiftsService {
           ? createShiftDto.contractorId
           : undefined;
 
-      return this.prisma.plantao.create({
+      // Criar o plantão
+      const newShift = await this.prisma.plantao.create({
         data: {
           date: shiftDate,
           value: createShiftDto.value,
@@ -217,7 +303,7 @@ export class ShiftsService {
           endTime,
           isFixed: createShiftDto.isFixed || false,
           paymentType: createShiftDto.paymentType,
-          notes,
+          notes: createShiftDto.notes || null,
           user: {
             connect: { id: user.id },
           },
@@ -237,6 +323,9 @@ export class ShiftsService {
           contractor: true,
         },
       });
+
+      this.logger.log(`Plantão criado com sucesso: ${newShift.id}`);
+      return newShift;
     } catch (error) {
       this.logger.error(`Erro ao criar plantão: ${error.message}`, error.stack);
 
@@ -248,100 +337,80 @@ export class ShiftsService {
       }
 
       throw new InternalServerErrorException(
-        `Erro ao criar plantão: ${error.message}`,
+        `Erro interno ao criar plantão: ${error.message}`,
       );
     }
   }
 
   async update(id: string, updateShiftDto: UpdateShiftDto): Promise<Plantao> {
     try {
-      const existingShift = await this.findOne(id);
+      const existingShift = await this.prisma.plantao.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          date: true,
+          startTime: true,
+          endTime: true,
+          value: true,
+          paymentType: true,
+          isFixed: true,
+          notes: true,
+          locationId: true,
+          contractorId: true,
+        },
+      });
+
+      if (!existingShift) {
+        throw new NotFoundException(`Plantão com ID ${id} não encontrado`);
+      }
 
       const updateData: Prisma.PlantaoUpdateInput = {};
 
+      // Atualizar data se fornecida
       if (updateShiftDto.date !== undefined) {
-        updateData.date = new Date(updateShiftDto.date);
+        updateData.date = this.createLocalDate(updateShiftDto.date);
       }
 
-      if (
-        updateShiftDto.startTime !== undefined ||
-        updateShiftDto.endTime !== undefined
-      ) {
-        // Obter a data base atual ou a nova data se fornecida
-        const shiftDate = updateShiftDto.date
-          ? new Date(updateShiftDto.date)
-          : existingShift.date;
+      const workingDate =
+        updateShiftDto.date || existingShift.date.toISOString().split('T')[0];
 
-        // Atualizar horário de início se fornecido
-        if (updateShiftDto.startTime !== undefined) {
-          const timeRegex = /^([01]?[0-9]|2[0-3]):([0-5][0-9])$/;
-          if (!timeRegex.test(updateShiftDto.startTime)) {
-            throw new BadRequestException(
-              'O horário de início deve estar no formato HH:MM',
-            );
-          }
-
-          const startTime = new Date(shiftDate);
-          const [startHour, startMinute] = updateShiftDto.startTime
-            .split(':')
-            .map(Number);
-          startTime.setHours(startHour, startMinute, 0, 0);
-
-          updateData.startTime = startTime;
+      // Atualizar horário de início se fornecido
+      if (updateShiftDto.startTime !== undefined) {
+        if (!this.validateTimeFormat(updateShiftDto.startTime)) {
+          throw new BadRequestException(
+            'Horário de início deve estar no formato HH:MM',
+          );
         }
-
-        // Atualizar horário de término se fornecido
-        if (updateShiftDto.endTime !== undefined) {
-          const timeRegex = /^([01]?[0-9]|2[0-3]):([0-5][0-9])$/;
-          if (!timeRegex.test(updateShiftDto.endTime)) {
-            throw new BadRequestException(
-              'O horário de término deve estar no formato HH:MM',
-            );
-          }
-
-          const endTime = new Date(shiftDate);
-          const [endHour, endMinute] = updateShiftDto.endTime
-            .split(':')
-            .map(Number);
-          endTime.setHours(endHour, endMinute, 0, 0);
-
-          // Se já tivermos um novo horário de início
-          if (updateData.startTime) {
-            // Se o fim for antes do início, adiciona um dia
-            if (endTime <= updateData.startTime) {
-              endTime.setDate(endTime.getDate() + 1);
-            }
-          }
-          // Usar o horário de início existente para comparação
-          else if (existingShift.startTime) {
-            const startTime = new Date(existingShift.startTime);
-
-            // Ajustar startTime para ter a mesma data base que endTime para comparação
-            startTime.setFullYear(
-              endTime.getFullYear(),
-              endTime.getMonth(),
-              endTime.getDate(),
-            );
-
-            // Se o fim for antes do início, adiciona um dia
-            if (endTime <= startTime) {
-              endTime.setDate(endTime.getDate() + 1);
-            }
-          }
-
-          updateData.endTime = endTime;
-        }
-
-        // Verificação final se ambos startTime e endTime estiverem sendo atualizados
-        if (updateData.startTime && updateData.endTime) {
-          if (updateData.endTime <= updateData.startTime) {
-            (updateData.endTime as Date).setDate(
-              (updateData.endTime as Date).getDate() + 1,
-            );
-          }
-        }
+        updateData.startTime = this.createLocalDateTime(
+          workingDate,
+          updateShiftDto.startTime,
+        );
       }
 
+      // Atualizar horário de término se fornecido
+      if (updateShiftDto.endTime !== undefined) {
+        if (!this.validateTimeFormat(updateShiftDto.endTime)) {
+          throw new BadRequestException(
+            'Horário de término deve estar no formato HH:MM',
+          );
+        }
+
+        const endTime = this.createLocalDateTime(
+          workingDate,
+          updateShiftDto.endTime,
+        );
+
+        // Verificar com horário de início atualizado ou existente
+        const startTime = updateData.startTime || existingShift.startTime;
+
+        if (endTime <= startTime) {
+          endTime.setDate(endTime.getDate() + 1);
+        }
+
+        updateData.endTime = endTime;
+      }
+
+      // Atualizar outros campos
       if (updateShiftDto.value !== undefined) {
         updateData.value = updateShiftDto.value;
       }
@@ -355,7 +424,7 @@ export class ShiftsService {
       }
 
       if (updateShiftDto.notes !== undefined) {
-        updateData.notes = updateShiftDto.notes;
+        updateData.notes = updateShiftDto.notes || null;
       }
 
       if (updateShiftDto.locationId !== undefined) {
@@ -363,9 +432,7 @@ export class ShiftsService {
           updateShiftDto.locationId &&
           updateShiftDto.locationId.trim() !== ''
         ) {
-          updateData.location = {
-            connect: { id: updateShiftDto.locationId },
-          };
+          updateData.location = { connect: { id: updateShiftDto.locationId } };
         } else {
           updateData.location = { disconnect: true };
         }
@@ -384,7 +451,7 @@ export class ShiftsService {
         }
       }
 
-      return this.prisma.plantao.update({
+      const updatedShift = await this.prisma.plantao.update({
         where: { id },
         data: updateData,
         include: {
@@ -392,33 +459,48 @@ export class ShiftsService {
           contractor: true,
         },
       });
+
+      this.logger.log(`Plantão atualizado com sucesso: ${id}`);
+      return updatedShift;
     } catch (error) {
       this.logger.error(
         `Erro ao atualizar plantão ${id}: ${error.message}`,
         error.stack,
       );
 
-      if (error instanceof NotFoundException) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
         throw error;
       }
 
       throw new InternalServerErrorException(
-        `Erro ao atualizar plantão: ${error.message}`,
+        `Erro interno ao atualizar plantão: ${error.message}`,
       );
     }
   }
 
   async remove(id: string): Promise<Plantao> {
     try {
-      await this.findOne(id);
+      const existingShift = await this.prisma.plantao.findUnique({
+        where: { id },
+      });
 
-      return this.prisma.plantao.delete({
+      if (!existingShift) {
+        throw new NotFoundException(`Plantão com ID ${id} não encontrado`);
+      }
+
+      const deletedShift = await this.prisma.plantao.delete({
         where: { id },
         include: {
           location: true,
           contractor: true,
         },
       });
+
+      this.logger.log(`Plantão removido com sucesso: ${id}`);
+      return deletedShift;
     } catch (error) {
       this.logger.error(
         `Erro ao remover plantão ${id}: ${error.message}`,
@@ -430,7 +512,7 @@ export class ShiftsService {
       }
 
       throw new InternalServerErrorException(
-        `Erro ao remover plantão: ${error.message}`,
+        `Erro interno ao remover plantão: ${error.message}`,
       );
     }
   }
@@ -439,6 +521,24 @@ export class ShiftsService {
     clerkId: string,
     createShiftsBatchDto: CreateShiftsBatchDto,
   ): Promise<BatchCreateResult> {
+    const {
+      shifts,
+      skipConflicts = true,
+      continueOnError = true,
+    } = createShiftsBatchDto;
+
+    const result: BatchCreateResult = {
+      created: [],
+      skipped: [],
+      failed: [],
+      summary: {
+        total: shifts.length,
+        created: 0,
+        skipped: 0,
+        failed: 0,
+      },
+    };
+
     try {
       const user = await this.prisma.user.findUnique({
         where: { clerkId },
@@ -451,157 +551,110 @@ export class ShiftsService {
         );
       }
 
-      const result: BatchCreateResult = {
-        created: [],
-        skipped: [],
-        failed: [],
-        summary: {
-          total: createShiftsBatchDto.shifts.length,
-          created: 0,
-          skipped: 0,
-          failed: 0,
-        },
-      };
+      // Validar todos os shifts antes de criar qualquer um
+      const validationErrors: string[] = [];
+      for (let i = 0; i < shifts.length; i++) {
+        const shift = shifts[i];
 
-      // Se skipConflicts for true, verificar conflitos existentes
-      const existingShifts = createShiftsBatchDto.skipConflicts
-        ? await this.findExistingShifts(
-            user.id,
-            createShiftsBatchDto.shifts.map((s) => s.date),
-          )
-        : [];
+        if (!this.validateTimeFormat(shift.startTime)) {
+          validationErrors.push(`Shift ${i + 1}: Horário de início inválido`);
+        }
 
-      for (const shiftData of createShiftsBatchDto.shifts) {
+        if (!this.validateTimeFormat(shift.endTime)) {
+          validationErrors.push(`Shift ${i + 1}: Horário de término inválido`);
+        }
+
         try {
-          // Verificar se já existe plantão na mesma data
-          if (createShiftsBatchDto.skipConflicts) {
-            const existingShift = existingShifts.find(
-              (existing) =>
-                existing.date.toISOString().split('T')[0] === shiftData.date,
-            );
+          this.createLocalDate(shift.date);
+        } catch {
+          validationErrors.push(`Shift ${i + 1}: Data inválida`);
+        }
+      }
 
-            if (existingShift) {
-              result.skipped.push(shiftData);
+      if (validationErrors.length > 0 && !continueOnError) {
+        throw new BadRequestException(
+          `Erros de validação: ${validationErrors.join(', ')}`,
+        );
+      }
+
+      // Buscar conflitos existentes se skipConflicts estiver habilitado
+      let existingShifts: Array<{
+        date: Date;
+        startTime: Date;
+        endTime: Date;
+      }> = [];
+
+      if (skipConflicts) {
+        const dates = shifts.map((s) => s.date);
+        existingShifts = await this.findExistingShifts(user.id, dates);
+      }
+
+      // Processar cada shift
+      for (const shift of shifts) {
+        try {
+          // Verificar conflitos
+          if (skipConflicts) {
+            const shiftDate = this.createLocalDate(shift.date);
+            const hasConflict = existingShifts.some((existing) => {
+              const existingDate = new Date(existing.date);
+              return (
+                existingDate.getFullYear() === shiftDate.getFullYear() &&
+                existingDate.getMonth() === shiftDate.getMonth() &&
+                existingDate.getDate() === shiftDate.getDate()
+              );
+            });
+
+            if (hasConflict) {
+              result.skipped.push(shift);
               result.summary.skipped++;
               continue;
             }
           }
 
-          // Validar formato de hora
-          const timeRegex = /^([01]?[0-9]|2[0-3]):([0-5][0-9])$/;
-          if (
-            !timeRegex.test(shiftData.startTime) ||
-            !timeRegex.test(shiftData.endTime)
-          ) {
-            throw new BadRequestException(
-              `Os horários devem estar no formato HH:MM`,
-            );
-          }
-
-          // Preparar data e horários
-          const shiftDate = new Date(shiftData.date);
-          const startTime = new Date(shiftDate);
-          const endTime = new Date(shiftDate);
-
-          const [startHour, startMinute] = shiftData.startTime
-            .split(':')
-            .map(Number);
-          const [endHour, endMinute] = shiftData.endTime.split(':').map(Number);
-
-          startTime.setHours(startHour, startMinute, 0, 0);
-          endTime.setHours(endHour, endMinute, 0, 0);
-
-          // Se o horário de término for antes do início, adiciona um dia
-          if (endTime <= startTime) {
-            endTime.setDate(endTime.getDate() + 1);
-          }
-
-          // Preparar dados para criação
-          const timeInfo = `Horário: ${shiftData.startTime} - ${shiftData.endTime}`;
-          const notes = shiftData.notes
-            ? `${shiftData.notes}\n${timeInfo}`
-            : timeInfo;
-
-          const locationId =
-            shiftData.locationId && shiftData.locationId.trim() !== ''
-              ? shiftData.locationId
-              : undefined;
-
-          const contractorId =
-            shiftData.contractorId && shiftData.contractorId.trim() !== ''
-              ? shiftData.contractorId
-              : undefined;
-
-          // Criar plantão
-          const createdShift = await this.prisma.plantao.create({
-            data: {
-              date: shiftDate,
-              value: shiftData.value,
-              startTime,
-              endTime,
-              isFixed: shiftData.isFixed || false,
-              paymentType: shiftData.paymentType,
-              notes,
-              user: {
-                connect: { id: user.id },
-              },
-              ...(locationId && {
-                location: {
-                  connect: { id: locationId },
-                },
-              }),
-              ...(contractorId && {
-                contractor: {
-                  connect: { id: contractorId },
-                },
-              }),
-            },
-            include: {
-              location: true,
-              contractor: true,
-            },
-          });
-
+          // Criar o shift
+          const createdShift = await this.create(clerkId, shift);
           result.created.push(createdShift);
           result.summary.created++;
         } catch (error) {
-          this.logger.error(
-            `Erro ao criar plantão para data ${shiftData.date}: ${error.message}`,
-          );
+          const errorMessage =
+            error instanceof Error ? error.message : 'Erro desconhecido';
 
           result.failed.push({
-            shift: shiftData,
-            error: error.message || 'Erro desconhecido',
+            shift,
+            error: errorMessage,
           });
           result.summary.failed++;
 
-          // Se continueOnError for false, parar o processo
-          if (!createShiftsBatchDto.continueOnError) {
+          if (!continueOnError) {
             throw error;
           }
+
+          this.logger.warn(`Erro ao criar plantão em lote: ${errorMessage}`, {
+            shift,
+          });
         }
       }
 
       this.logger.log(
-        `Criação em lote concluída. Criados: ${result.summary.created}, Pulados: ${result.summary.skipped}, Falharam: ${result.summary.failed}`,
+        `Criação em lote concluída: ${result.summary.created} criados, ${result.summary.skipped} ignorados, ${result.summary.failed} falharam`,
       );
 
       return result;
     } catch (error) {
       this.logger.error(
-        `Erro na criação em lote de plantões: ${error.message}`,
+        `Erro na criação em lote: ${error.message}`,
         error.stack,
       );
 
       if (
-        error instanceof BadRequestException ||
-        error instanceof NotFoundException
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
       ) {
         throw error;
       }
 
       throw new InternalServerErrorException(
-        `Erro na criação em lote: ${error.message}`,
+        `Erro interno na criação em lote: ${error.message}`,
       );
     }
   }
@@ -610,24 +663,39 @@ export class ShiftsService {
     userId: string,
     dates: string[],
   ): Promise<{ id: string; date: Date; startTime: Date; endTime: Date }[]> {
-    const dateObjects = dates.map((date) => new Date(date));
-    const minDate = new Date(Math.min(...dateObjects.map((d) => d.getTime())));
-    const maxDate = new Date(Math.max(...dateObjects.map((d) => d.getTime())));
+    try {
+      const dateObjects = dates.map((date) => this.createLocalDate(date));
+      const minDate = new Date(
+        Math.min(...dateObjects.map((d) => d.getTime())),
+      );
+      const maxDate = new Date(
+        Math.max(...dateObjects.map((d) => d.getTime())),
+      );
 
-    return this.prisma.plantao.findMany({
-      where: {
-        userId,
-        date: {
-          gte: minDate,
-          lte: maxDate,
+      // Estender o range para incluir todo o dia
+      maxDate.setHours(23, 59, 59, 999);
+
+      return this.prisma.plantao.findMany({
+        where: {
+          userId,
+          date: {
+            gte: minDate,
+            lte: maxDate,
+          },
         },
-      },
-      select: {
-        id: true,
-        date: true,
-        startTime: true,
-        endTime: true,
-      },
-    });
+        select: {
+          id: true,
+          date: true,
+          startTime: true,
+          endTime: true,
+        },
+      });
+    } catch (error) {
+      this.logger.error(
+        `Erro ao buscar plantões existentes: ${error.message}`,
+        error.stack,
+      );
+      return [];
+    }
   }
 }

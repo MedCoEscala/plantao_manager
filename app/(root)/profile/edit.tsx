@@ -1,25 +1,18 @@
 import Button from '@app/components/ui/Button';
+import DatePicker from '@app/components/ui/DatePicker';
 import Input from '@app/components/ui/Input';
+import Select from '@app/components/ui/Select';
 import { useToast } from '@app/components/ui/Toast';
 import { useDialog } from '@app/contexts/DialogContext';
 import { fetchWithAuth } from '@app/utils/api-client';
+import { getInitials } from '@app/utils/userNameHelper';
 import { useUser, useAuth } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useState, useEffect, useCallback } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
-  Platform,
-  ActivityIndicator,
-} from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 interface UserData {
@@ -48,8 +41,6 @@ export default function EditProfileScreen() {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [birthDate, setBirthDate] = useState<Date | null>(null);
   const [gender, setGender] = useState('');
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showGenderPicker, setShowGenderPicker] = useState(false);
 
   const [isLoading, setIsLoading] = useState(false);
   const [isFetchingData, setIsFetchingData] = useState(true);
@@ -159,13 +150,23 @@ export default function EditProfileScreen() {
     }
   }, [isUserLoaded, user, fetchUserData]);
 
-  const handleDateChange = (event: any, selectedDate?: Date) => {
-    const currentDate = selectedDate || birthDate;
-    setShowDatePicker(Platform.OS === 'ios');
+  const formatPhoneNumber = (text: string) => {
+    const cleaned = text.replace(/\D/g, '');
 
-    if (currentDate) {
-      setBirthDate(currentDate);
+    if (cleaned.length <= 2) {
+      return cleaned;
+    } else if (cleaned.length <= 7) {
+      return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2)}`;
+    } else if (cleaned.length <= 11) {
+      return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 7)}-${cleaned.slice(7)}`;
+    } else {
+      return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 7)}-${cleaned.slice(7, 11)}`;
     }
+  };
+
+  const handlePhoneChange = (text: string) => {
+    const formatted = formatPhoneNumber(text);
+    setPhoneNumber(formatted);
   };
 
   const validateForm = () => {
@@ -208,7 +209,7 @@ export default function EditProfileScreen() {
       }
 
       if (phoneNumber.trim()) {
-        payload.phoneNumber = phoneNumber.trim();
+        payload.phoneNumber = phoneNumber.replace(/\D/g, '');
       }
 
       if (birthDateString) {
@@ -259,147 +260,145 @@ export default function EditProfileScreen() {
 
   if (!isUserLoaded || isFetchingData) {
     return (
-      <SafeAreaView className="flex-1 items-center justify-center bg-white">
-        <ActivityIndicator size="large" color="#0077B6" />
-        <Text className="mt-4 text-gray-600">Carregando dados do perfil...</Text>
+      <SafeAreaView className="flex-1 items-center justify-center bg-background">
+        <ActivityIndicator size="large" color="#18cb96" />
+        <Text className="mt-4 text-text-light">Carregando dados do perfil...</Text>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaView className="flex-1 bg-background">
       <StatusBar style="dark" />
 
-      <View className="flex-row items-center border-b border-gray-200 px-4 py-3">
-        <TouchableOpacity onPress={() => router.back()} className="mr-4 p-2">
-          <Ionicons name="arrow-back" size={24} color="#2B2D42" />
-        </TouchableOpacity>
-        <Text className="flex-1 text-xl font-bold text-gray-800">Editar Perfil</Text>
+      {/* Header */}
+      <View className="border-b border-gray-200 bg-white px-4 py-3">
+        <View className="flex-row items-center">
+          <TouchableOpacity onPress={() => router.back()} className="-ml-2 mr-4 p-2">
+            <Ionicons name="arrow-back" size={24} color="#1e293b" />
+          </TouchableOpacity>
+          <Text className="flex-1 text-xl font-bold text-text-dark">Editar Perfil</Text>
+        </View>
       </View>
 
-      <ScrollView className="flex-1 p-4" showsVerticalScrollIndicator={false}>
-        <View className="mb-6">
-          <Input
-            label="Primeiro Nome"
-            placeholder="Seu primeiro nome"
-            value={firstName}
-            onChangeText={setFirstName}
-            autoCapitalize="words"
-            fullWidth
-          />
-        </View>
-
-        <View className="mb-6">
-          <Input
-            label="Último Nome"
-            placeholder="Seu último nome (opcional)"
-            value={lastName}
-            onChangeText={setLastName}
-            autoCapitalize="words"
-            fullWidth
-          />
-        </View>
-
-        <View className="mb-6">
-          <Input
-            label="Telefone"
-            placeholder="Seu telefone (opcional)"
-            value={phoneNumber}
-            onChangeText={setPhoneNumber}
-            keyboardType="phone-pad"
-            fullWidth
-          />
-        </View>
-
-        <View className="mb-6">
-          <Text className="mb-2 text-sm font-medium text-gray-700">Data de Nascimento</Text>
-          <TouchableOpacity
-            onPress={() => setShowDatePicker(true)}
-            className="flex-row items-center rounded-lg border border-gray-300 bg-white px-3 py-3">
-            <Ionicons name="calendar-outline" size={20} color="#666" style={{ marginRight: 8 }} />
-            <Text className={birthDate ? 'text-gray-800' : 'text-gray-400'}>
-              {birthDate
-                ? format(birthDate, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })
-                : 'Selecionar data de nascimento (opcional)'}
-            </Text>
-          </TouchableOpacity>
-          {showDatePicker && (
-            <DateTimePicker
-              value={birthDate || new Date()}
-              mode="date"
-              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-              onChange={handleDateChange}
-              maximumDate={new Date()}
-            />
-          )}
-        </View>
-
-        <View className="mb-6">
-          <Text className="mb-2 text-sm font-medium text-gray-700">Gênero</Text>
-          <TouchableOpacity
-            onPress={() => setShowGenderPicker(!showGenderPicker)}
-            className="flex-row items-center justify-between rounded-lg border border-gray-300 bg-white px-3 py-3">
-            <View className="flex-row items-center">
-              <Ionicons name="person-outline" size={20} color="#666" style={{ marginRight: 8 }} />
-              <Text className={gender ? 'text-gray-800' : 'text-gray-400'}>
-                {genderOptions.find((opt) => opt.value === gender)?.label ||
-                  'Selecionar gênero (opcional)'}
+      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+        {/* Profile Preview Card */}
+        <View className="mx-4 mt-6 rounded-2xl bg-white p-6 shadow-sm">
+          <View className="items-center">
+            <View className="mb-4 h-20 w-20 items-center justify-center rounded-2xl bg-primary/10">
+              <Text className="text-2xl font-bold text-primary">
+                {getInitials({
+                  firstName: firstName,
+                  lastName: lastName,
+                  id: '',
+                  email: '',
+                }) || '?'}
               </Text>
             </View>
-            <Ionicons
-              name={showGenderPicker ? 'chevron-up' : 'chevron-down'}
-              size={20}
-              color="#666"
-            />
-          </TouchableOpacity>
+            <Text className="text-lg font-bold text-text-dark">
+              {`${firstName} ${lastName}`.trim() || 'Usuário'}
+            </Text>
+            <Text className="text-text-light">{user?.emailAddresses[0]?.emailAddress}</Text>
+          </View>
+        </View>
 
-          {showGenderPicker && (
-            <View className="mt-2 rounded-lg border border-gray-200 bg-white">
-              {genderOptions.map((option) => (
-                <TouchableOpacity
-                  key={option.value}
-                  onPress={() => {
-                    setGender(option.value);
-                    setShowGenderPicker(false);
-                  }}
-                  className="border-b border-gray-100 px-3 py-3 last:border-b-0">
-                  <Text
-                    className={
-                      gender === option.value ? 'font-medium text-blue-600' : 'text-gray-800'
-                    }>
-                    {option.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+        {/* Form Section */}
+        <View className="mx-4 mt-6">
+          <View className="mb-4 flex-row items-center">
+            <View className="mr-3 h-8 w-8 items-center justify-center rounded-xl bg-primary/10">
+              <Ionicons name="create-outline" size={18} color="#18cb96" />
             </View>
-          )}
-        </View>
+            <Text className="text-lg font-bold text-text-dark">Informações do Perfil</Text>
+          </View>
 
-        <View className="mt-6">
-          <Button variant="primary" onPress={handleSave} loading={isLoading} fullWidth>
-            Salvar Alterações
-          </Button>
-        </View>
-
-        <View className="mt-4">
-          <TouchableOpacity onPress={() => router.back()}>
-            <Text className="text-center text-blue-600">Cancelar</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View className="mb-4 mt-8 border-t border-gray-200 pt-6">
-          <Button variant="outline" onPress={handleLogout} fullWidth>
-            <View className="flex-row items-center justify-center">
-              <Ionicons
-                name="log-out-outline"
-                size={20}
-                color="#EF4444"
-                style={{ marginRight: 8 }}
+          <View className="rounded-2xl bg-white p-6 shadow-sm">
+            <View className="space-y-5">
+              <Input
+                label="Primeiro Nome"
+                placeholder="Seu primeiro nome"
+                value={firstName}
+                onChangeText={setFirstName}
+                autoCapitalize="words"
+                leftIcon="person-outline"
+                fullWidth
               />
-              <Text className="text-red-500">Sair da Conta</Text>
+
+              <Input
+                label="Último Nome"
+                placeholder="Seu último nome (opcional)"
+                value={lastName}
+                onChangeText={setLastName}
+                autoCapitalize="words"
+                leftIcon="person-outline"
+                fullWidth
+              />
+
+              <Input
+                label="Telefone"
+                placeholder="(00) 00000-0000"
+                value={phoneNumber}
+                onChangeText={handlePhoneChange}
+                keyboardType="phone-pad"
+                leftIcon="call-outline"
+                fullWidth
+              />
+
+              <DatePicker
+                label="Data de Nascimento"
+                placeholder="Selecionar data de nascimento (opcional)"
+                value={birthDate}
+                onChange={setBirthDate}
+                maximumDate={new Date()}
+                minimumDate={new Date(1900, 0, 1)}
+                fullWidth
+              />
+
+              <Select
+                label="Gênero"
+                placeholder="Selecionar gênero (opcional)"
+                options={genderOptions}
+                value={gender}
+                onSelect={setGender}
+                icon="person-outline"
+                fullWidth
+              />
             </View>
-          </Button>
+
+            <View className="mt-8 space-y-3">
+              <Button variant="primary" onPress={handleSave} loading={isLoading} fullWidth>
+                Salvar Alterações
+              </Button>
+
+              <Button variant="outline" onPress={() => router.back()} fullWidth>
+                Cancelar
+              </Button>
+            </View>
+          </View>
         </View>
+
+        {/* Account Actions Section */}
+        <View className="mx-4 mt-8">
+          <View className="mb-4 flex-row items-center">
+            <View className="mr-3 h-8 w-8 items-center justify-center rounded-xl bg-error/10">
+              <Ionicons name="settings-outline" size={18} color="#ef4444" />
+            </View>
+            <Text className="text-lg font-bold text-text-dark">Ações da Conta</Text>
+          </View>
+
+          <View className="rounded-2xl bg-white p-6 shadow-sm">
+            <TouchableOpacity
+              onPress={handleLogout}
+              className="flex-row items-center justify-center rounded-xl border border-error/20 bg-error/5 p-4">
+              <View className="mr-3 h-8 w-8 items-center justify-center rounded-full bg-error/10">
+                <Ionicons name="log-out-outline" size={18} color="#ef4444" />
+              </View>
+              <Text className="font-semibold text-error">Sair da Conta</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Bottom Spacing */}
+        <View className="h-8" />
       </ScrollView>
     </SafeAreaView>
   );

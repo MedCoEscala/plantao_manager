@@ -264,41 +264,55 @@ const ProfileSettingsScreen = () => {
 
   if (isProfileLoading) {
     return (
-      <SafeAreaView className="flex-1 items-center justify-center bg-gray-50">
-        <ActivityIndicator size="large" color="#0077B6" />
-        <Text className="mt-4 text-gray-600">Carregando dados do perfil...</Text>
+      <SafeAreaView className="flex-1 items-center justify-center bg-background">
+        <ActivityIndicator size="large" color="#18cb96" />
+        <Text className="mt-4 text-text-light">Carregando dados do perfil...</Text>
       </SafeAreaView>
     );
   }
 
   if (!profile) {
     return (
-      <SafeAreaView className="flex-1 items-center justify-center bg-gray-50 p-6">
-        <Ionicons name="person-circle-outline" size={64} color="#9ca3af" />
-        <Text className="mt-4 text-center text-lg font-medium text-gray-600">
-          Não foi possível carregar os dados do perfil
-        </Text>
-        <Text className="mt-2 text-center text-sm text-gray-500">
-          Verifique sua conexão e tente novamente
-        </Text>
-        <TouchableOpacity onPress={refetch} className="mt-4 rounded-lg bg-blue-600 px-6 py-3">
-          <Text className="font-medium text-white">Tentar Novamente</Text>
-        </TouchableOpacity>
+      <SafeAreaView className="flex-1 items-center justify-center bg-background p-6">
+        <View className="items-center rounded-2xl bg-white p-8 shadow-sm">
+          <View className="mb-4 h-16 w-16 items-center justify-center rounded-full bg-error/10">
+            <Ionicons name="person-circle-outline" size={32} color="#ef4444" />
+          </View>
+          <Text className="mb-2 text-center text-lg font-bold text-text-dark">
+            Erro ao carregar perfil
+          </Text>
+          <Text className="mb-6 text-center text-text-light">
+            Verifique sua conexão e tente novamente
+          </Text>
+          <Button variant="primary" onPress={refetch} fullWidth>
+            Tentar Novamente
+          </Button>
+        </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
+    <SafeAreaView className="flex-1 bg-background">
       <StatusBar style="dark" />
 
+      {/* Header */}
+      <View className="border-b border-gray-200 bg-white px-4 py-3">
+        <View className="flex-row items-center">
+          <TouchableOpacity onPress={() => router.back()} className="-ml-2 mr-4 p-2">
+            <Ionicons name="arrow-back" size={24} color="#1e293b" />
+          </TouchableOpacity>
+          <Text className="flex-1 text-xl font-bold text-text-dark">Configurações do Perfil</Text>
+        </View>
+      </View>
+
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-        {/* User Info Card */}
-        <View className="mx-4 mt-6 rounded-xl bg-white p-4 shadow-sm">
+        {/* Profile Card */}
+        <View className="mx-4 mt-6 rounded-2xl bg-white p-6 shadow-sm">
           <View className="flex-row items-center">
             <View className="mr-4">
-              <View className="h-16 w-16 items-center justify-center rounded-full bg-blue-100">
-                <Text className="text-xl font-bold text-blue-600">
+              <View className="h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
+                <Text className="text-xl font-bold text-primary">
                   {getInitials({
                     ...profile,
                     firstName: firstName || profile?.firstName,
@@ -308,45 +322,45 @@ const ProfileSettingsScreen = () => {
               </View>
             </View>
             <View className="flex-1">
-              <Text className="text-lg font-semibold text-gray-900">
+              <Text className="text-lg font-bold text-text-dark">
                 {profile.name || `${firstName} ${lastName}`.trim() || 'Usuário'}
               </Text>
-              <Text className="text-gray-600">{profile.email}</Text>
+              <Text className="text-text-light">{profile.email}</Text>
             </View>
           </View>
         </View>
 
-        {/* Personal Information */}
+        {/* Personal Information Section */}
         <View className="mx-4 mt-6">
-          <Text className="mb-4 text-lg font-semibold text-gray-900">Informações Pessoais</Text>
+          <View className="mb-4 flex-row items-center">
+            <View className="mr-3 h-8 w-8 items-center justify-center rounded-xl bg-primary/10">
+              <Ionicons name="person-outline" size={18} color="#18cb96" />
+            </View>
+            <Text className="text-lg font-bold text-text-dark">Informações Pessoais</Text>
+          </View>
 
-          <View className="space-y-4">
-            {/* First Name */}
-            <View>
+          <View className="rounded-2xl bg-white p-6 shadow-sm">
+            <View className="space-y-6">
               <Input
                 label="Primeiro Nome *"
                 placeholder="Digite seu primeiro nome"
                 value={firstName}
                 onChangeText={setFirstName}
                 autoCapitalize="words"
+                leftIcon="person-outline"
                 fullWidth
               />
-            </View>
 
-            {/* Last Name */}
-            <View>
               <Input
                 label="Sobrenome"
                 placeholder="Digite seu sobrenome (opcional)"
                 value={lastName}
                 onChangeText={setLastName}
                 autoCapitalize="words"
+                leftIcon="person-outline"
                 fullWidth
               />
-            </View>
 
-            {/* Phone */}
-            <View>
               <Input
                 label="Telefone"
                 placeholder="(00) 00000-0000"
@@ -354,12 +368,10 @@ const ProfileSettingsScreen = () => {
                 onChangeText={handlePhoneChange}
                 keyboardType="phone-pad"
                 maxLength={15}
+                leftIcon="call-outline"
                 fullWidth
               />
-            </View>
 
-            {/* Gender */}
-            <View>
               <Select
                 label="Gênero"
                 placeholder="Selecionar gênero (opcional)"
@@ -369,10 +381,7 @@ const ProfileSettingsScreen = () => {
                 icon="person-outline"
                 fullWidth
               />
-            </View>
 
-            {/* Birth Date */}
-            <View>
               <DatePicker
                 label="Data de Nascimento"
                 placeholder="Selecionar data de nascimento (opcional)"
@@ -383,76 +392,85 @@ const ProfileSettingsScreen = () => {
                 fullWidth
               />
             </View>
-          </View>
 
-          {/* Save Profile Button */}
-          <View className="mt-6">
-            <Button variant="primary" onPress={handleSaveProfile} loading={saving} fullWidth>
-              Salvar Alterações
-            </Button>
+            <View className="mt-8">
+              <Button variant="primary" onPress={handleSaveProfile} loading={saving} fullWidth>
+                Salvar Alterações
+              </Button>
+            </View>
           </View>
         </View>
 
         {/* Security Section */}
         <View className="mx-4 mt-8">
-          <Text className="mb-4 text-lg font-semibold text-gray-900">Segurança</Text>
+          <View className="mb-4 flex-row items-center">
+            <View className="mr-3 h-8 w-8 items-center justify-center rounded-xl bg-warning/10">
+              <Ionicons name="shield-outline" size={18} color="#f59e0b" />
+            </View>
+            <Text className="text-lg font-bold text-text-dark">Segurança</Text>
+          </View>
 
-          <View className="rounded-xl bg-white p-4 shadow-sm">
+          <View className="rounded-2xl bg-white shadow-sm">
             <TouchableOpacity
               onPress={() => setShowPasswordSection(!showPasswordSection)}
-              className="flex-row items-center justify-between">
+              className="flex-row items-center justify-between p-6">
               <View className="flex-row items-center">
-                <View className="mr-3 h-10 w-10 items-center justify-center rounded-full bg-orange-100">
-                  <Ionicons name="lock-closed-outline" size={20} color="#ea580c" />
+                <View className="mr-3 h-10 w-10 items-center justify-center rounded-xl bg-warning/10">
+                  <Ionicons name="lock-closed-outline" size={20} color="#f59e0b" />
                 </View>
                 <View>
-                  <Text className="text-base font-medium text-gray-900">Alterar Senha</Text>
-                  <Text className="text-sm text-gray-600">Atualize sua senha de acesso</Text>
+                  <Text className="text-base font-semibold text-text-dark">Alterar Senha</Text>
+                  <Text className="text-sm text-text-light">Atualize sua senha de acesso</Text>
                 </View>
               </View>
               <Ionicons
                 name={showPasswordSection ? 'chevron-up' : 'chevron-down'}
                 size={20}
-                color="#9ca3af"
+                color="#94a3b8"
               />
             </TouchableOpacity>
 
             {showPasswordSection && (
-              <View className="mt-4 space-y-4 border-t border-gray-100 pt-4">
-                <Input
-                  label="Senha Atual"
-                  placeholder="Digite sua senha atual"
-                  value={passwordData.currentPassword}
-                  onChangeText={(text) =>
-                    setPasswordData((prev) => ({ ...prev, currentPassword: text }))
-                  }
-                  secureTextEntry
-                  fullWidth
-                />
+              <View className="border-t border-gray-100 p-6">
+                <View className="space-y-5">
+                  <Input
+                    label="Senha Atual"
+                    placeholder="Digite sua senha atual"
+                    value={passwordData.currentPassword}
+                    onChangeText={(text) =>
+                      setPasswordData((prev) => ({ ...prev, currentPassword: text }))
+                    }
+                    secureTextEntry
+                    leftIcon="lock-closed-outline"
+                    fullWidth
+                  />
 
-                <Input
-                  label="Nova Senha"
-                  placeholder="Digite a nova senha (mín. 8 caracteres)"
-                  value={passwordData.newPassword}
-                  onChangeText={(text) =>
-                    setPasswordData((prev) => ({ ...prev, newPassword: text }))
-                  }
-                  secureTextEntry
-                  fullWidth
-                />
+                  <Input
+                    label="Nova Senha"
+                    placeholder="Digite a nova senha (mín. 8 caracteres)"
+                    value={passwordData.newPassword}
+                    onChangeText={(text) =>
+                      setPasswordData((prev) => ({ ...prev, newPassword: text }))
+                    }
+                    secureTextEntry
+                    leftIcon="key-outline"
+                    fullWidth
+                  />
 
-                <Input
-                  label="Confirmar Nova Senha"
-                  placeholder="Digite novamente a nova senha"
-                  value={passwordData.confirmPassword}
-                  onChangeText={(text) =>
-                    setPasswordData((prev) => ({ ...prev, confirmPassword: text }))
-                  }
-                  secureTextEntry
-                  fullWidth
-                />
+                  <Input
+                    label="Confirmar Nova Senha"
+                    placeholder="Digite novamente a nova senha"
+                    value={passwordData.confirmPassword}
+                    onChangeText={(text) =>
+                      setPasswordData((prev) => ({ ...prev, confirmPassword: text }))
+                    }
+                    secureTextEntry
+                    leftIcon="key-outline"
+                    fullWidth
+                  />
+                </View>
 
-                <View className="mt-4 flex-row space-x-3">
+                <View className="mt-6 flex-row space-x-3">
                   <Button
                     variant="outline"
                     onPress={() => {

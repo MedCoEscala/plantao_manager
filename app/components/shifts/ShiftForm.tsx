@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { parseISO, format, isValid } from 'date-fns';
+import { parseISO, format, isValid, startOfDay, isBefore, isAfter, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import {
@@ -27,7 +27,15 @@ import SectionHeader from '@/components/ui/SectionHeader';
 import { useLocationsSelector } from '@/hooks/useLocationsSelector';
 import { useShiftsApi, CreateShiftData, UpdateShiftData, Shift } from '@/services/shifts-api';
 import { RecurrenceConfig } from '@/types/recurrence';
-import { formatCurrency, formatDate, formatTime } from '@/utils/formatters';
+import {
+  formatCurrency,
+  formatShiftDate,
+  formatTime,
+  dateToLocalDateString,
+  dateToLocalTimeString,
+  createLocalDateTime,
+} from '@/utils/formatters';
+import formatters from '@/utils/formatters';
 import { RecurrenceCalculator } from '@/utils/recurrence';
 
 const PAYMENT_TYPE_OPTIONS = [
@@ -52,7 +60,6 @@ interface FormData {
   contractorId: string;
   value: string;
   paymentType: string;
-
   notes: string;
 }
 
@@ -68,46 +75,52 @@ export default function ShiftForm({
   const { locationOptions, isLoading: isLoadingLocations } = useLocationsSelector();
   const { showError, showSuccess, showInfo } = useNotification();
 
-  // Estado do formulário
+  // Estado do formulário com inicialização melhorada
   const [formData, setFormData] = useState<FormData>(() => {
-    const now = new Date();
-    const defaultStart = new Date(now);
-    defaultStart.setHours(8, 0, 0, 0);
-    const defaultEnd = new Date(now);
-    defaultEnd.setHours(14, 0, 0, 0);
+    const today = startOfDay(new Date());
+    const baseDate =
+      initialDate ||
+      (initialData?.date ? formatters.normalizeToLocalDate(initialData.date) : today);
+
+    // Horários padrão
+    const defaultStart = createLocalDateTime(baseDate, 8, 0);
+    const defaultEnd = createLocalDateTime(baseDate, 14, 0);
 
     return {
-      date: initialDate || (initialData?.date ? parseISO(initialData.date) : new Date()),
+      date: baseDate,
       startTime: initialData?.startTime
         ? (() => {
-            const timeStr = formatTime(initialData.startTime);
-            if (timeStr) {
-              const [hours, minutes] = timeStr.split(':').map(Number);
-              const time = new Date();
-              time.setHours(hours || 0, minutes || 0, 0, 0);
-              return time;
+            try {
+              const timeStr = formatTime(initialData.startTime);
+              if (timeStr) {
+                const [hours, minutes] = timeStr.split(':').map(Number);
+                return createLocalDateTime(baseDate, hours || 8, minutes || 0);
+              }
+              return defaultStart;
+            } catch {
+              return defaultStart;
             }
-            return defaultStart;
           })()
         : defaultStart,
       endTime: initialData?.endTime
         ? (() => {
-            const timeStr = formatTime(initialData.endTime);
-            if (timeStr) {
-              const [hours, minutes] = timeStr.split(':').map(Number);
-              const time = new Date();
-              time.setHours(hours || 0, minutes || 0, 0, 0);
-              return time;
+            try {
+              const timeStr = formatTime(initialData.endTime);
+              if (timeStr) {
+                const [hours, minutes] = timeStr.split(':').map(Number);
+                return createLocalDateTime(baseDate, hours || 14, minutes || 0);
+              }
+              return defaultEnd;
+            } catch {
+              return defaultEnd;
             }
-            return defaultEnd;
           })()
         : defaultEnd,
       locationId: initialData?.locationId || '',
       contractorId: initialData?.contractorId || '',
       value: initialData?.value?.toString() || '',
       paymentType: initialData?.paymentType || 'PF',
-
-      notes: initialData?.notes || '',
+      notes: initialData?.notes?.replace(/\nHorário:.*$/, '') || '', // Remove horário das notas antigas
     };
   });
 
@@ -115,21 +128,49 @@ export default function ShiftForm({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Atualizar campo do formulário
+  // Atualizar campo do formulário de forma otimizada
   const updateField = useCallback(
     <K extends keyof FormData>(field: K, value: FormData[K]) => {
-      setFormData((prev) => ({ ...prev, [field]: value }));
+      setFormData((prev) => {
+        // Só atualiza se o valor realmente mudou
+        if (prev[field] === value) return prev;
+
+        const newData = { ...prev, [field]: value };
+
+        // Lógica especial para datas - sincronizar data base quando necessário
+        if (field === 'date' && value instanceof Date) {
+          const newDate = value as Date;
+          // Atualizar startTime e endTime para manter os horários mas na nova data
+          const startHours = prev.startTime.getHours();
+          const startMinutes = prev.startTime.getMinutes();
+          const endHours = prev.endTime.getHours();
+          const endMinutes = prev.endTime.getMinutes();
+
+          newData.startTime = createLocalDateTime(newDate, startHours, startMinutes);
+          newData.endTime = createLocalDateTime(newDate, endHours, endMinutes);
+        }
+
+        return newData;
+      });
+
+      // Limpar erro relacionado
       if (errors[field]) {
-        setErrors((prev) => ({ ...prev, [field]: '' }));
+        setErrors((prev) => {
+          const newErrors = { ...prev };
+          delete newErrors[field];
+          return newErrors;
+        });
       }
     },
     [errors]
   );
 
-  // Calcular duração do plantão
+  // Calcular duração do plantão de forma otimizada
   const shiftDuration = useMemo(() => {
     const startMinutes = formData.startTime.getHours() * 60 + formData.startTime.getMinutes();
     const endMinutes = formData.endTime.getHours() * 60 + formData.endTime.getMinutes();
+
+    // Lidar com plantões que passam da meia-noite
     const durationMinutes =
       endMinutes >= startMinutes ? endMinutes - startMinutes : 24 * 60 - startMinutes + endMinutes;
 
@@ -138,7 +179,7 @@ export default function ShiftForm({
     return `${hours}h${minutes > 0 ? ` ${minutes}min` : ''}`;
   }, [formData.startTime, formData.endTime]);
 
-  // Formatação de valor monetário
+  // Formatação de valor monetário otimizada
   const formatValue = useCallback((text: string) => {
     const numbers = text.replace(/[^\d]/g, '');
     if (numbers) {
@@ -151,22 +192,54 @@ export default function ShiftForm({
     return '';
   }, []);
 
-  // Validação do formulário
+  // Validação do formulário melhorada
   const validateForm = useCallback((): boolean => {
     const newErrors: Record<string, string> = {};
+    const today = startOfDay(new Date());
 
+    // Validar data
     if (!formData.date) {
       newErrors.date = 'Data é obrigatória';
+    } else {
+      const shiftDate = startOfDay(formData.date);
+
+      // Permitir apenas datas futuras ou de hoje para novos plantões
+      if (!shiftId && isBefore(shiftDate, today)) {
+        newErrors.date = 'Data não pode ser no passado';
+      }
+
+      // Validar que a data não seja muito distante no futuro (ex: 2 anos)
+      const maxDate = addDays(today, 730); // 2 anos
+      if (isAfter(shiftDate, maxDate)) {
+        newErrors.date = 'Data muito distante no futuro';
+      }
     }
 
+    // Validar horários
     if (!formData.startTime) {
       newErrors.startTime = 'Horário de início é obrigatório';
     }
 
+    if (!formData.endTime) {
+      newErrors.endTime = 'Horário de término é obrigatório';
+    }
+
+    // Validar que o horário de término seja diferente do início
+    if (formData.startTime && formData.endTime) {
+      const startMinutes = formData.startTime.getHours() * 60 + formData.startTime.getMinutes();
+      const endMinutes = formData.endTime.getHours() * 60 + formData.endTime.getMinutes();
+
+      if (startMinutes === endMinutes) {
+        newErrors.endTime = 'Horário de término deve ser diferente do início';
+      }
+    }
+
+    // Validar local
     if (!formData.locationId) {
       newErrors.locationId = 'Local é obrigatório';
     }
 
+    // Validar valor se fornecido
     if (formData.value) {
       const formattedValue = formData.value.replace(/\./g, '').replace(',', '.');
       const numericValue = parseFloat(formattedValue);
@@ -183,9 +256,9 @@ export default function ShiftForm({
     }
 
     return true;
-  }, [formData, showError]);
+  }, [formData, shiftId, showError]);
 
-  // Submissão do formulário
+  // Submissão do formulário otimizada
   const handleSubmit = useCallback(async () => {
     if (isSubmitting) return;
 
@@ -196,8 +269,8 @@ export default function ShiftForm({
     setIsSubmitting(true);
 
     try {
-      const formattedStartTime = formatTime(formData.startTime);
-      const formattedEndTime = formatTime(formData.endTime);
+      const formattedStartTime = dateToLocalTimeString(formData.startTime);
+      const formattedEndTime = dateToLocalTimeString(formData.endTime);
       const formattedValue = formData.value.replace(/\./g, '').replace(',', '.');
       const numericValue = parseFloat(formattedValue);
 
@@ -206,12 +279,11 @@ export default function ShiftForm({
       }
 
       const shiftData = {
-        date: format(formData.date, 'yyyy-MM-dd'),
+        date: dateToLocalDateString(formData.date),
         startTime: formattedStartTime,
         endTime: formattedEndTime,
         value: numericValue,
         paymentType: formData.paymentType,
-
         notes: formData.notes || undefined,
         locationId: formData.locationId || undefined,
         contractorId: formData.contractorId || undefined,
@@ -249,55 +321,77 @@ export default function ShiftForm({
 
         const shiftsData = dates.map((shiftDate) => ({
           ...shiftData,
-          date: format(shiftDate, 'yyyy-MM-dd'),
+          date: dateToLocalDateString(shiftDate),
         }));
 
-        const result = await shiftsApi.createShiftsBatch({
-          shifts: shiftsData,
-          skipConflicts: true,
-          continueOnError: true,
-        });
-
-        let message = 'Processo concluído';
-        if (result?.summary) {
-          const { created, skipped, failed } = result.summary;
-          if (created > 0) {
-            message = `${created} plantão${created > 1 ? 's' : ''} criado${created > 1 ? 's' : ''} com sucesso!`;
-          }
-          if (skipped > 0) {
-            message += ` ${skipped} data${skipped > 1 ? 's' : ''} foi${skipped > 1 ? 'ram' : ''} ignorada${skipped > 1 ? 's' : ''} (já existia${skipped > 1 ? 'm' : ''} plantão${skipped > 1 ? 's' : ''}).`;
-          }
-          if (failed > 0) {
-            message += ` ${failed} erro${failed > 1 ? 's' : ''} ocorreu${failed > 1 ? 'ram' : ''}.`;
-          }
-        }
-
-        showSuccess(message);
+        await shiftsApi.createShiftsBatch({ shifts: shiftsData });
+        showSuccess(`${dates.length} plantões criados com sucesso!`);
       } else {
         // Criação simples
         await shiftsApi.createShift(shiftData);
         showSuccess('Plantão criado com sucesso!');
       }
 
-      onSuccess?.();
-    } catch (error: any) {
-      console.error('[ShiftForm] Erro ao salvar:', error);
-      const errorMessage = error.response?.data?.message || error.message || 'Erro desconhecido';
-      showError(`Erro: ${errorMessage}`);
+      if (onSuccess) {
+        onSuccess();
+      }
+    } catch (error) {
+      console.error('Erro ao salvar plantão:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Erro ao salvar plantão';
+      showError(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
   }, [
-    formData,
+    isSubmitting,
     validateForm,
+    formData,
     shiftId,
     recurrenceConfig,
     shiftsApi,
-    onSuccess,
     showSuccess,
     showError,
-    isSubmitting,
+    onSuccess,
   ]);
+
+  // Componente de informações do plantão
+  const ShiftInfo = useMemo(
+    () => (
+      <Card className="mb-6">
+        <SectionHeader
+          title="Informações do Plantão"
+          subtitle={`Duração: ${shiftDuration}`}
+          icon="information-circle-outline"
+        />
+        <View className="space-y-3">
+          <View className="flex-row justify-between">
+            <Text className="text-sm text-gray-600">Data:</Text>
+            <Text className="text-sm font-medium text-gray-900">
+              {formatShiftDate(formData.date, 'dd/MM/yyyy')}
+            </Text>
+          </View>
+          <View className="flex-row justify-between">
+            <Text className="text-sm text-gray-600">Horário:</Text>
+            <Text className="text-sm font-medium text-gray-900">
+              {dateToLocalTimeString(formData.startTime)} às{' '}
+              {dateToLocalTimeString(formData.endTime)}
+            </Text>
+          </View>
+          {formData.value && (
+            <View className="flex-row justify-between">
+              <Text className="text-sm text-gray-600">Valor:</Text>
+              <Text className="text-sm font-medium text-primary">
+                {formatCurrency(
+                  parseFloat(formData.value.replace(/\./g, '').replace(',', '.')) || 0
+                )}
+              </Text>
+            </View>
+          )}
+        </View>
+      </Card>
+    ),
+    [formData, shiftDuration]
+  );
 
   return (
     <ScrollView
@@ -480,6 +574,8 @@ export default function ShiftForm({
           </Button>
         </View>
       </View>
+
+      {ShiftInfo}
     </ScrollView>
   );
 }
