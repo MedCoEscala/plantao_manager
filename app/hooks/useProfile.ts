@@ -1,5 +1,5 @@
 import { useAuth } from '@clerk/clerk-expo';
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 import { useToast } from '@/components/ui/Toast';
 import { fetchWithAuth } from '@/utils/api-client';
@@ -88,14 +88,11 @@ export function useProfile(): UseProfileResult {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Referência para controle de montagem do componente
-  const mountedRef = useRef(true);
-
   // Função para sincronizar usuário com retry
   const syncUserWithRetry = useCallback(
     async (token: string, maxRetries: number = 2): Promise<boolean> => {
       let retries = 0;
-      while (retries < maxRetries && mountedRef.current) {
+      while (retries < maxRetries) {
         try {
           console.log(`👤 [useProfile] Tentativa ${retries + 1} de sincronização...`);
 
@@ -121,12 +118,10 @@ export function useProfile(): UseProfileResult {
   // Função interna para buscar perfil
   const fetchProfileInternal = useCallback(
     async (userId: string, useCache: boolean = true): Promise<UserProfile | null> => {
-      if (!mountedRef.current) return null;
-
       // Verificar cache global primeiro
       if (useCache) {
         const cachedProfile = profileNotificationSystem.getCache(userId);
-        if (cachedProfile && mountedRef.current) {
+        if (cachedProfile) {
           return cachedProfile;
         }
       }
@@ -141,7 +136,7 @@ export function useProfile(): UseProfileResult {
       const requestPromise = (async (): Promise<UserProfile | null> => {
         try {
           const token = await getToken();
-          if (!token || !mountedRef.current) {
+          if (!token) {
             throw new Error('Token de autenticação não disponível');
           }
 
@@ -152,11 +147,11 @@ export function useProfile(): UseProfileResult {
             response = await fetchWithAuth('/users/me', { method: 'GET' }, async () => token);
           } catch (error: any) {
             // Se usuário não encontrado, tenta sincronizar UMA ÚNICA VEZ
-            if (error.response?.status === 404 && mountedRef.current) {
+            if (error.response?.status === 404) {
               console.log('👤 [useProfile] Usuário não encontrado, tentando sincronizar...');
 
               const syncSuccess = await syncUserWithRetry(token, 1); // Apenas 1 retry
-              if (!syncSuccess || !mountedRef.current) {
+              if (!syncSuccess) {
                 throw new Error('Falha na sincronização do usuário');
               }
 
@@ -166,8 +161,6 @@ export function useProfile(): UseProfileResult {
               throw error;
             }
           }
-
-          if (!mountedRef.current) return null;
 
           const profileData: UserProfile = {
             id: response.id,
@@ -209,7 +202,7 @@ export function useProfile(): UseProfileResult {
   // Função para buscar perfil
   const fetchProfile = useCallback(
     async (useCache: boolean = true) => {
-      if (!mountedRef.current || !isAuthLoaded || !userId) {
+      if (!isAuthLoaded || !userId) {
         return;
       }
 
@@ -218,23 +211,15 @@ export function useProfile(): UseProfileResult {
 
       try {
         const profileData = await fetchProfileInternal(userId, useCache);
-        if (mountedRef.current) {
-          setProfile(profileData);
-        }
+        setProfile(profileData);
       } catch (error: any) {
         console.error('❌ [useProfile] Erro final ao buscar perfil:', error);
-        if (mountedRef.current) {
-          const errorMessage =
-            error?.response?.data?.message ||
-            error?.message ||
-            'Erro ao carregar perfil do usuário';
-          setError(errorMessage);
-          showToast('Erro ao carregar perfil. Tente novamente.', 'error');
-        }
+        const errorMessage =
+          error?.response?.data?.message || error?.message || 'Erro ao carregar perfil do usuário';
+        setError(errorMessage);
+        showToast('Erro ao carregar perfil. Tente novamente.', 'error');
       } finally {
-        if (mountedRef.current) {
-          setLoading(false);
-        }
+        setLoading(false);
       }
     },
     [isAuthLoaded, userId, fetchProfileInternal]
@@ -257,7 +242,7 @@ export function useProfile(): UseProfileResult {
 
   // Função para forçar nova busca
   const refetch = useCallback(async () => {
-    if (userId && mountedRef.current) {
+    if (userId) {
       // Primeiro verifica se há cache atualizado
       const cachedProfile = profileNotificationSystem.getCache(userId);
       if (cachedProfile) {
@@ -287,7 +272,7 @@ export function useProfile(): UseProfileResult {
   // Listener para notificações globais
   useEffect(() => {
     const removeListener = profileNotificationSystem.addListener(() => {
-      if (userId && mountedRef.current) {
+      if (userId) {
         const cachedProfile = profileNotificationSystem.getCache(userId);
         if (cachedProfile) {
           setProfile(cachedProfile);
@@ -312,13 +297,6 @@ export function useProfile(): UseProfileResult {
       setError(null);
     }
   }, [isAuthLoaded, userId, fetchProfile]);
-
-  // Cleanup no unmount
-  useEffect(() => {
-    return () => {
-      mountedRef.current = false;
-    };
-  }, []);
 
   return {
     profile,
