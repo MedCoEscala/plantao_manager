@@ -235,6 +235,14 @@ export class UsersService {
     let newFirstName = currentUser.firstName || '';
     let newLastName = currentUser.lastName || '';
 
+    // Suporte para compatibility - se enviaram 'name', dividir em firstName/lastName
+    if (data.name !== undefined) {
+      const nameParts = data.name.trim().split(' ');
+      newFirstName = nameParts[0] || '';
+      newLastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
+      needsNameUpdate = true;
+    }
+
     if (data.firstName !== undefined) {
       newFirstName = data.firstName;
       needsNameUpdate = true;

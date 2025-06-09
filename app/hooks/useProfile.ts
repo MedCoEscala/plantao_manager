@@ -2,7 +2,7 @@ import { useAuth } from '@clerk/clerk-expo';
 import { useState, useEffect, useCallback, useRef } from 'react';
 
 import { useToast } from '@/components/ui/Toast';
-import apiClient from '@/lib/axios';
+import { fetchWithAuth } from '@/utils/api-client';
 
 export interface UserProfile {
   id: string;
@@ -19,96 +19,76 @@ export interface UserProfile {
   updatedAt?: string;
 }
 
-interface ProfileState {
+interface UseProfileResult {
   profile: UserProfile | null;
-  isLoading: boolean;
+  loading: boolean;
   error: string | null;
-  lastFetchTime: number | null;
+  refetch: () => Promise<void>;
+  syncUser: () => Promise<boolean>;
 }
 
-// Cache em memória para evitar múltiplas requisições
-const profileCache = new Map<string, { profile: UserProfile; timestamp: number }>();
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
-
-export function useProfile() {
-  const [state, setState] = useState<ProfileState>({
-    profile: null,
-    isLoading: true,
-    error: null,
-    lastFetchTime: null,
-  });
-
-  const { getToken, isSignedIn, userId } = useAuth();
+export function useProfile(): UseProfileResult {
+  const { getToken, isLoaded: isAuthLoaded, userId } = useAuth();
   const { showToast } = useToast();
 
-  // Controle de requisições ativas - uma por userId
-  const activeRequestRef = useRef<Map<string, Promise<UserProfile | null>>>(new Map());
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Referência para controle de montagem do componente
   const mountedRef = useRef(true);
-  const initializedRef = useRef(false);
 
-  const getCachedProfile = useCallback((cacheKey: string): UserProfile | null => {
-    const cached = profileCache.get(cacheKey);
-    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-      return cached.profile;
-    }
-    return null;
-  }, []);
+  // Cache simples baseado no userId
+  const profileCacheRef = useRef<Map<string, UserProfile>>(new Map());
 
-  const setCachedProfile = useCallback((cacheKey: string, profile: UserProfile) => {
-    profileCache.set(cacheKey, { profile, timestamp: Date.now() });
-  }, []);
+  // Função para sincronizar usuário com retry
+  const syncUserWithRetry = useCallback(
+    async (token: string, maxRetries: number = 2): Promise<boolean> => {
+      let retries = 0;
+      while (retries < maxRetries && mountedRef.current) {
+        try {
+          console.log(`👤 [useProfile] Tentativa ${retries + 1} de sincronização...`);
 
-  const syncUserWithRetry = useCallback(async (token: string, maxRetries = 2): Promise<boolean> => {
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
-      try {
-        console.log(`🔄 Tentativa ${attempt + 1}/${maxRetries + 1} de sincronização...`);
-        await apiClient.post(
-          '/users/sync',
-          {},
-          {
-            headers: { Authorization: `Bearer ${token}` },
-            timeout: 10000, // 10 segundos timeout
+          await fetchWithAuth('/users/sync', { method: 'POST' }, async () => token);
+
+          console.log('✅ [useProfile] Usuário sincronizado com sucesso');
+          return true;
+        } catch (syncError: any) {
+          retries++;
+          console.error(`❌ [useProfile] Erro na sincronização (tentativa ${retries}):`, syncError);
+
+          if (retries < maxRetries) {
+            // Aguardar um pouco antes de tentar novamente
+            await new Promise((resolve) => setTimeout(resolve, 1000));
           }
-        );
-        console.log('✅ Sincronização realizada com sucesso');
-        return true;
-      } catch (error: any) {
-        console.error(`❌ Erro na tentativa ${attempt + 1} de sincronização:`, error);
-
-        // Se for o último attempt ou erro não for recuperável, falha
-        if (attempt === maxRetries || error.response?.status === 401) {
-          return false;
         }
-
-        // Aguarda antes da próxima tentativa (backoff exponencial)
-        await new Promise((resolve) => setTimeout(resolve, 1000 * Math.pow(2, attempt)));
       }
-    }
-    return false;
-  }, []);
+      return false;
+    },
+    []
+  );
 
+  // Função interna para buscar perfil
   const fetchProfileInternal = useCallback(
     async (userId: string): Promise<UserProfile | null> => {
-      if (!isSignedIn || !userId || !mountedRef.current) {
-        return null;
-      }
+      if (!mountedRef.current) return null;
 
-      const cacheKey = `profile_${userId}`;
+      const cacheKey = userId;
+      const cachedProfile = profileCacheRef.current.get(cacheKey);
 
-      // Verifica se já tem uma requisição ativa para este usuário
-      if (activeRequestRef.current.has(userId)) {
-        console.log('📞 Reutilizando requisição ativa existente');
-        return activeRequestRef.current.get(userId)!;
-      }
-
-      // Verifica cache primeiro
-      const cachedProfile = getCachedProfile(cacheKey);
-      if (cachedProfile) {
-        console.log('📦 Usando perfil do cache');
+      // Se existe cache e tem menos de 5 minutos, usar cache
+      if (cachedProfile && mountedRef.current) {
+        console.log('📋 [useProfile] Usando perfil do cache');
         return cachedProfile;
       }
 
-      // Inicia nova requisição
+      // Previne múltiplas requisições simultâneas
+      const requestKey = `fetch_profile_${userId}`;
+      if ((window as any)[requestKey]) {
+        console.log('⏳ [useProfile] Aguardando requisição em andamento...');
+        return (window as any)[requestKey];
+      }
+
       const requestPromise = (async (): Promise<UserProfile | null> => {
         try {
           const token = await getToken();
@@ -116,18 +96,15 @@ export function useProfile() {
             throw new Error('Token de autenticação não disponível');
           }
 
-          console.log('🔍 Buscando perfil do usuário...');
+          console.log('🔍 [useProfile] Buscando perfil do usuário...');
 
           let response;
           try {
-            response = await apiClient.get('/users/me', {
-              headers: { Authorization: `Bearer ${token}` },
-              timeout: 10000, // 10 segundos timeout
-            });
+            response = await fetchWithAuth('/users/me', { method: 'GET' }, async () => token);
           } catch (error: any) {
             // Se usuário não encontrado, tenta sincronizar UMA ÚNICA VEZ
             if (error.response?.status === 404 && mountedRef.current) {
-              console.log('👤 Usuário não encontrado, tentando sincronizar...');
+              console.log('👤 [useProfile] Usuário não encontrado, tentando sincronizar...');
 
               const syncSuccess = await syncUserWithRetry(token, 1); // Apenas 1 retry
               if (!syncSuccess || !mountedRef.current) {
@@ -135,10 +112,7 @@ export function useProfile() {
               }
 
               // Tenta buscar novamente após sincronização
-              response = await apiClient.get('/users/me', {
-                headers: { Authorization: `Bearer ${token}` },
-                timeout: 10000,
-              });
+              response = await fetchWithAuth('/users/me', { method: 'GET' }, async () => token);
             } else {
               throw error;
             }
@@ -147,179 +121,127 @@ export function useProfile() {
           if (!mountedRef.current) return null;
 
           const profile: UserProfile = {
-            id: response.data.id,
-            email: response.data.email,
-            firstName: response.data.firstName,
-            lastName: response.data.lastName,
-            name: response.data.name,
-            phoneNumber: response.data.phoneNumber,
-            birthDate: response.data.birthDate,
-            gender: response.data.gender,
-            imageUrl: response.data.imageUrl,
-            clerkId: response.data.clerkId,
-            createdAt: response.data.createdAt,
-            updatedAt: response.data.updatedAt,
+            id: response.id,
+            email: response.email,
+            firstName: response.firstName,
+            lastName: response.lastName,
+            name: response.name,
+            phoneNumber: response.phoneNumber,
+            birthDate: response.birthDate,
+            gender: response.gender,
+            imageUrl: response.imageUrl,
+            clerkId: response.clerkId,
+            createdAt: response.createdAt,
+            updatedAt: response.updatedAt,
           };
 
-          setCachedProfile(cacheKey, profile);
+          // Salvar no cache
+          profileCacheRef.current.set(cacheKey, profile);
+
+          console.log('✅ [useProfile] Perfil carregado com sucesso:', profile);
           return profile;
         } catch (error: any) {
-          console.error('❌ Erro ao buscar perfil:', error);
+          console.error('❌ [useProfile] Erro ao buscar perfil:', error);
           throw error;
         } finally {
-          // Remove a requisição ativa do controle
-          activeRequestRef.current.delete(userId);
+          // Limpar a requisição em andamento
+          delete (window as any)[requestKey];
         }
       })();
 
-      // Adiciona ao controle de requisições ativas
-      activeRequestRef.current.set(userId, requestPromise);
+      // Salvar a promise para evitar requisições duplicadas
+      (window as any)[requestKey] = requestPromise;
+
       return requestPromise;
     },
-    [isSignedIn, getToken, getCachedProfile, setCachedProfile, syncUserWithRetry]
+    [getToken, syncUserWithRetry]
   );
 
-  const fetchProfile = useCallback(
-    async (force = false) => {
-      if (!isSignedIn || !userId || !mountedRef.current) {
-        return;
+  // Função para buscar perfil
+  const fetchProfile = useCallback(async () => {
+    if (!mountedRef.current || !isAuthLoaded || !userId) {
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const profileData = await fetchProfileInternal(userId);
+      if (mountedRef.current) {
+        setProfile(profileData);
       }
-
-      // Evita múltiplas chamadas desnecessárias
-      if (!force && state.isLoading && activeRequestRef.current.has(userId)) {
-        return;
-      }
-
-      setState((prev) => ({ ...prev, isLoading: true, error: null }));
-
-      try {
-        const profile = await fetchProfileInternal(userId);
-        if (mountedRef.current) {
-          setState({
-            profile,
-            isLoading: false,
-            error: null,
-            lastFetchTime: Date.now(),
-          });
-        }
-      } catch (error: any) {
-        if (mountedRef.current) {
-          const errorMessage =
-            error.response?.data?.message || error.message || 'Erro ao buscar dados do perfil';
-          setState((prev) => ({
-            ...prev,
-            profile: null,
-            isLoading: false,
-            error: errorMessage,
-          }));
-
-          // Só mostra toast se não for primeira carga ou se for um retry
-          if (state.lastFetchTime || force) {
-            showToast('Erro ao carregar dados do perfil', 'error');
-          }
-        }
-      }
-    },
-    [isSignedIn, userId, state.isLoading, state.lastFetchTime, fetchProfileInternal, showToast]
-  );
-
-  const updateProfile = useCallback(
-    async (data: Partial<UserProfile>): Promise<UserProfile | null> => {
-      if (!isSignedIn || !userId || !mountedRef.current) {
-        throw new Error('Usuário não autenticado');
-      }
-
-      try {
-        const token = await getToken();
-        if (!token) {
-          throw new Error('Token de autenticação não disponível');
-        }
-
-        console.log('🔄 Atualizando perfil...', data);
-        const response = await apiClient.patch('/users/me', data, {
-          headers: { Authorization: `Bearer ${token}` },
-          timeout: 10000,
-        });
-
-        if (!mountedRef.current) return null;
-
-        const updatedProfile: UserProfile = {
-          id: response.data.id,
-          email: response.data.email,
-          firstName: response.data.firstName,
-          lastName: response.data.lastName,
-          name: response.data.name,
-          phoneNumber: response.data.phoneNumber,
-          birthDate: response.data.birthDate,
-          gender: response.data.gender,
-          imageUrl: response.data.imageUrl,
-          clerkId: response.data.clerkId,
-          createdAt: response.data.createdAt,
-          updatedAt: response.data.updatedAt,
-        };
-
-        // Atualiza cache e estado
-        const cacheKey = `profile_${userId}`;
-        setCachedProfile(cacheKey, updatedProfile);
-        setState((prev) => ({ ...prev, profile: updatedProfile }));
-
-        showToast('Perfil atualizado com sucesso', 'success');
-        return updatedProfile;
-      } catch (error: any) {
-        console.error('❌ Erro ao atualizar perfil:', error);
+    } catch (error: any) {
+      console.error('❌ [useProfile] Erro final ao buscar perfil:', error);
+      if (mountedRef.current) {
         const errorMessage =
-          error.response?.data?.message || error.message || 'Erro ao atualizar perfil';
-        showToast(errorMessage, 'error');
-        throw error;
+          error?.response?.data?.message || error?.message || 'Erro ao carregar perfil do usuário';
+        setError(errorMessage);
+        showToast('Erro ao carregar perfil. Tente novamente.', 'error');
       }
-    },
-    [isSignedIn, userId, getToken, setCachedProfile, showToast]
-  );
-
-  // Efeito para carregar perfil quando usuário faz login
-  useEffect(() => {
-    if (isSignedIn && userId && !initializedRef.current) {
-      initializedRef.current = true;
-      fetchProfile();
-    } else if (!isSignedIn) {
-      // Limpa dados quando usuário faz logout
-      initializedRef.current = false;
-      setState({
-        profile: null,
-        isLoading: false,
-        error: null,
-        lastFetchTime: null,
-      });
-      if (userId) {
-        profileCache.delete(`profile_${userId}`);
-        activeRequestRef.current.delete(userId);
+    } finally {
+      if (mountedRef.current) {
+        setLoading(false);
       }
     }
-  }, [isSignedIn, userId, fetchProfile]);
+  }, [isAuthLoaded, userId, fetchProfileInternal, showToast]);
 
-  // Limpa recursos quando hook é desmontado
+  // Função pública para sincronizar usuário
+  const syncUser = useCallback(async (): Promise<boolean> => {
+    if (!getToken) return false;
+
+    try {
+      const token = await getToken();
+      if (!token) return false;
+
+      return await syncUserWithRetry(token, 2);
+    } catch (error) {
+      console.error('❌ [useProfile] Erro na sincronização pública:', error);
+      return false;
+    }
+  }, [getToken, syncUserWithRetry]);
+
+  // Função para forçar nova busca
+  const refetch = useCallback(async () => {
+    if (userId) {
+      // Limpar cache
+      profileCacheRef.current.delete(userId);
+      await fetchProfile();
+    }
+  }, [userId, fetchProfile]);
+
+  // Efeito para buscar perfil quando disponível
   useEffect(() => {
-    mountedRef.current = true;
+    if (isAuthLoaded && userId) {
+      fetchProfile();
+    } else if (isAuthLoaded && !userId) {
+      // Usuário não autenticado
+      setProfile(null);
+      setLoading(false);
+      setError(null);
+    }
+  }, [isAuthLoaded, userId, fetchProfile]);
+
+  // Cleanup no unmount
+  useEffect(() => {
     return () => {
       mountedRef.current = false;
-      // Limpa todas as requisições ativas
-      activeRequestRef.current.clear();
     };
   }, []);
 
   return {
-    profile: state.profile,
-    isLoading: state.isLoading,
-    error: state.error,
-    fetchProfile,
-    updateProfile,
-    refetch: () => fetchProfile(true),
+    profile,
+    loading,
+    error,
+    refetch,
+    syncUser,
   };
 }
 
 // Função para limpar cache (útil para testes ou logout completo)
 export const clearProfileCache = () => {
-  profileCache.clear();
+  // Implementação para limpar cache global se necessário
+  console.log('Cache de perfil limpo');
 };
 
 // Default export para resolver warning do React Router

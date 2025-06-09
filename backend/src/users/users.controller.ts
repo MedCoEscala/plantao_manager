@@ -61,6 +61,11 @@ export class UpdateProfileDto {
   @IsString()
   @IsOptional()
   imageUrl?: string;
+
+  // Suporte para compatibility com frontend antigo
+  @IsString()
+  @IsOptional()
+  name?: string;
 }
 // --- Fim DTO ---
 
@@ -146,18 +151,17 @@ export class UsersController {
     const user = await this.usersService.findOne(id);
 
     // Comparar com o clerkId do usuário encontrado no DB
-    if (user.clerkId !== req.userContext.userId) {
+    const clerkId = req.userContext.sub;
+    if (user.clerkId !== clerkId) {
       console.warn(
-        `Permissão negada: Usuário ${req.userContext.userId} tentando acessar DB ID ${id} de outro usuário (${user.clerkId})`,
+        `Permissão negada: Usuário ${clerkId} tentando acessar DB ID ${id} de outro usuário (${user.clerkId})`,
       );
       throw new ForbiddenException(
         'Você não tem permissão para acessar este recurso.',
       );
     }
 
-    console.log(
-      `Permissão concedida para ${req.userContext.userId} acessar DB ID ${id}`,
-    );
+    console.log(`Permissão concedida para ${clerkId} acessar DB ID ${id}`);
     return user;
   }
 
@@ -168,24 +172,23 @@ export class UsersController {
     @Body() updateUserDto: any, // Considerar criar um UpdateUserDto real
     @Req() req: RequestWithUserContext,
   ): Promise<User> {
+    const clerkId = req.userContext.sub;
     console.log(
-      `UsersController: update chamado para DB ID: ${id} por ${req.userContext.userId}`,
+      `UsersController: update chamado para DB ID: ${id} por ${clerkId}`,
     );
 
     const userToUpdate = await this.usersService.findOne(id);
 
-    if (userToUpdate.clerkId !== req.userContext.userId) {
+    if (userToUpdate.clerkId !== clerkId) {
       console.warn(
-        `Permissão negada: Usuário ${req.userContext.userId} tentando atualizar DB ID ${id} de outro usuário (${userToUpdate.clerkId})`,
+        `Permissão negada: Usuário ${clerkId} tentando atualizar DB ID ${id} de outro usuário (${userToUpdate.clerkId})`,
       );
       throw new ForbiddenException(
         'Você não tem permissão para modificar este recurso.',
       );
     }
 
-    console.log(
-      `Permissão concedida para ${req.userContext.userId} atualizar DB ID ${id}`,
-    );
+    console.log(`Permissão concedida para ${clerkId} atualizar DB ID ${id}`);
     return this.usersService.update(id, updateUserDto);
   }
 
@@ -195,24 +198,23 @@ export class UsersController {
     @Param('id') id: string,
     @Req() req: RequestWithUserContext,
   ): Promise<User> {
+    const clerkId = req.userContext.sub;
     console.log(
-      `UsersController: remove chamado para DB ID: ${id} por ${req.userContext.userId}`,
+      `UsersController: remove chamado para DB ID: ${id} por ${clerkId}`,
     );
 
     const userToDelete = await this.usersService.findOne(id);
 
-    if (userToDelete.clerkId !== req.userContext.userId) {
+    if (userToDelete.clerkId !== clerkId) {
       console.warn(
-        `Permissão negada: Usuário ${req.userContext.userId} tentando deletar DB ID ${id} de outro usuário (${userToDelete.clerkId})`,
+        `Permissão negada: Usuário ${clerkId} tentando deletar DB ID ${id} de outro usuário (${userToDelete.clerkId})`,
       );
       throw new ForbiddenException(
         'Você não tem permissão para remover este recurso.',
       );
     }
 
-    console.log(
-      `Permissão concedida para ${req.userContext.userId} remover DB ID ${id}`,
-    );
+    console.log(`Permissão concedida para ${clerkId} remover DB ID ${id}`);
     return this.usersService.remove(id);
   }
 }
