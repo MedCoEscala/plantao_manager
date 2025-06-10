@@ -1,4 +1,4 @@
-name: 🚀 Auto Deploy to Vercel
+name: 🚀 Auto Deploy to Vercel (Empresa)
 
 on:
   push:
@@ -10,29 +10,16 @@ env:
 
 jobs:
   deploy:
-    name: Deploy to Vercel
+    name: Deploy to Vercel (Empresa)
     runs-on: ubuntu-latest
 
     steps:
       - name: 📦 Checkout code
         uses: actions/checkout@v4
 
-      - name: 🔍 Debug - Check secrets
-        run: |
-          echo "🔍 Checking if secrets are configured..."
-          if [ -z "${{ secrets.VERCEL_DEPLOY_HOOK }}" ]; then
-            echo "❌ VERCEL_DEPLOY_HOOK secret not configured"
-            echo "📝 Please configure the following secrets in your GitHub repository:"
-            echo "   - VERCEL_DEPLOY_HOOK (Vercel webhook URL)"
-            echo "   - VERCEL_URL (optional - your app URL)"
-            exit 1
-          else
-            echo "✅ VERCEL_DEPLOY_HOOK secret is configured"
-          fi
-
       - name: 🚀 Trigger Vercel Deploy
         run: |
-          echo "🚀 Triggering Vercel deployment..."
+          echo "🚀 Triggering Vercel deployment via company webhook..."
           echo "📅 Timestamp: $(date)"
           echo "🏷️  Commit: ${{ github.sha }}"
           echo "🌿 Branch: ${{ github.ref_name }}"
@@ -42,7 +29,7 @@ jobs:
             --max-time 30 \
             --retry 3 \
             --retry-delay 5 \
-            "${{ secrets.VERCEL_DEPLOY_HOOK }}")
+            "https://api.vercel.com/v1/integrations/deploy/prj_r2kjmLat72JKWzehRSae3Kuvb8Cd/7b38KFTLvM")
 
           http_code="${response: -3}"
           body="${response%???}"
@@ -51,10 +38,8 @@ jobs:
 
           if [ "$http_code" = "200" ] || [ "$http_code" = "201" ]; then
             echo "✅ Deploy triggered successfully!"
-            echo "🌐 Check your Vercel dashboard for deployment progress"
-            if [ -n "${{ secrets.VERCEL_URL }}" ]; then
-              echo "📱 Your app will be available at: ${{ secrets.VERCEL_URL }}"
-            fi
+            echo "📄 Response: $body"
+            echo "🌐 Check the company's Vercel dashboard for deployment progress"
           else
             echo "❌ Deploy failed with status: $http_code"
             echo "📄 Response body: $body"
@@ -75,8 +60,6 @@ jobs:
             echo "- **Status:** ❌ Deploy failed" >> $GITHUB_STEP_SUMMARY
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 🔧 Troubleshooting" >> $GITHUB_STEP_SUMMARY
-          echo "If the deploy failed, check:" >> $GITHUB_STEP_SUMMARY
-          echo "1. VERCEL_DEPLOY_HOOK secret is correctly configured" >> $GITHUB_STEP_SUMMARY
-          echo "2. Webhook URL is valid and accessible" >> $GITHUB_STEP_SUMMARY
-          echo "3. Vercel project is properly connected" >> $GITHUB_STEP_SUMMARY
+          echo "### 📊 Company Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "Deploy triggered on company's Vercel account." >> $GITHUB_STEP_SUMMARY
+          echo "Check the deployment progress on the company dashboard." >> $GITHUB_STEP_SUMMARY
