@@ -24,27 +24,36 @@ function ensureBuild() {
 // Garantir build
 ensureBuild();
 
-const { NestFactory } = require('@nestjs/core');
-const { ValidationPipe } = require('@nestjs/common');
-
 let app;
 
 async function createNestApp() {
   if (app) return app;
 
   try {
-    // Importar o módulo compilado
-    const { AppModule } = require('../backend/dist/app.module');
+    console.log('🔄 Initializing NestJS backend...');
 
+    // Tentar diferentes formas de importar o módulo
+    let AppModule;
+    try {
+      const moduleExports = require('../backend/dist/app.module');
+      AppModule = moduleExports.AppModule || moduleExports.default || moduleExports;
+      console.log('✅ AppModule loaded successfully');
+    } catch (importError) {
+      console.error('❌ Failed to import AppModule:', importError.message);
+      throw new Error(`Module import failed: ${importError.message}`);
+    }
+
+    const { NestFactory } = require('@nestjs/core');
+    const { ValidationPipe } = require('@nestjs/common');
+
+    console.log('🏗️ Creating NestJS application...');
     app = await NestFactory.create(AppModule, {
-      logger: ['error', 'warn', 'log'],
+      logger: process.env.NODE_ENV === 'production' ? ['error', 'warn'] : ['error', 'warn', 'log'],
     });
 
-    // CORS para permitir acesso do app mobile
+    // CORS simplificado
     app.enableCors({
       origin: true,
-      methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
       credentials: true,
     });
 
@@ -52,31 +61,49 @@ async function createNestApp() {
     app.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,
-        forbidNonWhitelisted: true,
         transform: true,
       })
     );
 
     await app.init();
-    console.log('✅ NestJS backend ready');
+    console.log('✅ NestJS backend ready for requests');
     return app;
   } catch (error) {
-    console.error('❌ Failed to initialize backend:', error);
+    console.error('❌ Critical error initializing backend:', error);
+    console.error('Stack:', error.stack);
     throw error;
   }
 }
 
 // Handler para Vercel
 module.exports = async (req, res) => {
+  console.log(`📥 ${req.method} ${req.url}`);
+
+  // Health check simples
+  if (req.url === '/health' || req.url === '/api/health') {
+    return res.status(200).json({
+      status: 'ok',
+      message: 'Backend is running',
+      timestamp: new Date().toISOString(),
+    });
+  }
+
   try {
     const nestApp = await createNestApp();
     const httpAdapter = nestApp.getHttpAdapter();
-    return httpAdapter.getInstance()(req, res);
+    const instance = httpAdapter.getInstance();
+
+    return instance(req, res);
   } catch (error) {
-    console.error('❌ Request error:', error);
+    console.error('❌ Handler error:', error);
+
+    // Resposta de erro mais informativa
+    const isDev = process.env.NODE_ENV !== 'production';
     res.status(500).json({
       error: 'Backend initialization failed',
-      message: process.env.NODE_ENV === 'production' ? 'Internal server error' : error.message,
+      message: isDev ? error.message : 'Internal server error',
+      timestamp: new Date().toISOString(),
+      ...(isDev && { stack: error.stack }),
     });
   }
 };
