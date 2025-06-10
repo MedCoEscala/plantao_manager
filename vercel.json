@@ -1,9 +1,5 @@
 {
   "version": 2,
-  "name": "plantao-manager-api",
-  "buildCommand": "cd backend && npm run vercel-build",
-  "outputDirectory": ".",
-  "installCommand": "cd backend && npm install",
   "builds": [
     {
       "src": "api/index.js",
@@ -15,14 +11,5 @@
       "src": "/(.*)",
       "dest": "/api/index.js"
     }
-  ],
-  "env": {
-    "NODE_ENV": "production"
-  },
-  "functions": {
-    "backend/api/index.js": {
-      "maxDuration": 30,
-      "runtime": "nodejs18.x"
-    }
-  }
+  ]
 }

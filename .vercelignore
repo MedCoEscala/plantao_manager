@@ -1,27 +1,19 @@
-# Ignorar frontend e arquivos desnecessários
+# Ignorar todo frontend/mobile
 app/
 assets/
+android/
+ios/
 .expo/
-node_modules/
-*.log
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
 
 # Ignorar arquivos de desenvolvimento
 .git/
 .github/
 scripts/
-FIXES_AUTHENTICATION.md
-NOTIFICACOES.md
-DEPLOY_GUIDE.md
-README.md
-.instructions
 *.md
-!VERCEL_DEPLOY.md
+!DEPLOY_CLEAN.md
+.instructions
 
-# Ignorar configurações do Expo/React Native
+# Ignorar configurações do mobile
 metro.config.js
 babel.config.js
 tailwind.config.js
@@ -31,11 +23,12 @@ app.d.ts
 nativewind-env.d.ts
 prettier.config.js
 cache.ts
-deploy.sh
 app.json
 
-# Manter apenas backend e configurações essenciais
+# Manter apenas backend e API
 !backend/
+!api/
+!build-backend.js
 !vercel.json
 !package.json
 !package-lock.json 

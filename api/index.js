@@ -24,29 +24,31 @@ function ensureBuild() {
 // Garantir build
 ensureBuild();
 
-const { NestFactory } = require('../backend/dist/app.module');
+const { NestFactory } = require('@nestjs/core');
 const { ValidationPipe } = require('@nestjs/common');
 
 let app;
 
-async function createApp() {
+async function createNestApp() {
   if (app) return app;
 
   try {
-    const AppModule = require('../backend/dist/app.module');
-    const moduleToUse = AppModule.AppModule || AppModule;
+    // Importar o módulo compilado
+    const { AppModule } = require('../backend/dist/app.module');
 
-    app = await NestFactory.create(moduleToUse, {
+    app = await NestFactory.create(AppModule, {
       logger: ['error', 'warn', 'log'],
     });
 
+    // CORS para permitir acesso do app mobile
     app.enableCors({
       origin: true,
-      methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-      allowedHeaders: 'Content-Type, Accept, Authorization',
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
       credentials: true,
     });
 
+    // Validation pipes
     app.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,
@@ -56,26 +58,25 @@ async function createApp() {
     );
 
     await app.init();
+    console.log('✅ NestJS backend ready');
     return app;
   } catch (error) {
-    console.error('❌ Failed to create app:', error);
+    console.error('❌ Failed to initialize backend:', error);
     throw error;
   }
 }
 
-// Handler principal
+// Handler para Vercel
 module.exports = async (req, res) => {
   try {
-    const nestApp = await createApp();
+    const nestApp = await createNestApp();
     const httpAdapter = nestApp.getHttpAdapter();
-    const instance = httpAdapter.getInstance();
-
-    return instance(req, res);
+    return httpAdapter.getInstance()(req, res);
   } catch (error) {
-    console.error('❌ Handler error:', error);
+    console.error('❌ Request error:', error);
     res.status(500).json({
-      error: 'Internal Server Error',
-      message: process.env.NODE_ENV === 'production' ? 'Something went wrong' : error.message,
+      error: 'Backend initialization failed',
+      message: process.env.NODE_ENV === 'production' ? 'Internal server error' : error.message,
     });
   }
 };
