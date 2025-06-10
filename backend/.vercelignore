@@ -10,6 +10,11 @@ nest-cli.json
 Dockerfile
 fly.toml
 
+# Ignorar arquivos de teste específicos
+**/*.spec.ts
+**/*.test.ts
+**/*.e2e-spec.ts
+
 # Manter apenas o necessário
 !dist/
 !api/

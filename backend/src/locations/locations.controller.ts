@@ -11,6 +11,7 @@ import {
   Logger,
   ForbiddenException,
   Req,
+  Headers,
 } from '@nestjs/common';
 import { Location } from '@prisma/client';
 import { Request } from 'express';
@@ -20,9 +21,14 @@ import { GetLocationsFilterDto } from './dto/get-locations-filter.dto';
 import { UpdateLocationDto } from './dto/update-locations.dto';
 import { LocationsService } from './locations.service';
 import { ClerkAuthGuard } from '../auth/guards/clerk-auth.guard';
+
 interface RequestWithUserContext extends Request {
   userContext: Record<string, any>;
 }
+
+// Cache simples em memória (60 segundos)
+const cache = new Map();
+const CACHE_TTL = 60000; // 60 segundos
 
 @Controller('locations')
 @UseGuards(ClerkAuthGuard)
@@ -35,10 +41,43 @@ export class LocationsController {
   async findAll(
     @Query() filterDto: GetLocationsFilterDto,
     @Req() req: RequestWithUserContext,
+    @Headers('cache-control') cacheControl?: string,
   ): Promise<Location[]> {
     const clerkId = req.userContext.sub;
+
+    // Verificar se cliente quer pular cache
+    const skipCache = cacheControl === 'no-cache';
+
+    // Chave do cache baseada no usuário e filtros
+    const cacheKey = `locations:${clerkId}:${JSON.stringify(filterDto)}`;
+
+    // Verificar cache se não for explicitamente pulado
+    if (!skipCache) {
+      const cached = cache.get(cacheKey);
+      if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+        this.logger.debug(`Cache hit para usuário ${clerkId}`);
+        return cached.data;
+      }
+    }
+
     this.logger.log(`Buscando locais para usuário com Clerk ID: ${clerkId}`);
-    return this.locationsService.findAllByUserId(clerkId, filterDto);
+    const locations = await this.locationsService.findAllByUserId(
+      clerkId,
+      filterDto,
+    );
+
+    // Armazenar no cache
+    cache.set(cacheKey, {
+      data: locations,
+      timestamp: Date.now(),
+    });
+
+    // Limpar cache antigo periodicamente
+    if (cache.size > 100) {
+      this.clearExpiredCache();
+    }
+
+    return locations;
   }
 
   @Get(':id')
@@ -68,7 +107,16 @@ export class LocationsController {
   ): Promise<Location> {
     const clerkId = req.userContext.sub;
     this.logger.log(`Criando local para usuário com Clerk ID: ${clerkId}`);
-    return this.locationsService.create(clerkId, createLocationDto);
+
+    const result = await this.locationsService.create(
+      clerkId,
+      createLocationDto,
+    );
+
+    // Limpar cache do usuário após criação
+    this.clearUserCache(clerkId);
+
+    return result;
   }
 
   @Put(':id')
@@ -89,7 +137,12 @@ export class LocationsController {
       );
     }
 
-    return this.locationsService.update(id, updateLocationDto);
+    const result = await this.locationsService.update(id, updateLocationDto);
+
+    // Limpar cache do usuário após atualização
+    this.clearUserCache(clerkId);
+
+    return result;
   }
 
   @Delete(':id')
@@ -109,6 +162,29 @@ export class LocationsController {
       );
     }
 
-    return this.locationsService.remove(id);
+    const result = await this.locationsService.remove(id);
+
+    // Limpar cache do usuário após remoção
+    this.clearUserCache(clerkId);
+
+    return result;
+  }
+
+  private clearUserCache(clerkId: string) {
+    // Remove todas as entradas de cache do usuário
+    for (const [key] of cache) {
+      if (key.startsWith(`locations:${clerkId}:`)) {
+        cache.delete(key);
+      }
+    }
+  }
+
+  private clearExpiredCache() {
+    const now = Date.now();
+    for (const [key, value] of cache) {
+      if (now - value.timestamp > CACHE_TTL) {
+        cache.delete(key);
+      }
+    }
   }
 }

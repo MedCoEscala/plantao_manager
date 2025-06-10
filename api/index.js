@@ -25,66 +25,95 @@ function ensureBuild() {
 ensureBuild();
 
 let app;
+let initPromise;
 
 async function createNestApp() {
+  // Se já tem uma inicialização em progresso, aguarda ela
+  if (initPromise) {
+    return await initPromise;
+  }
+
   if (app) return app;
 
-  try {
-    console.log('🔄 Initializing NestJS backend...');
+  // Criar promise de inicialização com timeout
+  initPromise = new Promise(async (resolve, reject) => {
+    const timeout = setTimeout(() => {
+      reject(new Error('NestJS initialization timeout (30s)'));
+    }, 30000);
 
-    // Tentar diferentes formas de importar o módulo
-    let AppModule;
     try {
-      const moduleExports = require('../backend/dist/app.module');
-      AppModule = moduleExports.AppModule || moduleExports.default || moduleExports;
-      console.log('✅ AppModule loaded successfully');
-    } catch (importError) {
-      console.error('❌ Failed to import AppModule:', importError.message);
-      throw new Error(`Module import failed: ${importError.message}`);
+      console.log('🔄 Initializing NestJS backend...');
+
+      // Verificar se o dist existe
+      const path = require('path');
+      const fs = require('fs');
+      const distPath = path.join(__dirname, '../backend/dist');
+
+      if (!fs.existsSync(distPath)) {
+        throw new Error('Backend dist directory not found. Build may have failed.');
+      }
+
+      // Importar módulos necessários
+      let AppModule;
+      try {
+        const moduleExports = require('../backend/dist/app.module');
+        AppModule = moduleExports.AppModule || moduleExports.default || moduleExports;
+        console.log('✅ AppModule loaded successfully');
+      } catch (importError) {
+        console.error('❌ Failed to import AppModule:', importError.message);
+        throw new Error(`Module import failed: ${importError.message}`);
+      }
+
+      const { NestFactory } = require('@nestjs/core');
+      const { ValidationPipe } = require('@nestjs/common');
+
+      console.log('🏗️ Creating NestJS application...');
+      app = await NestFactory.create(AppModule, {
+        logger:
+          process.env.NODE_ENV === 'production' ? ['error', 'warn'] : ['error', 'warn', 'log'],
+      });
+
+      // CORS otimizado
+      app.enableCors({
+        origin: true,
+        credentials: true,
+        methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+      });
+
+      // Validation pipes simplificados
+      app.useGlobalPipes(
+        new ValidationPipe({
+          whitelist: true,
+          transform: true,
+        })
+      );
+
+      await app.init();
+      clearTimeout(timeout);
+      console.log('✅ NestJS backend ready for requests');
+      resolve(app);
+    } catch (error) {
+      clearTimeout(timeout);
+      console.error('❌ Critical error initializing backend:', error);
+      console.error('Stack:', error.stack);
+      reject(error);
     }
+  });
 
-    const { NestFactory } = require('@nestjs/core');
-    const { ValidationPipe } = require('@nestjs/common');
-
-    console.log('🏗️ Creating NestJS application...');
-    app = await NestFactory.create(AppModule, {
-      logger: process.env.NODE_ENV === 'production' ? ['error', 'warn'] : ['error', 'warn', 'log'],
-    });
-
-    // CORS simplificado
-    app.enableCors({
-      origin: true,
-      credentials: true,
-    });
-
-    // Validation pipes
-    app.useGlobalPipes(
-      new ValidationPipe({
-        whitelist: true,
-        transform: true,
-      })
-    );
-
-    await app.init();
-    console.log('✅ NestJS backend ready for requests');
-    return app;
-  } catch (error) {
-    console.error('❌ Critical error initializing backend:', error);
-    console.error('Stack:', error.stack);
-    throw error;
-  }
+  return await initPromise;
 }
 
 // Handler para Vercel
 module.exports = async (req, res) => {
   console.log(`📥 ${req.method} ${req.url}`);
 
-  // Health check simples
+  // Health check simples - sem inicializar NestJS
   if (req.url === '/health' || req.url === '/api/health') {
     return res.status(200).json({
       status: 'ok',
-      message: 'Backend is running',
+      message: 'Backend handler is running',
       timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || 'development',
     });
   }
 
@@ -97,13 +126,16 @@ module.exports = async (req, res) => {
   } catch (error) {
     console.error('❌ Handler error:', error);
 
-    // Resposta de erro mais informativa
+    // Resposta de erro detalhada para debug
     const isDev = process.env.NODE_ENV !== 'production';
     res.status(500).json({
       error: 'Backend initialization failed',
       message: isDev ? error.message : 'Internal server error',
       timestamp: new Date().toISOString(),
-      ...(isDev && { stack: error.stack }),
+      ...(isDev && {
+        stack: error.stack,
+        env: process.env.NODE_ENV,
+      }),
     });
   }
 };
