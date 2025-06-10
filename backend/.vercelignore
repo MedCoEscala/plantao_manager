@@ -1,0 +1,18 @@
+# Ignorar arquivos desnecessários no backend
+src/
+test/
+*.md
+.prettierrc
+eslint.config.mjs
+tsconfig.json
+tsconfig.build.json
+nest-cli.json
+Dockerfile
+fly.toml
+
+# Manter apenas o necessário
+!dist/
+!api/
+!package.json
+!package-lock.json
+!prisma/ 
