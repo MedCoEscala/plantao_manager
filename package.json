@@ -16,11 +16,6 @@
     "setup:notifications": "node scripts/setup-notifications.js",
     "build:dev": "eas build --profile development",
     "build:prod": "eas build --profile production"
-"build": "nest build",
-    "vercel-build": "npm run build",
-    "start": "nest start",
-    "start:dev": "nest start --watch",
-    "start:prod": "node dist/main"
   },
   "dependencies": {
     "@clerk/clerk-expo": "^2.9.6",
