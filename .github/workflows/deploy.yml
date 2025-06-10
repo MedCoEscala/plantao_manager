@@ -5,6 +5,9 @@ on:
     branches: [master, main]
   workflow_dispatch: # Permite deploy manual
 
+env:
+  NODE_VERSION: 18
+
 jobs:
   deploy:
     name: Deploy to Vercel
@@ -14,25 +17,66 @@ jobs:
       - name: 📦 Checkout code
         uses: actions/checkout@v4
 
+      - name: 🔍 Debug - Check secrets
+        run: |
+          echo "🔍 Checking if secrets are configured..."
+          if [ -z "${{ secrets.VERCEL_DEPLOY_HOOK }}" ]; then
+            echo "❌ VERCEL_DEPLOY_HOOK secret not configured"
+            echo "📝 Please configure the following secrets in your GitHub repository:"
+            echo "   - VERCEL_DEPLOY_HOOK (Vercel webhook URL)"
+            echo "   - VERCEL_URL (optional - your app URL)"
+            exit 1
+          else
+            echo "✅ VERCEL_DEPLOY_HOOK secret is configured"
+          fi
+
       - name: 🚀 Trigger Vercel Deploy
         run: |
           echo "🚀 Triggering Vercel deployment..."
+          echo "📅 Timestamp: $(date)"
+          echo "🏷️  Commit: ${{ github.sha }}"
+          echo "🌿 Branch: ${{ github.ref_name }}"
 
-          response=$(curl -s -w "%{http_code}" -X POST "${{ secrets.VERCEL_DEPLOY_HOOK }}")
+          # Fazer a requisição com timeout
+          response=$(curl -s -w "%{http_code}" -X POST \
+            --max-time 30 \
+            --retry 3 \
+            --retry-delay 5 \
+            "${{ secrets.VERCEL_DEPLOY_HOOK }}")
+
           http_code="${response: -3}"
+          body="${response%???}"
+
+          echo "📡 HTTP Status Code: $http_code"
 
           if [ "$http_code" = "200" ] || [ "$http_code" = "201" ]; then
             echo "✅ Deploy triggered successfully!"
-            echo "📱 Your app will be available at: ${{ secrets.VERCEL_URL }}"
+            echo "🌐 Check your Vercel dashboard for deployment progress"
+            if [ -n "${{ secrets.VERCEL_URL }}" ]; then
+              echo "📱 Your app will be available at: ${{ secrets.VERCEL_URL }}"
+            fi
           else
             echo "❌ Deploy failed with status: $http_code"
+            echo "📄 Response body: $body"
             exit 1
           fi
 
       - name: 📝 Deploy Summary
+        if: always()
         run: |
           echo "## 🚀 Deploy Summary" >> $GITHUB_STEP_SUMMARY
-          echo "- **Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Triggered by:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Status:** ✅ Deploy triggered" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch:** \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Triggered by:** @${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Timestamp:** $(date)" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "- **Status:** ✅ Deploy triggered successfully" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- **Status:** ❌ Deploy failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔧 Troubleshooting" >> $GITHUB_STEP_SUMMARY
+          echo "If the deploy failed, check:" >> $GITHUB_STEP_SUMMARY
+          echo "1. VERCEL_DEPLOY_HOOK secret is correctly configured" >> $GITHUB_STEP_SUMMARY
+          echo "2. Webhook URL is valid and accessible" >> $GITHUB_STEP_SUMMARY
+          echo "3. Vercel project is properly connected" >> $GITHUB_STEP_SUMMARY
