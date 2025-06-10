@@ -1,6 +1,6 @@
 import { useAuth } from '@clerk/clerk-react';
 import { Ionicons } from '@expo/vector-icons';
-import { format, isSameDay, parseISO, isValid } from 'date-fns';
+import { format, isSameDay, isValid } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';

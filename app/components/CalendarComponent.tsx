@@ -14,8 +14,6 @@ import {
   isSameMonth,
   isToday,
   getDate,
-  parseISO,
-  startOfDay,
   isValid,
   addWeeks,
   subWeeks,
@@ -233,10 +231,19 @@ const CalendarComponent: React.FC<CalendarProps> = ({
 
     shifts.forEach((shift) => {
       try {
-        // Garantir que a data existe e é válida
         if (!shift.date) return;
 
-        const shiftDate = parseISO(shift.date);
+        let shiftDate: Date;
+
+        if (!shift.date.includes('T') && !shift.date.includes('Z')) {
+          const [year, month, day] = shift.date.split('-').map(Number);
+          shiftDate = new Date(year, month - 1, day);
+        } else {
+          const dateOnly = shift.date.split('T')[0];
+          const [year, month, day] = dateOnly.split('-').map(Number);
+          shiftDate = new Date(year, month - 1, day);
+        }
+
         if (!isValid(shiftDate)) return;
 
         const dateKey = format(shiftDate, 'yyyy-MM-dd');

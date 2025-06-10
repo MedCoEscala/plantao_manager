@@ -1,26 +1,47 @@
-import { format, parseISO, isValid, startOfDay } from 'date-fns';
+import { format, isValid } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 // Função auxiliar para normalizar datas para o timezone local
 const normalizeToLocalDate = (date: string | Date): Date => {
   if (typeof date === 'string') {
-    // Se a string não contém informação de timezone, trata como data local
-    if (!date.includes('T') && !date.includes('Z')) {
+    if (!date.includes('T') && !date.includes('Z') && date.includes('-')) {
       const [year, month, day] = date.split('-').map(Number);
-      return new Date(year, month - 1, day);
+      if (year && month && day) {
+        return new Date(year, month - 1, day, 0, 0, 0, 0);
+      }
     }
 
-    // Para strings ISO, extrair apenas a parte da data e criar data local
-    const dateOnly = date.split('T')[0]; // Pega apenas YYYY-MM-DD
-    const [year, month, day] = dateOnly.split('-').map(Number);
-    return new Date(year, month - 1, day);
+    if (date.includes('T') || date.includes('Z')) {
+      const dateOnly = date.split('T')[0];
+      const [year, month, day] = dateOnly.split('-').map(Number);
+      if (year && month && day) {
+        return new Date(year, month - 1, day, 0, 0, 0, 0);
+      }
+    }
+
+    try {
+      const parsedDate = new Date(date);
+      if (isValid(parsedDate)) {
+        return new Date(
+          parsedDate.getFullYear(),
+          parsedDate.getMonth(),
+          parsedDate.getDate(),
+          0,
+          0,
+          0,
+          0
+        );
+      }
+    } catch (error) {
+      console.warn('Erro ao fazer parse da data:', error);
+    }
   }
 
-  // Para objetos Date, criar data local explicitamente
-  const year = date.getFullYear();
-  const month = date.getMonth();
-  const day = date.getDate();
-  return new Date(year, month, day, 0, 0, 0, 0);
+  if (date instanceof Date && isValid(date)) {
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0);
+  }
+
+  return new Date();
 };
 
 // Função para formatar data de plantão (sempre como data local)
@@ -48,7 +69,7 @@ export const formatDate = (
   if (!date) return 'Data inválida';
 
   try {
-    const dateObj = typeof date === 'string' ? parseISO(date) : date;
+    const dateObj = typeof date === 'string' ? normalizeToLocalDate(date) : date;
 
     if (!isValid(dateObj)) return 'Data inválida';
 
@@ -119,7 +140,7 @@ export const dateToLocalTimeString = (date: Date): string => {
 
 // Função para criar Date local a partir de data e hora
 export const createLocalDateTime = (date: Date, hours: number, minutes: number): Date => {
-  const localDate = startOfDay(date);
+  const localDate = new Date(date);
   localDate.setHours(hours, minutes, 0, 0);
   return localDate;
 };

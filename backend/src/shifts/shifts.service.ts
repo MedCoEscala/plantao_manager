@@ -104,12 +104,10 @@ export class ShiftsService {
         userId: user.id,
       };
 
-      // Filtros de data usando datas locais
       if (filterDto.startDate && filterDto.endDate) {
         const startDate = this.createLocalDate(filterDto.startDate);
         const endDate = this.createLocalDate(filterDto.endDate);
 
-        // Ajustar endDate para incluir todo o dia
         endDate.setHours(23, 59, 59, 999);
 
         if (startDate > endDate) {
@@ -145,7 +143,7 @@ export class ShiftsService {
 
       this.logger.log(`Buscando plantões para userId: ${user.id} com filtros`);
 
-      return this.prisma.plantao.findMany({
+      const plantoes = await this.prisma.plantao.findMany({
         where,
         include: {
           location: true,
@@ -155,6 +153,13 @@ export class ShiftsService {
           date: 'asc',
         },
       });
+
+      return plantoes.map((plantao) => ({
+        ...plantao,
+        date: this.formatDateToLocalString(plantao.date),
+        startTime: plantao.startTime.toISOString(),
+        endTime: plantao.endTime.toISOString(),
+      })) as any;
     } catch (error) {
       this.logger.error(
         `Erro ao buscar plantões: ${error.message}`,
@@ -162,6 +167,13 @@ export class ShiftsService {
       );
       throw error;
     }
+  }
+
+  private formatDateToLocalString(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }
 
   async findOne(id: string): Promise<Plantao & { user: { clerkId: string } }> {
@@ -184,7 +196,12 @@ export class ShiftsService {
         throw new NotFoundException(`Plantão com ID ${id} não encontrado`);
       }
 
-      return shift;
+      return {
+        ...shift,
+        date: this.formatDateToLocalString(shift.date),
+        startTime: shift.startTime.toISOString(),
+        endTime: shift.endTime.toISOString(),
+      } as any;
     } catch (error) {
       this.logger.error(
         `Erro ao buscar plantão ${id}: ${error.message}`,
@@ -325,7 +342,12 @@ export class ShiftsService {
       });
 
       this.logger.log(`Plantão criado com sucesso: ${newShift.id}`);
-      return newShift;
+      return {
+        ...newShift,
+        date: this.formatDateToLocalString(newShift.date),
+        startTime: newShift.startTime.toISOString(),
+        endTime: newShift.endTime.toISOString(),
+      } as any;
     } catch (error) {
       this.logger.error(`Erro ao criar plantão: ${error.message}`, error.stack);
 
@@ -461,7 +483,12 @@ export class ShiftsService {
       });
 
       this.logger.log(`Plantão atualizado com sucesso: ${id}`);
-      return updatedShift;
+      return {
+        ...updatedShift,
+        date: this.formatDateToLocalString(updatedShift.date),
+        startTime: updatedShift.startTime.toISOString(),
+        endTime: updatedShift.endTime.toISOString(),
+      } as any;
     } catch (error) {
       this.logger.error(
         `Erro ao atualizar plantão ${id}: ${error.message}`,
@@ -500,7 +527,12 @@ export class ShiftsService {
       });
 
       this.logger.log(`Plantão removido com sucesso: ${id}`);
-      return deletedShift;
+      return {
+        ...deletedShift,
+        date: this.formatDateToLocalString(deletedShift.date),
+        startTime: deletedShift.startTime.toISOString(),
+        endTime: deletedShift.endTime.toISOString(),
+      } as any;
     } catch (error) {
       this.logger.error(
         `Erro ao remover plantão ${id}: ${error.message}`,

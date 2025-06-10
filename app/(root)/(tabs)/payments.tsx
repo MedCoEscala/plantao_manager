@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
-import { format, parseISO, startOfMonth, endOfMonth } from 'date-fns';
+import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -33,8 +33,7 @@ import { useLocationsSelector } from '@/hooks/useLocationsSelector';
 import { useSelection } from '@/hooks/useSelection';
 import { usePaymentsApi } from '@/services/payments-api';
 import { useShiftsApi, Shift } from '@/services/shifts-api';
-
-import { formatTime } from '@/utils/formatters';
+import formatters from '@/utils/formatters';
 
 const formatCurrency = (value: number): string => {
   return value.toLocaleString('pt-BR', {
@@ -45,7 +44,7 @@ const formatCurrency = (value: number): string => {
 
 const formatDate = (dateString: string): string => {
   try {
-    const date = parseISO(dateString);
+    const date = formatters.normalizeToLocalDate(dateString);
     return format(date, 'dd/MM/yyyy', { locale: ptBR });
   } catch (e) {
     return dateString;
@@ -535,7 +534,7 @@ export default function PaymentsScreen() {
     ({ item, index }: { item: ShiftWithPayment; index: number }) => {
       const formatTimeDisplay = (time: string | Date | null | undefined): string => {
         if (!time) return '';
-        return formatTime(time);
+        return formatters.formatTime(time);
       };
 
       return (
