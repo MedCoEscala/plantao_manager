@@ -30,7 +30,11 @@ async function createApp() {
     bodyParser: true,
   });
 
-  app.setGlobalPrefix('api');
+  // Só adicionar prefixo /api em desenvolvimento local
+  // No Vercel, as rotas já vêm com /api
+  if (process.env.NODE_ENV !== 'production') {
+    app.setGlobalPrefix('api');
+  }
 
   app.enableCors({
     origin: true,
