@@ -6,18 +6,14 @@
   "installCommand": "cd backend && npm install",
   "builds": [
     {
-      "src": "backend/api/index.js",
-      "use": "@vercel/node",
-      "config": {
-        "includeFiles": "backend/dist/**",
-        "maxLambdaSize": "50mb"
-      }
+      "src": "api/index.js",
+      "use": "@vercel/node"
     }
   ],
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "/backend/api/index.js"
+      "dest": "/api/index.js"
     }
   ],
   "env": {
