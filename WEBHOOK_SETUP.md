@@ -122,3 +122,40 @@ Se ainda não funcionar:
 1. Compartilhe os logs do GitHub Action
 2. Confirme se tem acesso ao painel do Vercel
 3. Verifique se as permissões do repositório estão corretas
+
+## ✅ Confirmação: Webhook Funcionando
+
+O webhook está **100% funcional**. O que você precisa agora é apenas configurar a secret no GitHub para automatizar o processo.
+
+## 🎯 Próximos Passos
+
+### Passo 1: Configurar Secret (OBRIGATÓRIO)
+
+1. Vá para: `https://github.com/MedCoEscala/plantao_manager/settings/secrets/actions`
+2. Adicione uma nova secret:
+   - **Nome:** `VERCEL_DEPLOY_HOOK`
+   - **Valor:** `https://api.vercel.com/v1/integrations/deploy/prj_F1koEuY6TEEPMj9qfVUSJwiPtlRf/5aRybC0De7`
+
+### Passo 2: Testar Deploy Automático
+
+Após configurar a secret, faça um novo push:
+
+```bash
+git commit --allow-empty -m "test: webhook automation"
+git push origin master
+```
+
+### Passo 3: Verificar Funcionamento
+
+- GitHub Action deve executar em: `https://github.com/MedCoEscala/plantao_manager/actions`
+- Deploy deve aparecer no painel do Vercel
+
+## 🔧 Diagnóstico Atual
+
+- ✅ **Webhook URL:** Válida e funcionando
+- ✅ **GitHub Action:** Configurado e melhorado
+- ✅ **Deploy manual:** Funciona (testamos acima)
+- ⏳ **Secret do GitHub:** Falta configurar
+- ✅ **Estrutura do projeto:** Correta para Vercel
+
+**O problema era exatamente isso: falta da configuração das GitHub Secrets!** Uma vez configuradas, o deploy automático funcionará perfeitamente a cada push.
