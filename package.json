@@ -7,6 +7,8 @@
     "start": "expo start",
     "dev": "expo start --dev-client",
     "prebuild": "expo prebuild",
+    "build": "cd backend && npm run build",
+    "vercel-build": "cd backend && npm run vercel-build",
     "lint": "eslint \"**/*.{js,jsx,ts,tsx}\" && prettier -c \"**/*.{js,jsx,ts,tsx,json}\"",
     "format": "eslint \"**/*.{js,jsx,ts,tsx}\" --fix && prettier \"**/*.{js,jsx,ts,tsx,json}\" --write",
     "web": "expo start --web",

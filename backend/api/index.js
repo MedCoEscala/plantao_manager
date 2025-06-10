@@ -14,6 +14,8 @@ function ensureBuild() {
       process.chdir(backendPath);
       execSync('npm run build', { stdio: 'inherit' });
       console.log('✅ Build completed successfully');
+    } else {
+      console.log('✅ Build already exists, skipping...');
     }
   } catch (error) {
     console.error('❌ Build failed:', error.message);
@@ -28,7 +30,13 @@ const { NestFactory } = require('@nestjs/core');
 const { ValidationPipe } = require('@nestjs/common');
 
 // Importar o AppModule compilado do dist
-const { AppModule } = require('../dist/app.module');
+let AppModule;
+try {
+  AppModule = require('../dist/app.module');
+} catch (error) {
+  console.error('❌ Failed to import AppModule:', error.message);
+  throw new Error('Could not load compiled application module');
+}
 
 let app;
 
@@ -38,7 +46,10 @@ async function bootstrap() {
   try {
     console.log('🚀 Initializing NestJS application...');
 
-    app = await NestFactory.create(AppModule.AppModule, {
+    // Verificar se AppModule foi carregado corretamente
+    const moduleToUse = AppModule.AppModule || AppModule;
+
+    app = await NestFactory.create(moduleToUse, {
       bodyParser: true,
       logger: ['error', 'warn', 'log'],
     });
@@ -75,6 +86,9 @@ async function bootstrap() {
 // Handler para Vercel
 module.exports = async (req, res) => {
   try {
+    // Adicionar headers de segurança básicos
+    res.setHeader('X-Powered-By', 'NestJS');
+
     const nestApp = await bootstrap();
     const httpAdapter = nestApp.getHttpAdapter();
     const instance = httpAdapter.getInstance();
@@ -84,7 +98,10 @@ module.exports = async (req, res) => {
     console.error('❌ Request handler error:', error);
     res.status(500).json({
       error: 'Internal Server Error',
-      details: error.message,
+      details:
+        process.env.NODE_ENV === 'production'
+          ? 'Something went wrong'
+          : error.message,
       timestamp: new Date().toISOString(),
     });
   }

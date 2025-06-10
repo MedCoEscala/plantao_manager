@@ -9,5 +9,33 @@ node_modules/
 .env.test.local
 .env.production.local
 
-# Manter apenas backend
-!backend/ 
+# Ignorar arquivos de desenvolvimento
+.git/
+.github/
+scripts/
+FIXES_AUTHENTICATION.md
+NOTIFICACOES.md
+DEPLOY_GUIDE.md
+README.md
+.instructions
+*.md
+!VERCEL_DEPLOY.md
+
+# Ignorar configurações do Expo/React Native
+metro.config.js
+babel.config.js
+tailwind.config.js
+eas.json
+global.d.ts
+app.d.ts
+nativewind-env.d.ts
+prettier.config.js
+cache.ts
+deploy.sh
+app.json
+
+# Manter apenas backend e configurações essenciais
+!backend/
+!vercel.json
+!package.json
+!package-lock.json 
