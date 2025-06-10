@@ -1,16 +1,15 @@
 {
   "version": 2,
-  "buildCommand": "cd backend && npm install && npm run build",
-  "outputDirectory": "backend/dist",
-  "functions": {
-    "backend/api/serverless.js": {
-      "runtime": "@vercel/node@20"
+  "builds": [
+    {
+      "src": "backend/src/main.ts",
+      "use": "@vercel/node"
     }
-  },
+  ],
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "/backend/api/serverless.js"
+      "dest": "backend/src/main.ts"
     }
   ]
 }

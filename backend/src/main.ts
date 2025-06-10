@@ -1,8 +1,10 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { networkInterfaces } from 'os';
-
 import { AppModule } from './app.module';
+
+// Cache da aplicação para serverless
+let app: any;
 
 function getNetworkIP(): string {
   const nets = networkInterfaces();
@@ -21,8 +23,10 @@ function getNetworkIP(): string {
   return 'localhost';
 }
 
-async function bootstrap() {
-  const app = await NestFactory.create(AppModule, {
+async function createApp() {
+  if (app) return app;
+
+  app = await NestFactory.create(AppModule, {
     bodyParser: true,
   });
 
@@ -46,13 +50,30 @@ async function bootstrap() {
     }),
   );
 
+  await app.init();
+  return app;
+}
+
+// Para desenvolvimento local
+async function bootstrap() {
+  const appInstance = await createApp();
   const port = process.env.PORT || 3000;
   const networkIP = getNetworkIP();
 
-  await app.listen(port, '0.0.0.0');
+  await appInstance.listen(port, '0.0.0.0');
   console.log(`Servidor rodando na porta ${port}`);
   console.log(`🌐 Servidor acessível em:`);
   console.log(`   - Local: http://localhost:${port}/api`);
   console.log(`   - Rede: http://${networkIP}:${port}/api`);
 }
-bootstrap();
+
+// Para Vercel serverless
+export default async (req: any, res: any) => {
+  const appInstance = await createApp();
+  return appInstance.getHttpAdapter().getInstance()(req, res);
+};
+
+// Se rodando localmente (não no Vercel)
+if (require.main === module) {
+  bootstrap();
+}

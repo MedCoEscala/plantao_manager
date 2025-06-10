@@ -1,0 +1,38 @@
+name: 🚀 Auto Deploy to Vercel
+
+on:
+  push:
+    branches: [master, main]
+  workflow_dispatch: # Permite deploy manual
+
+jobs:
+  deploy:
+    name: Deploy to Vercel
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📦 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🚀 Trigger Vercel Deploy
+        run: |
+          echo "🚀 Triggering Vercel deployment..."
+
+          response=$(curl -s -w "%{http_code}" -X POST "${{ secrets.VERCEL_DEPLOY_HOOK }}")
+          http_code="${response: -3}"
+
+          if [ "$http_code" = "200" ] || [ "$http_code" = "201" ]; then
+            echo "✅ Deploy triggered successfully!"
+            echo "📱 Your app will be available at: ${{ secrets.VERCEL_URL }}"
+          else
+            echo "❌ Deploy failed with status: $http_code"
+            exit 1
+          fi
+
+      - name: 📝 Deploy Summary
+        run: |
+          echo "## 🚀 Deploy Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Triggered by:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status:** ✅ Deploy triggered" >> $GITHUB_STEP_SUMMARY
