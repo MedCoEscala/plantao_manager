@@ -4,8 +4,6 @@ test/
 *.md
 .prettierrc
 eslint.config.mjs
-tsconfig.json
-tsconfig.build.json
 nest-cli.json
 Dockerfile
 fly.toml
@@ -14,10 +12,20 @@ fly.toml
 **/*.spec.ts
 **/*.test.ts
 **/*.e2e-spec.ts
+**/test/**
+**/__tests__/**
+
+# Ignorar arquivos de configuração de desenvolvimento
+.env.example
+.env.local
+.env.development
+.env.test
 
 # Manter apenas o necessário
 !dist/
 !api/
 !package.json
 !package-lock.json
-!prisma/ 
+!prisma/
+!tsconfig.json
+!tsconfig.build.json 
