@@ -1,9 +1,9 @@
 {
   "version": 2,
   "name": "plantao-manager-api",
-  "buildCommand": "npm run vercel-build",
+  "buildCommand": "cd backend && npm run vercel-build",
   "outputDirectory": ".",
-  "installCommand": "npm install",
+  "installCommand": "cd backend && npm install",
   "builds": [
     {
       "src": "backend/api/index.js",
