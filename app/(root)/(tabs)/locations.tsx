@@ -73,17 +73,23 @@ const LocationsScreen = () => {
       } catch (error: any) {
         console.error('Erro ao carregar locais:', error);
         showToast(`Erro ao carregar locais: ${error.message || 'Erro desconhecido'}`, 'error');
+
+        // Parar o loop infinito em caso de erro
+        if (isFirstLoad) {
+          setIsFirstLoad(false);
+        }
       } finally {
         setRefreshing(false);
         setIsLoading(false);
       }
     },
-    [showToast, locationsApi, searchQuery, refreshing, isLoading, isFirstLoad]
+    [showToast, locationsApi] // Removidas dependências que causam re-render
   );
 
+  // Carregamento inicial apenas uma vez
   useEffect(() => {
     loadLocations(true);
-  }, []);
+  }, [loadLocations]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -144,7 +150,8 @@ const LocationsScreen = () => {
   const handleModalSuccess = useCallback(() => {
     setIsAddModalVisible(false);
     setSelectedLocation(null);
-    loadLocations(true);
+    // Recarregar apenas quando necessário
+    setTimeout(() => loadLocations(true), 100);
   }, [loadLocations]);
 
   const toggleSearch = useCallback(() => {
