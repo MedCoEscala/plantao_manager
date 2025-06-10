@@ -84,8 +84,29 @@ async function createNestApp() {
       }
 
       console.log('📦 Importing NestJS dependencies...');
-      const { NestFactory } = require('@nestjs/core');
-      const { ValidationPipe } = require('@nestjs/common');
+
+      // Tentar importar das diferentes localizações possíveis
+      let NestFactory, ValidationPipe;
+
+      try {
+        console.log('🔍 Trying to import from root node_modules...');
+        ({ NestFactory } = require('@nestjs/core'));
+        ({ ValidationPipe } = require('@nestjs/common'));
+        console.log('✅ Found NestJS in root node_modules');
+      } catch (rootError) {
+        console.log('⚠️ Root import failed, trying backend node_modules...');
+        try {
+          ({ NestFactory } = require('../backend/node_modules/@nestjs/core'));
+          ({ ValidationPipe } = require('../backend/node_modules/@nestjs/common'));
+          console.log('✅ Found NestJS in backend node_modules');
+        } catch (backendError) {
+          console.error('❌ Failed to import from root:', rootError.message);
+          console.error('❌ Failed to import from backend:', backendError.message);
+          throw new Error(
+            `Cannot find NestJS dependencies. Root error: ${rootError.message}, Backend error: ${backendError.message}`
+          );
+        }
+      }
 
       console.log('🏗️ Creating NestJS application...');
       app = await NestFactory.create(AppModule, {
