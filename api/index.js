@@ -7,6 +7,93 @@ console.log('🔄 NestJS Handler carregado');
 let app;
 let appPromise;
 
+async function debugNestJS() {
+  const results = [];
+
+  try {
+    // 1. Verificar diretórios
+    results.push('1. Verificando diretórios...');
+    const distPath = path.join(__dirname, '../backend/dist');
+    const backendPath = path.join(__dirname, '../backend');
+
+    results.push(`   - __dirname: ${__dirname}`);
+    results.push(`   - Backend path: ${backendPath}`);
+    results.push(`   - Dist path: ${distPath}`);
+    results.push(`   - Backend exists: ${fs.existsSync(backendPath)}`);
+    results.push(`   - Dist exists: ${fs.existsSync(distPath)}`);
+
+    if (fs.existsSync(distPath)) {
+      const distContents = fs.readdirSync(distPath);
+      results.push(`   - Dist contents: ${distContents.join(', ')}`);
+    }
+
+    // 2. Tentar importar app.module
+    results.push('2. Importando app.module...');
+    let AppModule;
+    try {
+      const moduleExports = require('../backend/dist/app.module');
+      AppModule = moduleExports.AppModule || moduleExports.default || moduleExports;
+      results.push(`   ✅ AppModule importado: ${typeof AppModule}`);
+      results.push(`   - Export keys: ${Object.keys(moduleExports).join(', ')}`);
+    } catch (error) {
+      results.push(`   ❌ Erro ao importar app.module: ${error.message}`);
+      return results;
+    }
+
+    // 3. Tentar importar @nestjs/core do backend
+    results.push('3. Importando @nestjs/core do backend...');
+    try {
+      const nestCore = require('../backend/node_modules/@nestjs/core');
+      results.push(`   ✅ @nestjs/core do backend: ${typeof nestCore.NestFactory}`);
+    } catch (error) {
+      results.push(`   ❌ Erro @nestjs/core backend: ${error.message}`);
+    }
+
+    // 4. Tentar importar @nestjs/core da raiz
+    results.push('4. Importando @nestjs/core da raiz...');
+    try {
+      const nestCore = require('@nestjs/core');
+      results.push(`   ✅ @nestjs/core da raiz: ${typeof nestCore.NestFactory}`);
+    } catch (error) {
+      results.push(`   ❌ Erro @nestjs/core raiz: ${error.message}`);
+    }
+
+    // 5. Tentar criar app NestJS
+    results.push('5. Tentando criar app NestJS...');
+    try {
+      let NestFactory;
+      try {
+        const nestCore = require('../backend/node_modules/@nestjs/core');
+        NestFactory = nestCore.NestFactory;
+        results.push('   - Usando NestFactory do backend');
+      } catch (backendError) {
+        const nestCore = require('@nestjs/core');
+        NestFactory = nestCore.NestFactory;
+        results.push('   - Usando NestFactory da raiz');
+      }
+
+      const nestApp = await NestFactory.create(AppModule, {
+        logger: false, // Desabilitar logs para debug
+      });
+      results.push('   ✅ App NestJS criado com sucesso');
+
+      await nestApp.init();
+      results.push('   ✅ App NestJS inicializado');
+
+      await nestApp.close();
+      results.push('   ✅ App NestJS fechado');
+    } catch (error) {
+      results.push(`   ❌ Erro ao criar app: ${error.message}`);
+      results.push(`   ❌ Stack: ${error.stack}`);
+    }
+  } catch (error) {
+    results.push(`❌ Erro geral no debug: ${error.message}`);
+    results.push(`❌ Stack: ${error.stack}`);
+  }
+
+  return results;
+}
+
 async function createNestApp() {
   if (appPromise) {
     console.log('⏳ Aguardando inicialização em progresso...');
@@ -110,6 +197,25 @@ module.exports = async (req, res) => {
       timestamp: new Date().toISOString(),
       environment: process.env.NODE_ENV || 'development',
     });
+  }
+
+  // Debug endpoint
+  if (req.url === '/debug' || req.url === '/api/debug') {
+    try {
+      const debugResults = await debugNestJS();
+      return res.status(200).json({
+        status: 'debug',
+        results: debugResults,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      return res.status(500).json({
+        status: 'debug_error',
+        error: error.message,
+        stack: error.stack,
+        timestamp: new Date().toISOString(),
+      });
+    }
   }
 
   try {
