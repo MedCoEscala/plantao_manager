@@ -11,22 +11,23 @@ function isRunningInExpoGo(): boolean {
 function getApiUrl(): string {
   // Se tiver a variável de ambiente configurada, use ela
   if (process.env.EXPO_PUBLIC_API_URL) {
-    return ensureApiPrefix(process.env.EXPO_PUBLIC_API_URL);
+    return process.env.EXPO_PUBLIC_API_URL;
   }
 
-  // Para desenvolvimento
+  // Para desenvolvimento local (backend roda em localhost:3000)
+  // Para produção, usar a URL do Vercel (https://medescala.vercel.app)
   let defaultUrl: string;
 
   if (Platform.OS === 'web') {
-    // Para web, sempre localhost
-    defaultUrl = 'http://localhost:3000/api';
+    // Para web, sempre localhost (desenvolvimento)
+    defaultUrl = 'http://localhost:3000';
   } else if (isRunningInExpoGo()) {
     // Para Expo Go, precisa do IP da rede (localhost não funciona)
     // Fallback para um IP comum, mas idealmente deve estar no .env
-    defaultUrl = 'http://192.168.100.88:3000/api';
+    defaultUrl = 'http://192.168.100.88:3000';
   } else {
     // Para simulador/emulador, localhost funciona
-    defaultUrl = 'http://localhost:3000/api';
+    defaultUrl = 'http://localhost:3000';
   }
 
   return defaultUrl;
@@ -34,22 +35,6 @@ function getApiUrl(): string {
 
 // URL da API do backend
 export const API_URL = getApiUrl();
-
-// Função para garantir que a URL base tenha o prefixo '/api'
-function ensureApiPrefix(url: string): string {
-  // Se já terminar com '/api', não adicione novamente
-  if (url.endsWith('/api')) {
-    return url;
-  }
-
-  // Se terminar com '/', adicione 'api'
-  if (url.endsWith('/')) {
-    return `${url}api`;
-  }
-
-  // Caso contrário, adicione '/api'
-  return `${url}/api`;
-}
 
 // Default export para resolver warning do React Router
 const config = {
