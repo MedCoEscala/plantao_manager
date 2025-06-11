@@ -40,7 +40,6 @@ export const useNotifications = () => {
     registerForPushNotificationsAsync()
       .then((token) => {
         if (token) {
-          console.log('✅ [Notifications] Token de push obtido com sucesso');
           setExpoPushToken(token);
           registerTokenWithBackend(token);
         } else {
@@ -86,9 +85,9 @@ export const useNotifications = () => {
   }, [isLoaded, isSignedIn]);
 
   const registerTokenWithBackend = async (token: string) => {
-    try {
-      console.log('📱 [Notifications] Registrando token no backend...');
+    if (!expoPushToken) return;
 
+    try {
       const deviceName = (await Device.deviceName) || 'Dispositivo desconhecido';
       const deviceType = Platform.OS;
       const appVersion = Constants.expoConfig?.version || 'unknown';
@@ -100,7 +99,6 @@ export const useNotifications = () => {
         appVersion,
       });
 
-      console.log('✅ [Notifications] Token registrado no backend com sucesso');
       setIsRegistered(true);
     } catch (error) {
       console.error('❌ [Notifications] Erro ao registrar token no backend:', error);
@@ -176,7 +174,6 @@ async function registerForPushNotificationsAsync(): Promise<string | null> {
             projectId,
           })
         ).data;
-        console.log('✅ Token obtido com projectId:', token.substring(0, 20) + '...');
       }
     } catch (error) {
       console.log(
@@ -186,7 +183,6 @@ async function registerForPushNotificationsAsync(): Promise<string | null> {
       return null;
     }
   } else {
-    console.log('🔕 [Notifications] Simulador detectado - notificações não disponíveis');
   }
 
   return token;

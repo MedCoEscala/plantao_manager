@@ -24,8 +24,6 @@ export class ClerkAuthGuard implements CanActivate {
     try {
       const authHeader = request.headers.authorization;
       if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        console.error('❌ [Auth] Token de autorização ausente ou malformatado');
-        console.error('❌ [Auth] AuthHeader recebido:', authHeader);
         this.logger.warn('Token de autorização ausente ou malformatado');
         throw new UnauthorizedException(
           'Token de autorização ausente ou malformatado',
@@ -37,7 +35,6 @@ export class ClerkAuthGuard implements CanActivate {
       const payload = await clerkClient.verifyToken(token);
 
       if (!payload || typeof payload !== 'object') {
-        console.error('❌ [Auth] Payload inválido:', payload);
         this.logger.warn(
           'Payload do token inválido ou não retornado como objeto',
         );
@@ -48,9 +45,6 @@ export class ClerkAuthGuard implements CanActivate {
 
       return true;
     } catch (error) {
-      console.error('❌ [Auth] Erro detalhado:', error);
-      console.error('❌ [Auth] Stack trace:', error.stack);
-
       this.logger.error('Erro ao verificar token:', error);
       if (
         error instanceof Error &&

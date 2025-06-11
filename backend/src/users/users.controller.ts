@@ -121,28 +121,10 @@ export class UsersController {
   ): Promise<User> {
     const clerkId = req.userContext.sub;
 
-    this.logger.log(
-      `📝 [UpdateProfile] Recebendo atualização para Clerk ID: ${clerkId}`,
-    );
-    this.logger.log(
-      `📊 [UpdateProfile] Dados recebidos:`,
-      JSON.stringify(updateProfileDto, null, 2),
-    );
-
     const result = await this.usersService.updateProfileByClerkId(
       clerkId,
       updateProfileDto,
     );
-
-    this.logger.log(`✅ [UpdateProfile] Resultado final:`, {
-      id: result.id,
-      name: result.name,
-      firstName: result.firstName,
-      lastName: result.lastName,
-      phoneNumber: result.phoneNumber,
-      gender: result.gender,
-      birthDate: result.birthDate,
-    });
 
     return result;
   }

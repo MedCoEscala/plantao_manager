@@ -13,6 +13,7 @@ import {
   Animated,
   TouchableOpacity,
   Dimensions,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -45,7 +46,7 @@ export default function VerifyCodeScreen() {
   }>();
   const router = useRouter();
   const { showToast } = useToast();
-  const { refreshProfile } = useProfileContext();
+  const { refreshProfile, updateLocalProfile } = useProfileContext();
   const mountedRef = useRef(true);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -262,10 +263,23 @@ export default function VerifyCodeScreen() {
               updateResponse.data
             );
 
-            // Forçar refresh do ProfileContext para pegar os dados atualizados
-            console.log('🔄 [VerifyCode] Forçando refresh do ProfileContext...');
-            await refreshProfile(); // Refresh simples do perfil
-            console.log('✅ [VerifyCode] ProfileContext atualizado com sucesso');
+            // Definir profile diretamente com os dados completos do PATCH
+            console.log('🔄 [VerifyCode] Definindo ProfileContext com dados completos do PATCH...');
+            updateLocalProfile({
+              id: updateResponse.data.id,
+              email: updateResponse.data.email,
+              name: updateResponse.data.name,
+              firstName: updateResponse.data.firstName,
+              lastName: updateResponse.data.lastName,
+              phoneNumber: updateResponse.data.phoneNumber,
+              birthDate: updateResponse.data.birthDate,
+              gender: updateResponse.data.gender,
+              imageUrl: updateResponse.data.imageUrl,
+              clerkId: updateResponse.data.clerkId,
+              createdAt: updateResponse.data.createdAt,
+              updatedAt: updateResponse.data.updatedAt,
+            });
+            console.log('✅ [VerifyCode] ProfileContext definido com sucesso');
           } catch (updateError: any) {
             console.error('❌ [VerifyCode] Erro ao atualizar dados adicionais:', {
               status: updateError.response?.status,

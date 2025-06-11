@@ -16,8 +16,6 @@ export const fetchWithAuth = async <T = any>(
   headers.set('Authorization', `Bearer ${token}`);
   headers.set('Content-Type', 'application/json');
 
-  console.log(`🔐 Fazendo requisição autenticada para: ${endpoint}`);
-
   try {
     const response = await apiClient.request({
       url: endpoint,
@@ -29,7 +27,7 @@ export const fetchWithAuth = async <T = any>(
     return response.data;
   } catch (error: any) {
     if (error.response && error.response.status === 401) {
-      console.error('🚫 Erro de autenticação (401)');
+      console.error('Erro de autenticação (401)');
     }
     throw error;
   }

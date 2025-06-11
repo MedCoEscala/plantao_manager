@@ -12,9 +12,3 @@ if (!clerkSecretKey) {
 export const clerkClient = createClerkClient({
   secretKey: clerkSecretKey,
 });
-
-// Log para debug (apenas primeiros caracteres)
-console.log(
-  '🔐 [Clerk Config] Configuração carregada com sucesso. Secret Key:',
-  clerkSecretKey.substring(0, 10) + '...',
-);

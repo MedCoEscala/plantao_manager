@@ -22,12 +22,11 @@ apiClient.interceptors.request.use(
     // Registra o momento de início da requisição
     activeRequests.set(requestKey, Date.now());
 
-    console.log(`🚀 Requisição para: ${config.url}`);
     (config as any).startTime = Date.now();
     return config;
   },
   (error) => {
-    console.error('❌ Erro na configuração da requisição:', error);
+    console.error('Erro na configuração da requisição:', error);
     return Promise.reject(error);
   }
 );
@@ -39,15 +38,8 @@ apiClient.interceptors.response.use(
     const { method, url, params } = response.config;
     const requestKey = `${method}:${url}${params ? JSON.stringify(params) : ''}`;
 
-    // Calcula duração da requisição se disponível
-    const startTime = activeRequests.get(requestKey);
-    if (startTime) {
-      const duration = Date.now() - startTime;
-      console.log(`✅ Resposta de: ${url} (${duration}ms)`);
-      activeRequests.delete(requestKey);
-    } else {
-      console.log(`✅ Resposta de: ${url}`);
-    }
+    // Remove da lista de requisições ativas
+    activeRequests.delete(requestKey);
 
     return response;
   },
@@ -59,21 +51,18 @@ apiClient.interceptors.response.use(
     }
 
     if (axios.isCancel(error)) {
-      console.log('Requisição cancelada:', error.message);
       return Promise.reject(error);
     }
 
-    console.error('❌ Erro na requisição:', error.config?.url);
+    console.error('Erro na requisição:', error.config?.url);
 
     if (error.code === 'ECONNABORTED') {
-      console.error('Mensagem: timeout of ' + error.config?.timeout + 'ms exceeded');
-      console.error('Erro de rede - Requisição foi feita mas sem resposta');
+      console.error('Timeout da requisição excedido');
     } else if (error.response) {
-      console.error('Mensagem:', error.response.data?.message || error.message);
       console.error('Status:', error.response.status);
+      console.error('Mensagem:', error.response.data?.message || error.message);
     } else if (error.request) {
-      console.error('Erro de rede - Requisição foi feita mas sem resposta');
-      console.error('Mensagem:', error.message);
+      console.error('Erro de rede - sem resposta do servidor');
     } else {
       console.error('Erro:', error.message);
     }
@@ -88,7 +77,6 @@ setInterval(() => {
   activeRequests.forEach((startTime, key) => {
     // Remove requisições com mais de 30 segundos
     if (now - startTime > 30000) {
-      console.log(`⏱️ Removendo requisição antiga: ${key}`);
       activeRequests.delete(key);
     }
   });

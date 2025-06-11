@@ -1,16 +1,19 @@
 import * as SecureStore from 'expo-secure-store';
 
 import { SyncResponse, SyncService } from './syncTypes';
-import { User } from '../../types/user';
+import { User } from '@/types/user';
 
 const LAST_SYNC_KEY = 'last_user_sync';
 
+/**
+ * @deprecated Este serviço foi substituído pelo ProfileContext.
+ * Use useProfileContext() ao invés deste serviço.
+ */
 class UserSyncService implements SyncService {
   async syncUserData(): Promise<SyncResponse> {
     try {
       // A sincronização agora é feita pelo ProfileContext via backend
       // Este método é mantido para compatibilidade mas não faz nada
-      console.log('⚠️ [UserSyncService] syncUserData is deprecated. Use ProfileContext instead.');
 
       await SecureStore.setItemAsync(LAST_SYNC_KEY, new Date().toISOString());
 
@@ -45,7 +48,7 @@ class UserSyncService implements SyncService {
 
   async getUserFromLocal(): Promise<User | null> {
     // Dados locais agora são gerenciados pelo ProfileContext
-    console.log('⚠️ [UserSyncService] getUserFromLocal is deprecated. Use ProfileContext instead.');
+
     return null;
   }
 

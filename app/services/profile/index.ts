@@ -1,138 +1,114 @@
-import { fetchWithAuth } from '@/utils/api-client';
-import { User, UserUpdateInput } from '@/types/user';
-import { ProfileService, ProfileResponse } from './profileTypes';
+import apiClient from '@/lib/axios';
+import { User } from '@/types/user';
 
-class ApiProfileService implements ProfileService {
-  constructor(private getToken: () => Promise<string | null>) {}
+interface ApiProfileResponse {
+  user: User;
+}
 
-  async getUserProfile(): Promise<User | null> {
+export class ApiProfileService {
+  static async getProfile(token: string): Promise<User> {
     try {
-      console.log('🔍 [ApiProfileService] Buscando perfil do usuário...');
+      const response = await apiClient.get('/users/me', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-      const userData = await fetchWithAuth<any>('/users/me', { method: 'GET' }, this.getToken);
+      const profileData = response.data;
 
-      if (!userData) {
-        console.warn('⚠️ [ApiProfileService] Dados do usuário não encontrados');
-        return null;
+      if (!profileData) {
+        throw new Error('Dados do perfil não encontrados na resposta da API');
       }
 
+      // Mapear response para User interface
       const user: User = {
-        id: userData.id,
-        email: userData.email,
-        name: userData.name,
-        firstName: userData.firstName,
-        lastName: userData.lastName,
-        phoneNumber: userData.phoneNumber || undefined,
-        birthDate: userData.birthDate || undefined,
-        gender: userData.gender || undefined,
-        imageUrl: userData.imageUrl || undefined,
-        clerkId: userData.clerkId,
-        createdAt: userData.createdAt,
-        updatedAt: userData.updatedAt,
+        id: profileData.id,
+        email: profileData.email,
+        name: profileData.name || '',
+        firstName: profileData.firstName || '',
+        lastName: profileData.lastName || '',
+        phoneNumber: profileData.phoneNumber || '',
+        birthDate: profileData.birthDate || '',
+        gender: profileData.gender || '',
+        imageUrl: profileData.imageUrl || '',
+        clerkId: profileData.clerkId,
+        createdAt: profileData.createdAt,
+        updatedAt: profileData.updatedAt,
       };
 
-      console.log('✅ [ApiProfileService] Perfil carregado:', {
-        id: user.id,
-        name: user.name,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
-      });
       return user;
-    } catch (error) {
-      console.error('❌ [ApiProfileService] Erro ao obter perfil:', error);
-
-      // Se usuário não encontrado, tentar sincronizar
-      if ((error as any)?.response?.status === 404) {
-        try {
-          console.log('👤 [ApiProfileService] Tentando sincronizar usuário...');
-          await fetchWithAuth('/users/sync', { method: 'POST' }, this.getToken);
-
-          // Tentar buscar novamente
-          const syncedUserData = await fetchWithAuth<any>(
-            '/users/me',
-            { method: 'GET' },
-            this.getToken
-          );
-
-          const user: User = {
-            id: syncedUserData.id,
-            email: syncedUserData.email,
-            name: syncedUserData.name,
-            firstName: syncedUserData.firstName,
-            lastName: syncedUserData.lastName,
-            phoneNumber: syncedUserData.phoneNumber || undefined,
-            birthDate: syncedUserData.birthDate || undefined,
-            gender: syncedUserData.gender || undefined,
-            imageUrl: syncedUserData.imageUrl || undefined,
-            clerkId: syncedUserData.clerkId,
-            createdAt: syncedUserData.createdAt,
-            updatedAt: syncedUserData.updatedAt,
-          };
-
-          console.log('✅ [ApiProfileService] Perfil sincronizado e carregado:', user);
-          return user;
-        } catch (syncError) {
-          console.error('❌ [ApiProfileService] Erro na sincronização:', syncError);
-          return null;
-        }
+    } catch (error: any) {
+      if (error.response?.status === 404) {
+        throw new Error('Perfil não encontrado. Sincronização necessária.');
       }
-
-      return null;
+      throw error;
     }
   }
 
-  async updateUserProfile(data: UserUpdateInput): Promise<ProfileResponse> {
+  static async syncUser(token: string): Promise<User> {
     try {
-      console.log('📝 [ApiProfileService] Atualizando perfil:', data);
-
-      const updatedUserData = await fetchWithAuth<any>(
-        '/users/me',
+      await apiClient.post(
+        '/users/sync',
+        {},
         {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data),
-        },
-        this.getToken
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
       );
 
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      const user = await this.getProfile(token);
+      return user;
+    } catch (error: any) {
+      throw error;
+    }
+  }
+
+  static async updateProfile(token: string, data: Partial<User>): Promise<User> {
+    try {
+      const response = await apiClient.patch('/users/me', data, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const profileData = response.data;
+
+      if (!profileData) {
+        throw new Error('Dados atualizados não encontrados na resposta da API');
+      }
+
+      // Mapear response para User interface
       const user: User = {
-        id: updatedUserData.id,
-        email: updatedUserData.email,
-        name: updatedUserData.name,
-        firstName: updatedUserData.firstName,
-        lastName: updatedUserData.lastName,
-        phoneNumber: updatedUserData.phoneNumber || undefined,
-        birthDate: updatedUserData.birthDate || undefined,
-        gender: updatedUserData.gender || undefined,
-        imageUrl: updatedUserData.imageUrl || undefined,
-        clerkId: updatedUserData.clerkId,
-        createdAt: updatedUserData.createdAt,
-        updatedAt: updatedUserData.updatedAt,
+        id: profileData.id,
+        email: profileData.email,
+        name: profileData.name || '',
+        firstName: profileData.firstName || '',
+        lastName: profileData.lastName || '',
+        phoneNumber: profileData.phoneNumber || '',
+        birthDate: profileData.birthDate || '',
+        gender: profileData.gender || '',
+        imageUrl: profileData.imageUrl || '',
+        clerkId: profileData.clerkId,
+        createdAt: profileData.createdAt,
+        updatedAt: profileData.updatedAt,
       };
 
-      console.log('✅ [ApiProfileService] Perfil atualizado:', user);
-      return {
-        success: true,
-        user,
-      };
+      return user;
     } catch (error: any) {
-      console.error('❌ [ApiProfileService] Erro ao atualizar perfil:', error);
-      return {
-        success: false,
-        error: error?.response?.data?.message || error?.message || 'Erro ao atualizar perfil',
-      };
+      throw error;
+    }
+  }
+
+  static async resyncProfile(token: string): Promise<User> {
+    try {
+      return await this.syncUser(token);
+    } catch (error: any) {
+      throw error;
     }
   }
 }
 
-let profileServiceInstance: ApiProfileService | null = null;
-
-export function getProfileService(getToken: () => Promise<string | null>): ProfileService {
-  if (!profileServiceInstance) {
-    profileServiceInstance = new ApiProfileService(getToken);
-  }
-  return profileServiceInstance;
-}
-
-export default profileServiceInstance;
+export default ApiProfileService;

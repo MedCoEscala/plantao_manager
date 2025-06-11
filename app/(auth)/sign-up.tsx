@@ -139,14 +139,6 @@ export default function SignUpScreen() {
     setErrors(newErrors);
     const isValid = Object.keys(newErrors).length === 0;
 
-    console.log('🔍 [Validação Step 2]', {
-      passwordLength: formData.password.length,
-      confirmPasswordLength: formData.confirmPassword.length,
-      passwordsMatch: formData.password === formData.confirmPassword,
-      isValid,
-      errors: newErrors,
-    });
-
     return isValid;
   };
 
@@ -161,7 +153,6 @@ export default function SignUpScreen() {
       if (isStep2Valid) {
         handleSubmit();
       } else {
-        console.warn('❌ [Signup] Validação step 2 falhou, não prosseguindo');
         showError('Por favor, corrija os erros antes de continuar');
         return;
       }
@@ -179,98 +170,56 @@ export default function SignUpScreen() {
   const handleSubmit = async () => {
     if (!isLoaded) return;
 
-    console.log('🚀 [Signup] Iniciando handleSubmit...');
-
-    const isStep1Valid = validateStep1();
-    const isStep2Valid = validateStep2();
-
-    if (!isStep1Valid || !isStep2Valid) {
-      console.error('❌ [Signup] Validação final falhou', {
-        step1: isStep1Valid,
-        step2: isStep2Valid,
-        errors,
-      });
-      showError('Por favor, corrija todos os erros antes de continuar');
-      return;
-    }
-
     setIsLoading(true);
+
     try {
-      console.log('📧 [Signup] Criando conta no Clerk...');
+      if (currentStep === 1) {
+        // Validar e avançar para step 2
+        const isValid = validateStep1();
+        if (isValid) {
+          setCurrentStep(2);
+        }
+      } else if (currentStep === 2) {
+        // Validar step 2 e criar conta
+        const isValid = validateStep2();
+        if (!isValid) {
+          showError('Por favor, corrija os erros antes de continuar');
+          return;
+        }
 
-      const signUpResult = await signUp.create({
-        emailAddress: formData.email.trim(),
-        password: formData.password.trim(),
-      });
+        // Criar conta no Clerk
+        await signUp?.create({
+          emailAddress: formData.email.trim(),
+          password: formData.password.trim(),
+        });
 
-      console.log('✅ [Signup] Conta criada no Clerk, preparando verificação...');
+        // Preparar verificação
+        await signUp?.prepareEmailAddressVerification({
+          strategy: 'email_code',
+        });
 
-      await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
-
-      showInfo('Código de verificação enviado!');
-
-      const birthDateString = formData.birthDate ? format(formData.birthDate, 'yyyy-MM-dd') : '';
-
-      console.log('🔄 [Signup] Navegando para verificação com dados:', {
-        email: formData.email.trim(),
-        firstName: formData.firstName.trim(),
-        lastName: formData.lastName.trim(),
-        hasPhoneNumber: !!formData.phoneNumber.trim(),
-        hasGender: !!formData.gender,
-        hasBirthDate: !!birthDateString,
-      });
-
-      const cleanFirstName = formData.firstName.trim();
-      const cleanLastName = formData.lastName.trim();
-      const cleanPhoneNumber = formData.phoneNumber.trim();
-      const cleanGender = formData.gender || '';
-
-      console.log('✅ [Signup] Dados limpos para envio:', {
-        firstName: cleanFirstName,
-        lastName: cleanLastName,
-        phoneNumber: cleanPhoneNumber,
-        gender: cleanGender,
-        birthDate: birthDateString,
-      });
-
-      router.push({
-        pathname: '/(auth)/verify-code',
-        params: {
+        // Preparar dados para navegação
+        const dataToSend: any = {
           email: formData.email.trim(),
-          firstName: cleanFirstName,
-          lastName: cleanLastName,
-          birthDate: birthDateString,
-          gender: cleanGender,
-          phoneNumber: cleanPhoneNumber,
-        },
-      });
-    } catch (err: any) {
-      console.error('❌ [Signup] Erro de Registro Clerk:', JSON.stringify(err, null, 2));
-      const firstError = err.errors?.[0];
+        };
 
-      if (firstError?.code === 'form_identifier_exists') {
-        showError('Este email já está cadastrado. Tente fazer login ou usar outro email.');
-      } else if (firstError?.code === 'form_password_pwned') {
-        showError(
-          'Esta senha foi encontrada em vazamentos de dados. Por segurança, use uma senha diferente.'
-        );
-      } else if (firstError?.code === 'form_password_not_strong_enough') {
-        showError(
-          'Senha muito fraca. Use pelo menos 8 caracteres com maiúscula, minúscula, número e caractere especial.'
-        );
-      } else if (firstError?.code === 'form_password_too_common') {
-        showError('Esta senha é muito comum. Escolha uma senha mais única e segura.');
-      } else if (firstError?.message?.includes('password')) {
-        showError(
-          `Erro na senha: ${firstError.message}. Certifique-se de usar pelo menos 8 caracteres com maiúscula, minúscula, número e caractere especial.`
-        );
-      } else {
-        const errorMessage =
-          firstError?.longMessage ||
-          firstError?.message ||
-          'Erro ao criar conta. Verifique os dados e tente novamente.';
-        showError(errorMessage);
+        // Adicionar dados opcionais apenas se preenchidos
+        if (formData.firstName.trim()) dataToSend.firstName = formData.firstName.trim();
+        if (formData.lastName.trim()) dataToSend.lastName = formData.lastName.trim();
+        if (formData.birthDate) dataToSend.birthDate = format(formData.birthDate, 'yyyy-MM-dd');
+        if (formData.gender) dataToSend.gender = formData.gender;
+        if (formData.phoneNumber.trim()) dataToSend.phoneNumber = formData.phoneNumber.trim();
+
+        // Navegar para verificação
+        router.push({
+          pathname: '/verify-code',
+          params: dataToSend,
+        });
       }
+    } catch (err: any) {
+      console.error('Erro no signup:', err);
+      const errorMessage = err?.errors?.[0]?.message || 'Erro ao criar conta. Tente novamente.';
+      showError(errorMessage);
     } finally {
       setIsLoading(false);
     }

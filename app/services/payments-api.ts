@@ -57,15 +57,11 @@ export const usePaymentsApi = () => {
         queryParams = `?${params.toString()}`;
       }
 
-      console.log('🔄 Buscando pagamentos do backend:', queryParams);
-
       const response = await apiClient.get(`/payments${queryParams}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
-
-      console.log('📊 Dados de pagamentos recebidos:', response.data);
 
       // Transformar dados do backend para o formato esperado pela UI
       return response.data.map((payment: any) => {
@@ -143,8 +139,6 @@ export const usePaymentsApi = () => {
           Authorization: `Bearer ${token}`,
         },
       });
-
-      console.log('✅ Pagamento criado:', response.data);
 
       // Transformar dados para o formato esperado
       const payment = response.data;

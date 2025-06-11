@@ -4,24 +4,15 @@ export class UserNameHelper {
   static getDisplayName(profile: User | null | undefined): string {
     if (!profile) return 'Usuário';
 
-    console.log('🔍 [UserNameHelper] Determinando nome para exibição:', {
-      firstName: profile.firstName,
-      lastName: profile.lastName,
-      name: profile.name,
-      email: profile.email,
-    });
-
     const firstName = profile.firstName?.trim() || '';
     const lastName = profile.lastName?.trim() || '';
 
     if (firstName || lastName) {
       const fullName = `${firstName} ${lastName}`.trim();
-      console.log('✅ [UserNameHelper] Usando firstName + lastName:', fullName);
       return fullName;
     }
 
     if (profile.name && profile.name.trim()) {
-      console.log('✅ [UserNameHelper] Usando campo name:', profile.name.trim());
       return profile.name.trim();
     }
 
@@ -29,12 +20,10 @@ export class UserNameHelper {
       const emailName = profile.email.split('@')[0];
       if (emailName && emailName.trim()) {
         const displayName = emailName.charAt(0).toUpperCase() + emailName.slice(1);
-        console.log('⚠️ [UserNameHelper] Usando fallback do email:', displayName);
         return displayName;
       }
     }
 
-    console.log('❌ [UserNameHelper] Nenhum nome encontrado, usando fallback padrão');
     return 'Usuário';
   }
 
@@ -46,19 +35,16 @@ export class UserNameHelper {
 
     if (firstName && lastName) {
       const initials = `${firstName.charAt(0).toUpperCase()}${lastName.charAt(0).toUpperCase()}`;
-      console.log('✅ [UserNameHelper] Iniciais de firstName + lastName:', initials);
       return initials;
     }
 
     if (firstName && firstName.length >= 2) {
       const initials = `${firstName.charAt(0).toUpperCase()}${firstName.charAt(1).toUpperCase()}`;
-      console.log('✅ [UserNameHelper] Iniciais do firstName:', initials);
       return initials;
     }
 
     if (firstName) {
       const initial = firstName.charAt(0).toUpperCase();
-      console.log('✅ [UserNameHelper] Inicial do firstName:', initial);
       return initial;
     }
 
@@ -115,12 +101,6 @@ export class UserNameHelper {
     );
 
     const hasNameField = !!(profile.name && profile.name.trim() && profile.name.trim().length > 1);
-
-    console.log('🔍 [UserNameHelper] Verificando nome completo:', {
-      hasFirstOrLast,
-      hasNameField,
-      result: hasFirstOrLast || hasNameField,
-    });
 
     return hasFirstOrLast || hasNameField;
   }
