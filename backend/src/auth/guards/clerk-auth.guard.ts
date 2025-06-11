@@ -1,4 +1,3 @@
-import clerkClient from '@clerk/clerk-sdk-node';
 import {
   CanActivate,
   ExecutionContext,
@@ -8,6 +7,8 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 import { Request } from 'express';
+
+import { clerkClient } from '../../config/clerk.config';
 
 interface RequestWithUserContext extends Request {
   userContext: Record<string, any>;

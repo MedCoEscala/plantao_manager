@@ -17,9 +17,7 @@
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.lucaserib.medescala"
@@ -29,7 +27,8 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.lucaserib.medescala"
+      "package": "com.lucaserib.medescala",
+      "versionCode": 1
     },
     "web": {
       "favicon": "./assets/favicon.png"

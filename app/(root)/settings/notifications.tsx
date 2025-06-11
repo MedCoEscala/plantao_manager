@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
   View,
@@ -9,7 +10,6 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
 
 import { useNotifications } from '../../hooks/useNotifications';
 import {

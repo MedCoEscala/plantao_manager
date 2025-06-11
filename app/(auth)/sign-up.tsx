@@ -20,9 +20,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import Logo from '../components/auth/Logo';
 
+import { useNotification } from '@/components';
 import AuthButton from '@/components/auth/AuthButton';
 import AuthInput from '@/components/auth/AuthInput';
-import { useNotification } from '@/components';
+import { validatePassword } from '@/services/auth/utils';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -124,10 +125,10 @@ export default function SignUpScreen() {
   const validateStep2 = () => {
     const newErrors: Record<string, string> = {};
 
-    if (!formData.password.trim()) {
-      newErrors.password = 'Senha é obrigatória';
-    } else if (formData.password.length < 8) {
-      newErrors.password = 'Senha deve ter pelo menos 8 caracteres';
+    // Usar a nova validação de senha
+    const passwordValidation = validatePassword(formData.password);
+    if (!passwordValidation.isValid) {
+      newErrors.password = passwordValidation.message || 'Senha inválida';
     }
 
     if (!formData.confirmPassword.trim()) {
@@ -189,13 +190,23 @@ export default function SignUpScreen() {
     } catch (err: any) {
       console.error('Erro de Registro Clerk:', JSON.stringify(err, null, 2));
       const firstError = err.errors?.[0];
-      const errorMessage =
-        firstError?.longMessage ||
-        firstError?.message ||
-        'Erro ao criar conta. Verifique os dados e tente novamente.';
+
+      // Tratamento específico para tipos de erro
       if (firstError?.code === 'form_identifier_exists') {
         showError('Este email já está cadastrado.');
+      } else if (firstError?.code === 'form_password_pwned') {
+        showError(
+          'Esta senha foi encontrada em vazamentos de dados. Por segurança, use uma senha diferente.'
+        );
+      } else if (firstError?.code === 'form_password_not_strong_enough') {
+        showError(
+          'Senha muito fraca. Use pelo menos 6 caracteres, 1 letra minúscula e 1 caractere especial.'
+        );
       } else {
+        const errorMessage =
+          firstError?.longMessage ||
+          firstError?.message ||
+          'Erro ao criar conta. Verifique os dados e tente novamente.';
         showError(errorMessage);
       }
     } finally {
@@ -259,7 +270,7 @@ export default function SignUpScreen() {
         onChangeText={(text) => updateField('password', text)}
         error={errors.password}
         required
-        helperText="Mínimo 8 caracteres"
+        helperText="Mín. 6 caracteres, 1 letra minúscula e 1 especial"
         secureTextEntry
         leftIcon="lock-closed"
       />

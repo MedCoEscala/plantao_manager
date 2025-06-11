@@ -2,12 +2,12 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useNotification } from '@/contexts/NotificationContext';
 import ColorField from '@/components/form/ColorField';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import Input from '@/components/ui/Input';
 import SectionHeader from '@/components/ui/SectionHeader';
+import { useNotification } from '@/contexts/NotificationContext';
 import { useLocationsApi } from '@/services/locations-api';
 
 const COLOR_PALETTE = [

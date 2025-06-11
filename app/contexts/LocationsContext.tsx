@@ -1,117 +1,206 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { useAuth } from '@clerk/clerk-expo';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 
-import { useLocationsApi, Location } from '@/services/locations-api';
+import { useToast } from '@/components/ui/Toast';
+import { useProfile } from '@/hooks/useProfile';
+import { fetchWithAuth } from '@/utils/api-client';
 
-interface LocationOption {
-  value: string;
-  label: string;
-  icon: string;
+export interface Location {
+  id: string;
+  name: string;
+  address?: string;
+  phone?: string;
   color: string;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface LocationsContextType {
   locations: Location[];
-  locationOptions: LocationOption[];
   isLoading: boolean;
   error: string | null;
   refreshLocations: () => Promise<void>;
-  getLocationById: (id: string) => Location | undefined;
+  addLocation: (location: Omit<Location, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
+  updateLocation: (id: string, location: Partial<Location>) => Promise<void>;
+  deleteLocation: (id: string) => Promise<void>;
 }
 
 const LocationsContext = createContext<LocationsContextType | undefined>(undefined);
 
 export function LocationsProvider({ children }: { children: React.ReactNode }) {
   const [locations, setLocations] = useState<Location[]>([]);
-  const [locationOptions, setLocationOptions] = useState<LocationOption[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const isLoadingRef = useRef(false);
-  const dataLoadedRef = useRef(false);
-  const lastLoadTimeRef = useRef(0);
+  const { getToken, isLoaded: isAuthLoaded, userId } = useAuth();
+  const { showToast } = useToast();
+  const { isInitialized: isProfileInitialized } = useProfile();
 
-  const locationsApi = useLocationsApi();
+  const fetchLocations = useCallback(async (): Promise<void> => {
+    // Só busca se o profile estiver inicializado
+    if (!isAuthLoaded || !userId || !isProfileInitialized) {
+      console.log('📍 [Locations] Aguardando inicialização do profile...');
+      setIsLoading(false);
+      return;
+    }
 
-  const loadLocations = useCallback(
-    async (force = false) => {
-      const now = Date.now();
-
-      // Evitar múltiplas requisições simultâneas
-      if (isLoadingRef.current && !force) {
-        return;
+    try {
+      console.log('🚀 [Locations] Requisição para: /locations');
+      const token = await getToken();
+      if (!token) {
+        throw new Error('Token de autenticação não disponível');
       }
 
-      // Cache de 5 minutos
-      if (dataLoadedRef.current && !force && now - lastLoadTimeRef.current < 300000) {
-        return;
-      }
-
-      isLoadingRef.current = true;
       setIsLoading(true);
       setError(null);
-      lastLoadTimeRef.current = now;
+
+      const data = await fetchWithAuth<Location[]>(
+        '/locations',
+        { method: 'GET' },
+        async () => token
+      );
+
+      console.log('✅ [Locations] Locais carregados:', data?.length || 0);
+      setLocations(data || []);
+    } catch (error: any) {
+      console.log('❌ [Locations] Erro ao buscar locais:', error);
+      const errorMessage =
+        error?.response?.data?.message || error?.message || 'Erro ao carregar locais';
+      setError(errorMessage);
+
+      // Não mostrar toast se for erro de autenticação (ainda inicializando)
+      if (!error?.message?.includes('não autenticado')) {
+        showToast('Erro ao carregar locais', 'error');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }, [isAuthLoaded, userId, isProfileInitialized, getToken, showToast]);
+
+  const addLocation = useCallback(
+    async (locationData: Omit<Location, 'id' | 'createdAt' | 'updatedAt'>): Promise<void> => {
+      if (!getToken) return;
 
       try {
-        const data = await locationsApi.getLocations();
+        const token = await getToken();
+        if (!token) throw new Error('Token não disponível');
 
-        setLocations(data);
-        dataLoadedRef.current = true;
+        const newLocation = await fetchWithAuth<Location>(
+          '/locations',
+          {
+            method: 'POST',
+            body: JSON.stringify(locationData),
+          },
+          async () => token
+        );
 
-        const options = data.map((location) => ({
-          value: location.id,
-          label: location.name,
-          icon: 'business-outline',
-          color: location.color || '#0077B6',
-        }));
-
-        setLocationOptions(options);
+        setLocations((prev) => [...prev, newLocation]);
+        showToast('Local adicionado com sucesso', 'success');
       } catch (error: any) {
-        console.error('Erro ao carregar locais:', error);
-        setError(error.message || 'Erro ao carregar locais');
-      } finally {
-        setIsLoading(false);
-        isLoadingRef.current = false;
+        console.error('Erro ao adicionar local:', error);
+        const errorMessage = error?.response?.data?.message || 'Erro ao adicionar local';
+        showToast(errorMessage, 'error');
+        throw error;
       }
     },
-    [locationsApi]
+    [getToken, showToast]
   );
 
-  // Carregar locations apenas uma vez na inicialização - usando ref para evitar loop
-  const hasInitializedRef = useRef(false);
-  useEffect(() => {
-    if (!hasInitializedRef.current && !dataLoadedRef.current && !isLoadingRef.current) {
-      hasInitializedRef.current = true;
-      loadLocations(false);
-    }
-  }, []); // Sem dependências para evitar loop
+  const updateLocation = useCallback(
+    async (id: string, locationData: Partial<Location>): Promise<void> => {
+      if (!getToken) return;
 
-  const refreshLocations = useCallback(async () => {
-    await loadLocations(true);
-  }, [loadLocations]);
+      try {
+        const token = await getToken();
+        if (!token) throw new Error('Token não disponível');
 
-  const getLocationById = useCallback(
-    (id: string): Location | undefined => {
-      return locations.find((location) => location.id === id);
+        const updatedLocation = await fetchWithAuth<Location>(
+          `/locations/${id}`,
+          {
+            method: 'PUT',
+            body: JSON.stringify(locationData),
+          },
+          async () => token
+        );
+
+        setLocations((prev) => prev.map((l) => (l.id === id ? updatedLocation : l)));
+        showToast('Local atualizado com sucesso', 'success');
+      } catch (error: any) {
+        console.error('Erro ao atualizar local:', error);
+        const errorMessage = error?.response?.data?.message || 'Erro ao atualizar local';
+        showToast(errorMessage, 'error');
+        throw error;
+      }
     },
-    [locations]
+    [getToken, showToast]
   );
+
+  const deleteLocation = useCallback(
+    async (id: string): Promise<void> => {
+      if (!getToken) return;
+
+      try {
+        const token = await getToken();
+        if (!token) throw new Error('Token não disponível');
+
+        await fetchWithAuth(`/locations/${id}`, { method: 'DELETE' }, async () => token);
+
+        setLocations((prev) => prev.filter((l) => l.id !== id));
+        showToast('Local removido com sucesso', 'success');
+      } catch (error: any) {
+        console.error('Erro ao remover local:', error);
+        const errorMessage = error?.response?.data?.message || 'Erro ao remover local';
+        showToast(errorMessage, 'error');
+        throw error;
+      }
+    },
+    [getToken, showToast]
+  );
+
+  // Carrega locais quando o profile estiver inicializado
+  useEffect(() => {
+    if (isProfileInitialized) {
+      console.log('📍 [Locations] Profile inicializado, carregando locais...');
+      fetchLocations();
+    }
+  }, [isProfileInitialized, fetchLocations]);
+
+  // Reset quando usuário desloga
+  useEffect(() => {
+    if (isAuthLoaded && !userId) {
+      console.log('🔄 [Locations] Usuário deslogado, resetando contexto...');
+      setLocations([]);
+      setError(null);
+      setIsLoading(false);
+    }
+  }, [isAuthLoaded, userId]);
 
   const value: LocationsContextType = {
     locations,
-    locationOptions,
     isLoading,
     error,
-    refreshLocations,
-    getLocationById,
+    refreshLocations: fetchLocations,
+    addLocation,
+    updateLocation,
+    deleteLocation,
   };
 
   return <LocationsContext.Provider value={value}>{children}</LocationsContext.Provider>;
 }
 
-export function useLocations() {
+export function useLocationsContext(): LocationsContextType {
   const context = useContext(LocationsContext);
   if (context === undefined) {
-    throw new Error('useLocations must be used within a LocationsProvider');
+    throw new Error('useLocationsContext deve ser usado dentro de LocationsProvider');
   }
   return context;
 }
+
+// Default export para resolver warning do React Router
+const locationsContext = {
+  LocationsProvider,
+  useLocationsContext,
+};
+
+export default locationsContext;

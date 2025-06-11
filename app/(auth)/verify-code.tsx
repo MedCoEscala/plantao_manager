@@ -179,34 +179,68 @@ export default function VerifyCodeScreen() {
 
       const authHeader = { headers: { Authorization: `Bearer ${token}` } };
 
-      // 4. Sincronização completa em uma única operação
+      // 4. Sincronização com aguardo de estabilização
       try {
         console.log('🔄 Sincronizando usuário com dados completos...');
 
-        // Primeiro faz a sincronização básica
-        await apiClient.post('/users/sync', {}, authHeader);
-        console.log('✅ Sincronização básica concluída');
+        // Primeiro faz a sincronização básica com retry
+        let syncAttempts = 0;
+        const maxSyncAttempts = 3;
+        let syncSuccess = false;
+
+        while (syncAttempts < maxSyncAttempts && !syncSuccess) {
+          try {
+            await apiClient.post('/users/sync', {}, authHeader);
+            console.log('✅ Sincronização básica concluída');
+            syncSuccess = true;
+          } catch (syncErr: any) {
+            syncAttempts++;
+            console.log(`⏳ Tentativa de sincronização ${syncAttempts}/${maxSyncAttempts}...`);
+
+            if (syncAttempts < maxSyncAttempts) {
+              await new Promise((resolve) => setTimeout(resolve, 1500));
+            } else {
+              throw syncErr;
+            }
+          }
+        }
+
+        // Aguarda um pouco para garantir que a sincronização foi processada
+        await new Promise((resolve) => setTimeout(resolve, 1000));
 
         // Se tem dados adicionais, atualiza o perfil
         if (Object.keys(profileData).length > 0 && mountedRef.current) {
           console.log('🔄 Atualizando perfil com dados adicionais...', profileData);
-          await apiClient.patch('/users/me', profileData, authHeader);
-          console.log('✅ Perfil atualizado com dados adicionais');
+
+          try {
+            await apiClient.patch('/users/me', profileData, authHeader);
+            console.log('✅ Perfil atualizado com dados adicionais');
+          } catch (updateError: any) {
+            console.error('⚠️ Erro ao atualizar dados adicionais:', updateError);
+            // Não falha o fluxo se os dados adicionais não foram salvos
+            if (mountedRef.current) {
+              showToast('Conta criada! Alguns dados podem ser atualizados no perfil.', 'success');
+            }
+          }
         }
       } catch (syncError: any) {
         console.error('❌ Erro na sincronização:', syncError);
 
-        // Se for erro 404 (usuário não encontrado), pode continuar
-        // pois o perfil será criado quando acessar a aplicação
-        if (syncError.response?.status === 404) {
-          console.log('⚠️ Usuário não sincronizado ainda, será criado no primeiro acesso');
+        // Se for erro de autenticação, pode ser problema temporário
+        if (syncError.response?.status === 401 || syncError.response?.status === 500) {
+          console.log(
+            '⚠️ Erro temporário na sincronização, usuário será criado no primeiro acesso'
+          );
+          if (mountedRef.current) {
+            showToast(
+              'Conta verificada! Alguns dados serão sincronizados no primeiro acesso.',
+              'success'
+            );
+          }
         } else {
           // Para outros erros, mostra aviso mas não falha o fluxo
           if (mountedRef.current) {
-            showToast(
-              'Alguns dados podem não ter sido salvos. Você pode atualizá-los no perfil.',
-              'warning'
-            );
+            showToast('Conta verificada! Você pode completar seu perfil depois.', 'success');
           }
         }
       }

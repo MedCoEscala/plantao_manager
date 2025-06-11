@@ -20,6 +20,22 @@ export interface AuthService {
 }
 */
 
+export interface AuthUser {
+  id: string;
+  email: string | null;
+  name: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  imageUrl: string | null;
+  // Adicione outros campos que você precisa do usuário autenticado
+}
+
+// Interface base para serviços de autenticação
+export interface AuthService {
+  verifyTokenAndGetUser(token: string): Promise<AuthUser | null>;
+  // Outros métodos de autenticação podem ser definidos aqui (login, register, etc.)
+}
+
 // Default export para resolver warning do React Router
 const authTypes = {};
 

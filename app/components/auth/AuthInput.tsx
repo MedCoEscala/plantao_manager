@@ -142,7 +142,7 @@ export default function AuthInput({
   const finalRightIconPress = secureTextEntry ? togglePasswordVisibility : onRightIconPress;
 
   const getInputContainerStyle = (): ViewStyle[] => {
-    let containerStyles: ViewStyle[] = [styles.inputContainer];
+    const containerStyles: ViewStyle[] = [styles.inputContainer];
 
     if (error) {
       containerStyles.push(styles.inputContainerError);

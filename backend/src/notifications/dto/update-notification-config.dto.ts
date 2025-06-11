@@ -1,3 +1,4 @@
+import { Type } from 'class-transformer';
 import {
   IsBoolean,
   IsOptional,
@@ -7,7 +8,6 @@ import {
   Max,
   Matches,
 } from 'class-validator';
-import { Type } from 'class-transformer';
 
 export class UpdateNotificationConfigDto {
   @IsBoolean()

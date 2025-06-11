@@ -1,4 +1,5 @@
 import { fetchWithAuth } from '@app/utils/api-client';
+
 import { ProfileResponse, ProfileService, ProfileUpdateData } from './profileTypes';
 import { User } from '../../types/user';
 

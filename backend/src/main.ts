@@ -1,6 +1,7 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { networkInterfaces } from 'os';
+
 import { AppModule } from './app.module';
 
 // Cache da aplicação para serverless

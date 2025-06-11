@@ -118,7 +118,7 @@ export default function AuthButton({
   ...props
 }: AuthButtonProps) {
   const getButtonStyle = (): ViewStyle[] => {
-    let buttonStyles: ViewStyle[] = [styles.button];
+    const buttonStyles: ViewStyle[] = [styles.button];
 
     // Tamanhos
     switch (size) {
@@ -163,7 +163,7 @@ export default function AuthButton({
   };
 
   const getTextStyle = (): TextStyle[] => {
-    let textStyles: TextStyle[] = [];
+    const textStyles: TextStyle[] = [];
 
     // Tamanho do texto
     switch (size) {

@@ -1,8 +1,9 @@
 import { Controller, Get, Post, UseGuards, Req } from '@nestjs/common';
+
 import { AppService } from './app.service';
-import { PrismaService } from './prisma/prisma.service';
-import { NotificationsService } from './notifications/notifications.service';
 import { ClerkAuthGuard } from './auth/guards/clerk-auth.guard';
+import { NotificationsService } from './notifications/notifications.service';
+import { PrismaService } from './prisma/prisma.service';
 
 interface RequestWithUserContext extends Request {
   userContext: Record<string, any>;

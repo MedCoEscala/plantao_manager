@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
-import { Platform } from 'react-native';
+import { useAuth } from '@clerk/clerk-expo';
+import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
-import Constants from 'expo-constants';
-import { useAuth } from '@clerk/clerk-expo';
+import { useEffect, useRef, useState } from 'react';
+import { Platform } from 'react-native';
 
 import { useNotificationsApi } from '../services/notifications-api';
 

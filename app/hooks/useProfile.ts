@@ -7,6 +7,7 @@ export interface UseProfileResult {
   refetch: () => Promise<void>;
   updateLocalProfile: (updates: Partial<UserProfile>) => void;
   syncUser: () => Promise<boolean>;
+  isInitialized: boolean;
 }
 
 /**
@@ -14,7 +15,7 @@ export interface UseProfileResult {
  * This hook is kept for backward compatibility but should be replaced
  */
 export function useProfile(): UseProfileResult {
-  const { profile, isLoading, error, refreshProfile, updateLocalProfile, syncUser } =
+  const { profile, isLoading, error, refreshProfile, updateLocalProfile, syncUser, isInitialized } =
     useProfileContext();
 
   return {
@@ -24,6 +25,7 @@ export function useProfile(): UseProfileResult {
     refetch: refreshProfile,
     updateLocalProfile,
     syncUser,
+    isInitialized,
   };
 }
 

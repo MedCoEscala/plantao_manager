@@ -4,15 +4,15 @@ import {
   NotFoundException,
   InternalServerErrorException,
 } from '@nestjs/common';
-import { Expo, ExpoPushMessage, ExpoPushTicket } from 'expo-server-sdk';
 import { Cron } from '@nestjs/schedule';
 import { DeviceToken, NotificationConfig } from '@prisma/client';
 import { addDays, format, startOfDay, endOfDay } from 'date-fns';
+import { Expo, ExpoPushMessage, ExpoPushTicket } from 'expo-server-sdk';
 
 import { PrismaService } from '../prisma/prisma.service';
 import { RegisterDeviceTokenDto } from './dto/register-device-token.dto';
-import { UpdateNotificationConfigDto } from './dto/update-notification-config.dto';
 import { SendNotificationDto } from './dto/send-notification.dto';
+import { UpdateNotificationConfigDto } from './dto/update-notification-config.dto';
 
 @Injectable()
 export class NotificationsService {

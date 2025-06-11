@@ -610,11 +610,11 @@ export class ShiftsService {
       }
 
       // Buscar conflitos existentes se skipConflicts estiver habilitado
-      let existingShifts: Array<{
+      let existingShifts: {
         date: Date;
         startTime: Date;
         endTime: Date;
-      }> = [];
+      }[] = [];
 
       if (skipConflicts) {
         const dates = shifts.map((s) => s.date);

@@ -13,10 +13,10 @@ import {
 import { DeviceToken, NotificationConfig } from '@prisma/client';
 import { Request } from 'express';
 
-import { NotificationsService } from './notifications.service';
 import { RegisterDeviceTokenDto } from './dto/register-device-token.dto';
-import { UpdateNotificationConfigDto } from './dto/update-notification-config.dto';
 import { SendNotificationDto } from './dto/send-notification.dto';
+import { UpdateNotificationConfigDto } from './dto/update-notification-config.dto';
+import { NotificationsService } from './notifications.service';
 import { ClerkAuthGuard } from '../auth/guards/clerk-auth.guard';
 
 interface RequestWithUserContext extends Request {

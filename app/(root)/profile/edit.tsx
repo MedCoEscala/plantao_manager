@@ -288,8 +288,8 @@ export default function EditProfileScreen() {
             <View className="mb-4 h-20 w-20 items-center justify-center rounded-2xl bg-primary/10">
               <Text className="text-2xl font-bold text-primary">
                 {getInitials({
-                  firstName: firstName,
-                  lastName: lastName,
+                  firstName,
+                  lastName,
                   id: '',
                   email: '',
                 }) || '?'}

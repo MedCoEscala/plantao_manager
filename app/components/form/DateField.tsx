@@ -123,7 +123,7 @@ export function DateField({
   const pickerProps = useMemo(() => {
     return {
       isVisible: isPickerVisible,
-      mode: mode,
+      mode,
       date: pickerDate,
       onConfirm: handlePickerConfirm,
       onCancel: handlePickerCancel,

@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@clerk/clerk-expo';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+
 import { useToast } from '@/components/ui/Toast';
 import { fetchWithAuth } from '@/utils/api-client';
 
@@ -25,6 +26,7 @@ interface ProfileContextType {
   refreshProfile: () => Promise<void>;
   updateLocalProfile: (updates: Partial<UserProfile>) => void;
   syncUser: () => Promise<boolean>;
+  isInitialized: boolean;
 }
 
 const ProfileContext = createContext<ProfileContextType | undefined>(undefined);
@@ -33,15 +35,20 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
+
   const { getToken, isLoaded: isAuthLoaded, userId } = useAuth();
   const { showToast } = useToast();
+
   const initialized = useRef(false);
   const syncingRef = useRef(false);
+  const fetchingRef = useRef(false);
 
-  // Função para sincronizar usuário com retry
+  // Função para sincronizar usuário com retry limitado
   const syncUserWithRetry = useCallback(
-    async (token: string, maxRetries: number = 2): Promise<boolean> => {
+    async (token: string, maxRetries: number = 1): Promise<boolean> => {
       if (syncingRef.current) {
+        console.log('🔄 [Profile] Sincronização já em andamento, aguardando...');
         return false;
       }
 
@@ -49,20 +56,28 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       let retries = 0;
 
       try {
+        console.log('🔄 [Profile] Iniciando sincronização do usuário...');
+
         while (retries < maxRetries) {
           try {
             await fetchWithAuth('/users/sync', { method: 'POST' }, async () => token);
+            console.log('✅ [Profile] Usuário sincronizado com sucesso');
             return true;
           } catch (syncError: any) {
             retries++;
-            console.error(`Erro na sincronização (tentativa ${retries}):`, syncError);
+            console.error(
+              `❌ [Profile] Erro na sincronização (tentativa ${retries}/${maxRetries}):`,
+              syncError
+            );
 
             if (retries < maxRetries) {
-              // Aguardar um pouco antes de tentar novamente
-              await new Promise((resolve) => setTimeout(resolve, 1000));
+              console.log('⏳ [Profile] Aguardando antes de tentar novamente...');
+              await new Promise((resolve) => setTimeout(resolve, 2000));
             }
           }
         }
+
+        console.error('❌ [Profile] Falha na sincronização após todas as tentativas');
         return false;
       } finally {
         syncingRef.current = false;
@@ -71,14 +86,16 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     []
   );
 
-  // Função para buscar perfil
+  // Função para buscar perfil com controle de estado
   const fetchProfile = useCallback(async (): Promise<void> => {
-    if (!isAuthLoaded || !userId) {
-      setIsLoading(false);
+    if (!isAuthLoaded || !userId || fetchingRef.current) {
       return;
     }
 
+    fetchingRef.current = true;
+
     try {
+      console.log('📱 [Profile] Iniciando busca do perfil...');
       setIsLoading(true);
       setError(null);
 
@@ -89,17 +106,24 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
 
       let response;
       try {
+        console.log('🔍 [Profile] Buscando perfil do usuário...');
         response = await fetchWithAuth('/users/me', { method: 'GET' }, async () => token);
+        console.log('✅ [Profile] Perfil encontrado');
       } catch (error: any) {
-        // Se usuário não encontrado, tenta sincronizar UMA ÚNICA VEZ
+        // Se usuário não encontrado (404), tenta sincronizar
         if (error.response?.status === 404) {
+          console.log('👤 [Profile] Usuário não encontrado, iniciando sincronização...');
+
           const syncSuccess = await syncUserWithRetry(token, 1);
           if (!syncSuccess) {
-            throw new Error('Falha na sincronização do usuário');
+            throw new Error('Falha na sincronização inicial do usuário');
           }
 
-          // Tenta buscar novamente após sincronização
+          // Aguarda um pouco e tenta buscar novamente
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          console.log('🔍 [Profile] Tentando buscar perfil após sincronização...');
           response = await fetchWithAuth('/users/me', { method: 'GET' }, async () => token);
+          console.log('✅ [Profile] Perfil criado e recuperado com sucesso');
         } else {
           throw error;
         }
@@ -121,19 +145,28 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       };
 
       setProfile(profileData);
+      setIsInitialized(true);
+      console.log('✅ [Profile] ProfileContext inicializado com sucesso');
     } catch (error: any) {
-      console.error('Erro ao buscar perfil:', error);
+      console.error('❌ [Profile] Erro ao buscar perfil:', error);
       const errorMessage =
         error?.response?.data?.message || error?.message || 'Erro ao carregar perfil do usuário';
       setError(errorMessage);
-      showToast('Erro ao carregar perfil. Tente novamente.', 'error');
+
+      // Não mostrar toast em caso de erro 404 (usuário novo)
+      if (error?.response?.status !== 404) {
+        showToast('Erro ao carregar perfil. Tente novamente.', 'error');
+      }
     } finally {
       setIsLoading(false);
+      fetchingRef.current = false;
     }
   }, [isAuthLoaded, userId, getToken, showToast, syncUserWithRetry]);
 
   const refreshProfile = useCallback(async () => {
-    await fetchProfile();
+    if (!fetchingRef.current) {
+      await fetchProfile();
+    }
   }, [fetchProfile]);
 
   const updateLocalProfile = useCallback(
@@ -141,6 +174,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       if (profile) {
         const updatedProfile = { ...profile, ...updates };
         setProfile(updatedProfile);
+        console.log('📝 [Profile] Perfil atualizado localmente');
       }
     },
     [profile]
@@ -155,18 +189,33 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
 
       return await syncUserWithRetry(token, 2);
     } catch (error) {
-      console.error('Erro na sincronização pública:', error);
+      console.error('❌ [Profile] Erro na sincronização pública:', error);
       return false;
     }
   }, [getToken, syncUserWithRetry]);
 
-  // Carregar perfil apenas uma vez na inicialização
+  // Inicialização única e controlada
   useEffect(() => {
     if (!initialized.current && isAuthLoaded && userId) {
       initialized.current = true;
+      console.log('🚀 [Profile] Iniciando ProfileContext...');
       fetchProfile();
     }
   }, [isAuthLoaded, userId, fetchProfile]);
+
+  // Reset quando usuário muda
+  useEffect(() => {
+    if (isAuthLoaded && !userId) {
+      console.log('🔄 [Profile] Usuário deslogado, resetando contexto...');
+      setProfile(null);
+      setError(null);
+      setIsLoading(false);
+      setIsInitialized(false);
+      initialized.current = false;
+      syncingRef.current = false;
+      fetchingRef.current = false;
+    }
+  }, [isAuthLoaded, userId]);
 
   const value: ProfileContextType = {
     profile,
@@ -175,6 +224,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     refreshProfile,
     updateLocalProfile,
     syncUser,
+    isInitialized,
   };
 
   return <ProfileContext.Provider value={value}>{children}</ProfileContext.Provider>;

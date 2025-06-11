@@ -22,8 +22,7 @@ import ShiftFormModal from '@/components/shifts/ShiftFormModal';
 import { useDialog } from '@/contexts/DialogContext';
 import { useProfile } from '@/hooks/useProfile';
 import { useShiftsApi, Shift } from '@/services/shifts-api';
-import { formatDate, formatTime, formatCurrency } from '@/utils/formatters';
-import formatters from '@/utils/formatters';
+import formatters, { formatDate, formatTime, formatCurrency } from '@/utils/formatters';
 
 export default function ShiftsScreen() {
   const [shifts, setShifts] = useState<Shift[]>([]);

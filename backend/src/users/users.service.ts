@@ -1,4 +1,3 @@
-import clerkClient from '@clerk/clerk-sdk-node';
 import {
   Injectable,
   InternalServerErrorException,
@@ -6,6 +5,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { User, Prisma } from '@prisma/client';
+
+import { clerkClient } from '../config/clerk.config';
 
 import { UpdateProfileDto } from './users.controller';
 import { PrismaService } from '../prisma/prisma.service';

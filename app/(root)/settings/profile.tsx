@@ -14,6 +14,7 @@ import Select from '@/components/ui/Select';
 import { useToast } from '@/components/ui/Toast';
 import { useDialog } from '@/contexts/DialogContext';
 import { useProfile } from '@/hooks/useProfile';
+import { validatePassword } from '@/services/auth/utils';
 import { fetchWithAuth } from '@/utils/api-client';
 import { getInitials } from '@/utils/userNameHelper';
 
@@ -201,13 +202,10 @@ const ProfileSettingsScreen = () => {
       return false;
     }
 
-    if (!passwordData.newPassword) {
-      showToast('Informe a nova senha', 'error');
-      return false;
-    }
-
-    if (passwordData.newPassword.length < 8) {
-      showToast('A nova senha deve ter pelo menos 8 caracteres', 'error');
+    // Usar a nova validação de senha
+    const passwordValidation = validatePassword(passwordData.newPassword);
+    if (!passwordValidation.isValid) {
+      showToast(passwordValidation.message || 'Senha inválida', 'error');
       return false;
     }
 
@@ -447,7 +445,7 @@ const ProfileSettingsScreen = () => {
 
                   <Input
                     label="Nova Senha"
-                    placeholder="Digite a nova senha (mín. 8 caracteres)"
+                    placeholder="Digite a nova senha (mín. 6 caracteres, 1 minúscula, 1 especial)"
                     value={passwordData.newPassword}
                     onChangeText={(text) =>
                       setPasswordData((prev) => ({ ...prev, newPassword: text }))

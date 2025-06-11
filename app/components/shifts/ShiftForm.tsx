@@ -1,12 +1,12 @@
 import React, { memo } from 'react';
 import { View, Text, ScrollView, ActivityIndicator } from 'react-native';
 
+import RecurrenceSelector from './RecurrenceSelector';
 import DateTimeSection from './ShiftFormSections/DateTimeSection';
 import LocationContractorSection from './ShiftFormSections/LocationContractorSection';
 import NotesSection from './ShiftFormSections/NotesSection';
 import PaymentSection from './ShiftFormSections/PaymentSection';
 import ShiftSummary from './ShiftFormSections/ShiftSummary';
-import RecurrenceSelector from './RecurrenceSelector';
 
 import Button from '@/components/ui/Button';
 import { useShiftForm } from '@/hooks/useShiftForm';

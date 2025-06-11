@@ -24,8 +24,8 @@ import {
   WEEK_NUMBERS,
 } from '@/types/recurrence';
 import { cn } from '@/utils/cn';
-import { RecurrenceCalculator } from '@/utils/recurrence';
 import { formatShiftDate, dateToLocalDateString } from '@/utils/formatters';
+import { RecurrenceCalculator } from '@/utils/recurrence';
 
 interface RecurrenceSelectorProps {
   startDate: Date;

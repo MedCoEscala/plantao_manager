@@ -19,6 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { useToast } from '@/components/ui/Toast';
+import { validatePassword } from '@/services/auth/utils';
 
 export default function ResetPasswordScreen() {
   const [code, setCode] = useState('');
@@ -45,14 +46,14 @@ export default function ResetPasswordScreen() {
       showToast('Por favor, informe o código de verificação', 'error');
       return false;
     }
-    if (!newPassword.trim()) {
-      showToast('Por favor, informe a nova senha', 'error');
+
+    // Usar a nova validação de senha
+    const passwordValidation = validatePassword(newPassword);
+    if (!passwordValidation.isValid) {
+      showToast(passwordValidation.message || 'Senha inválida', 'error');
       return false;
     }
-    if (newPassword.length < 8) {
-      showToast('A nova senha deve ter pelo menos 8 caracteres', 'error');
-      return false;
-    }
+
     if (newPassword !== confirmPassword) {
       showToast('As senhas não conferem', 'error');
       return false;
@@ -87,12 +88,23 @@ export default function ResetPasswordScreen() {
     } catch (err: any) {
       console.error('Erro ao resetar senha Clerk:', JSON.stringify(err, null, 2));
       const firstError = err.errors?.[0];
-      const errorMessage =
-        firstError?.longMessage || firstError?.message || 'Erro ao redefinir senha.';
-      // Tratar código inválido/expirado
+
+      // Tratamento específico para tipos de erro
       if (firstError?.code === 'form_code_incorrect') {
         showToast('Código de verificação inválido ou expirado.', 'error');
+      } else if (firstError?.code === 'form_password_pwned') {
+        showToast(
+          'Esta senha foi encontrada em vazamentos de dados. Por segurança, use uma senha diferente.',
+          'error'
+        );
+      } else if (firstError?.code === 'form_password_not_strong_enough') {
+        showToast(
+          'Senha muito fraca. Use pelo menos 6 caracteres, 1 letra minúscula e 1 caractere especial.',
+          'error'
+        );
       } else {
+        const errorMessage =
+          firstError?.longMessage || firstError?.message || 'Erro ao redefinir senha.';
         showToast(errorMessage, 'error');
       }
     } finally {
@@ -146,7 +158,7 @@ export default function ResetPasswordScreen() {
                 <Ionicons name="lock-closed-outline" size={20} color="#666" style={styles.icon} />
                 <TextInput
                   style={styles.textInput}
-                  placeholder="Nova senha (mínimo 8 caracteres)"
+                  placeholder="Nova senha (mín. 6 caracteres, 1 minúscula, 1 especial)"
                   value={newPassword}
                   onChangeText={setNewPassword}
                   secureTextEntry={!showPassword}
