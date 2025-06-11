@@ -76,12 +76,14 @@ export function LocationsProvider({ children }: { children: React.ReactNode }) {
     [locationsApi]
   );
 
-  // Carregar locations apenas uma vez na inicialização
+  // Carregar locations apenas uma vez na inicialização - usando ref para evitar loop
+  const hasInitializedRef = useRef(false);
   useEffect(() => {
-    if (!dataLoadedRef.current && !isLoadingRef.current) {
+    if (!hasInitializedRef.current && !dataLoadedRef.current && !isLoadingRef.current) {
+      hasInitializedRef.current = true;
       loadLocations(false);
     }
-  }, [loadLocations]);
+  }, []); // Sem dependências para evitar loop
 
   const refreshLocations = useCallback(async () => {
     await loadLocations(true);

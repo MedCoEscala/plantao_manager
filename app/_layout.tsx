@@ -35,16 +35,9 @@ const tokenCache = {
 };
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!;
-const backendUrl = process.env.EXPO_PUBLIC_API_URL;
 
 if (!publishableKey) {
   throw new Error('Adicione EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY no seu arquivo .env');
-}
-
-if (!backendUrl) {
-  throw new Error(
-    'Adicione EXPO_PUBLIC_API_URL no seu arquivo .env (ex: http://SEU_IP_LOCAL:3000)'
-  );
 }
 
 SplashScreen.preventAutoHideAsync().catch(() => {

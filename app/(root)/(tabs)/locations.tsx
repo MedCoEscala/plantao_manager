@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -83,13 +83,17 @@ const LocationsScreen = () => {
         setIsLoading(false);
       }
     },
-    [showToast, locationsApi] // Removidas dependências que causam re-render
+    [searchQuery, refreshing, isLoading, isFirstLoad, locationsApi, showToast]
   );
 
-  // Carregamento inicial apenas uma vez
+  // Carregamento inicial apenas uma vez - usando ref para evitar loop
+  const hasLoadedRef = useRef(false);
   useEffect(() => {
-    loadLocations(true);
-  }, [loadLocations]);
+    if (!hasLoadedRef.current) {
+      hasLoadedRef.current = true;
+      loadLocations(true);
+    }
+  }, []); // Sem dependências para evitar loop
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -150,9 +154,31 @@ const LocationsScreen = () => {
   const handleModalSuccess = useCallback(() => {
     setIsAddModalVisible(false);
     setSelectedLocation(null);
-    // Recarregar apenas quando necessário
-    setTimeout(() => loadLocations(true), 100);
-  }, [loadLocations]);
+    // Recarregar apenas quando necessário - usando função direta
+    setTimeout(() => {
+      setRefreshing(true);
+      setIsLoading(true);
+      const filters: LocationsFilters = {};
+      if (searchQuery.trim()) {
+        filters.searchTerm = searchQuery.trim();
+      }
+      locationsApi
+        .getLocations(filters)
+        .then((data) => {
+          setLocations(data);
+          setFilteredLocations(data);
+          console.log(`[LocationsScreen] ${data.length} locais recarregados após modal`);
+        })
+        .catch((error) => {
+          console.error('Erro ao recarregar locais após modal:', error);
+          showToast(`Erro ao recarregar locais: ${error.message || 'Erro desconhecido'}`, 'error');
+        })
+        .finally(() => {
+          setRefreshing(false);
+          setIsLoading(false);
+        });
+    }, 100);
+  }, [searchQuery, locationsApi, showToast]);
 
   const toggleSearch = useCallback(() => {
     if (showSearch && searchQuery) {
@@ -258,9 +284,13 @@ const LocationsScreen = () => {
 
             <TouchableOpacity
               className="h-9 w-9 items-center justify-center rounded-full bg-background-100"
-              onPress={() => loadLocations(true)}
-              disabled={refreshing}>
-              {refreshing ? (
+              onPress={() => {
+                if (!refreshing && !isLoading) {
+                  loadLocations(true);
+                }
+              }}
+              disabled={refreshing || isLoading}>
+              {refreshing || isLoading ? (
                 <ActivityIndicator size="small" color="#18cb96" />
               ) : (
                 <Ionicons name="refresh-outline" size={18} color="#1e293b" />
@@ -312,7 +342,11 @@ const LocationsScreen = () => {
           keyExtractor={(item) => item.id}
           contentContainerClassName="px-4 py-4"
           showsVerticalScrollIndicator={false}
-          onRefresh={() => loadLocations(true)}
+          onRefresh={() => {
+            if (!refreshing && !isLoading) {
+              loadLocations(true);
+            }
+          }}
           refreshing={refreshing}
         />
       ) : (
