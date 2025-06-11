@@ -79,7 +79,6 @@ export default function SignUpScreen() {
   }, []);
 
   useEffect(() => {
-    // Step transition animation
     Animated.spring(stepAnim, {
       toValue: currentStep,
       friction: 8,
@@ -90,7 +89,6 @@ export default function SignUpScreen() {
 
   const updateField = (field: string, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
-    // Clear error for this field
     if (errors[field]) {
       setErrors((prev) => {
         const newErrors = { ...prev };
@@ -125,7 +123,6 @@ export default function SignUpScreen() {
   const validateStep2 = () => {
     const newErrors: Record<string, string> = {};
 
-    // Usar a nova validação de senha
     const passwordValidation = validatePassword(formData.password);
     if (!passwordValidation.isValid) {
       newErrors.password = passwordValidation.message || 'Senha inválida';
@@ -134,7 +131,7 @@ export default function SignUpScreen() {
     if (!formData.confirmPassword.trim()) {
       newErrors.confirmPassword = 'Confirmação de senha é obrigatória';
     } else if (formData.password.trim() !== formData.confirmPassword.trim()) {
-      newErrors.confirmPassword = 'Senhas não conferem';
+      newErrors.confirmPassword = 'As senhas não conferem';
     }
 
     if (formData.phoneNumber.trim() && !/^[\d\s\-\(\)]+$/.test(formData.phoneNumber.trim())) {
@@ -144,12 +141,13 @@ export default function SignUpScreen() {
     setErrors(newErrors);
     const isValid = Object.keys(newErrors).length === 0;
 
-    // Debug para verificar validação
-    if (!isValid) {
-      console.log('❌ [VALIDAÇÃO] Erros encontrados:', newErrors);
-    } else {
-      console.log('✅ [VALIDAÇÃO] Step 2 válido - prosseguindo');
-    }
+    console.log('🔍 [Validação Step 2]', {
+      passwordLength: formData.password.length,
+      confirmPasswordLength: formData.confirmPassword.length,
+      passwordsMatch: formData.password === formData.confirmPassword,
+      isValid,
+      errors: newErrors,
+    });
 
     return isValid;
   };
@@ -162,11 +160,11 @@ export default function SignUpScreen() {
       }
     } else if (currentStep === 2) {
       const isStep2Valid = validateStep2();
-      // Só permite submit se a validação passou
       if (isStep2Valid) {
         handleSubmit();
       } else {
-        // Não faz nada se validação falhou - usuário precisa corrigir os erros
+        console.warn('❌ [Signup] Validação step 2 falhou, não prosseguindo');
+        showError('Por favor, corrija os erros antes de continuar');
         return;
       }
     }
@@ -183,18 +181,46 @@ export default function SignUpScreen() {
   const handleSubmit = async () => {
     if (!isLoaded) return;
 
+    console.log('🚀 [Signup] Iniciando handleSubmit...');
+
+    const isStep1Valid = validateStep1();
+    const isStep2Valid = validateStep2();
+
+    if (!isStep1Valid || !isStep2Valid) {
+      console.error('❌ [Signup] Validação final falhou', {
+        step1: isStep1Valid,
+        step2: isStep2Valid,
+        errors,
+      });
+      showError('Por favor, corrija todos os erros antes de continuar');
+      return;
+    }
+
     setIsLoading(true);
     try {
+      console.log('📧 [Signup] Criando conta no Clerk...');
+
       const signUpResult = await signUp.create({
         emailAddress: formData.email.trim(),
         password: formData.password.trim(),
       });
+
+      console.log('✅ [Signup] Conta criada no Clerk, preparando verificação...');
 
       await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
 
       showInfo('Código de verificação enviado!');
 
       const birthDateString = formData.birthDate ? format(formData.birthDate, 'yyyy-MM-dd') : '';
+
+      console.log('🔄 [Signup] Navegando para verificação com dados:', {
+        email: formData.email.trim(),
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
+        hasPhoneNumber: !!formData.phoneNumber.trim(),
+        hasGender: !!formData.gender,
+        hasBirthDate: !!birthDateString,
+      });
 
       router.push({
         pathname: '/(auth)/verify-code',
@@ -208,10 +234,9 @@ export default function SignUpScreen() {
         },
       });
     } catch (err: any) {
-      console.error('[ERROR] Erro de Registro Clerk:', JSON.stringify(err, null, 2));
+      console.error('❌ [Signup] Erro de Registro Clerk:', JSON.stringify(err, null, 2));
       const firstError = err.errors?.[0];
 
-      // Tratamento específico para tipos de erro
       if (firstError?.code === 'form_identifier_exists') {
         showError('Este email já está cadastrado. Tente fazer login ou usar outro email.');
       } else if (firstError?.code === 'form_password_pwned') {
@@ -313,7 +338,6 @@ export default function SignUpScreen() {
         leftIcon="lock-closed"
       />
 
-      {/* Date Picker */}
       <View>
         <Text className="mb-2 text-base font-semibold text-gray-900">
           Data de Nascimento <Text className="font-normal text-gray-700">(opcional)</Text>
@@ -354,7 +378,6 @@ export default function SignUpScreen() {
         />
       </View>
 
-      {/* Gender Selection */}
       <View>
         <Text className="mb-2 text-base font-semibold text-gray-900">
           Gênero <Text className="font-normal text-gray-700">(opcional)</Text>
@@ -413,7 +436,6 @@ export default function SignUpScreen() {
     <SafeAreaView className="flex-1" edges={['top']}>
       <StatusBar style="dark" />
 
-      {/* Background Gradient */}
       <LinearGradient
         colors={['#f8f9fb', '#e8eef7', '#f1f5f9']}
         start={{ x: 0, y: 0 }}
@@ -424,7 +446,6 @@ export default function SignUpScreen() {
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         className="flex-1">
-        {/* Header with Back Button */}
         <View className="flex-row items-center justify-between px-5 pt-4">
           <TouchableOpacity
             onPress={handleBack}
@@ -444,7 +465,6 @@ export default function SignUpScreen() {
           contentContainerStyle={{ flexGrow: 1 }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled">
-          {/* Header Section */}
           <View className="flex-1 items-center justify-center px-6 pt-5">
             <Animated.View className="items-center" style={{ opacity: fadeAnim }}>
               <Text className="text-center text-3xl font-bold tracking-tight text-gray-900">
@@ -458,7 +478,6 @@ export default function SignUpScreen() {
             </Animated.View>
           </View>
 
-          {/* Form Section */}
           <Animated.View
             className="mx-5 mb-8 rounded-3xl border border-white/30 bg-white/90 p-7 shadow-xl"
             style={{
@@ -466,10 +485,8 @@ export default function SignUpScreen() {
               transform: [{ translateY: slideAnim }],
               minHeight: SCREEN_HEIGHT * 0.6,
             }}>
-            {/* Step Indicator */}
             {renderStepIndicator()}
 
-            {/* Step Title */}
             <View className="mb-6 items-center">
               <Text className="text-center text-2xl font-bold tracking-tight text-gray-900">
                 {currentStep === 1 ? 'Informações Pessoais' : 'Dados de Acesso'}
@@ -479,7 +496,6 @@ export default function SignUpScreen() {
               </Text>
             </View>
 
-            {/* Form Steps */}
             <Animated.View
               style={{
                 transform: [
@@ -494,7 +510,6 @@ export default function SignUpScreen() {
               {currentStep === 1 ? renderStep1() : renderStep2()}
             </Animated.View>
 
-            {/* Action Buttons */}
             <View className="mt-7 space-y-4">
               <AuthButton
                 title={currentStep === 1 ? 'Continuar' : 'Criar Conta'}
@@ -503,7 +518,6 @@ export default function SignUpScreen() {
                 leftIcon={currentStep === 1 ? 'arrow-forward' : 'person-add-outline'}
               />
 
-              {/* Sign In Link */}
               <View className="items-center">
                 <Text className="text-base text-gray-600">
                   Já tem uma conta?{' '}
@@ -516,7 +530,6 @@ export default function SignUpScreen() {
               </View>
             </View>
 
-            {/* Security Note */}
             {currentStep === 2 && (
               <View className="mt-6 rounded-2xl border border-gray-100 bg-gray-50/80 p-4">
                 <View className="flex-row items-center">

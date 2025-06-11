@@ -30,20 +30,35 @@ const calculatePasswordStrength = (password: string) => {
   let score = 0;
   const feedback: string[] = [];
 
-  if (password.length >= 8) score += 25;
-  else feedback.push('Mín. 8 caracteres');
+  if (password.length >= 8) {
+    score += 25;
+  } else {
+    feedback.push('Mín. 8 caracteres');
+  }
 
-  if (/[a-z]/.test(password)) score += 20;
-  else feedback.push('Letra minúscula');
+  if (/[a-z]/.test(password)) {
+    score += 20;
+  } else {
+    feedback.push('Letra minúscula');
+  }
 
-  if (/[A-Z]/.test(password)) score += 20;
-  else feedback.push('Letra maiúscula');
+  if (/[A-Z]/.test(password)) {
+    score += 20;
+  } else {
+    feedback.push('Letra maiúscula');
+  }
 
-  if (/[0-9]/.test(password)) score += 20;
-  else feedback.push('Número');
+  if (/[0-9]/.test(password)) {
+    score += 20;
+  } else {
+    feedback.push('Número');
+  }
 
-  if (/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password)) score += 15;
-  else feedback.push('Caractere especial');
+  if (/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password)) {
+    score += 15;
+  } else {
+    feedback.push('Caractere especial');
+  }
 
   return { score, feedback };
 };
@@ -141,16 +156,17 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
   strengthFeedback: {
-    marginTop: 4,
+    marginTop: 6,
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: 6,
   },
   strengthItem: {
-    fontSize: 12,
-    paddingHorizontal: 8,
+    fontSize: 11,
+    paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 8,
+    borderRadius: 6,
+    overflow: 'hidden',
   },
   strengthItemMet: {
     backgroundColor: '#dcfce7',
@@ -159,6 +175,23 @@ const styles = StyleSheet.create({
   strengthItemUnmet: {
     backgroundColor: '#fef2f2',
     color: '#dc2626',
+  },
+  strengthLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  strengthWeak: {
+    color: '#dc2626',
+  },
+  strengthFair: {
+    color: '#ea580c',
+  },
+  strengthGood: {
+    color: '#ca8a04',
+  },
+  strengthStrong: {
+    color: '#16a34a',
   },
 });
 
@@ -208,6 +241,20 @@ export default function AuthInput({
     return '#16a34a';
   };
 
+  const getStrengthLabel = (score: number) => {
+    if (score < 25) return 'Muito fraca';
+    if (score < 50) return 'Fraca';
+    if (score < 75) return 'Boa';
+    return 'Forte';
+  };
+
+  const getStrengthLabelStyle = (score: number) => {
+    if (score < 25) return styles.strengthWeak;
+    if (score < 50) return styles.strengthFair;
+    if (score < 75) return styles.strengthGood;
+    return styles.strengthStrong;
+  };
+
   const getInputContainerStyle = (): ViewStyle[] => {
     const containerStyles: ViewStyle[] = [styles.inputContainer];
 
@@ -239,7 +286,6 @@ export default function AuthInput({
 
   return (
     <View style={styles.container}>
-      {/* Label */}
       {label && (
         <View style={styles.labelContainer}>
           <Text style={styles.label}>{label}</Text>
@@ -247,16 +293,13 @@ export default function AuthInput({
         </View>
       )}
 
-      {/* Input Container */}
       <View style={getInputContainerStyle()}>
-        {/* Left Icon */}
         {leftIcon && (
           <View style={styles.leftIconContainer}>
             <Ionicons name={leftIcon as any} size={20} color={getIconColor()} />
           </View>
         )}
 
-        {/* Text Input */}
         <TextInput
           style={[styles.textInput, leftIcon && styles.textInputWithLeftIcon]}
           placeholder={placeholder}
@@ -271,7 +314,6 @@ export default function AuthInput({
           {...props}
         />
 
-        {/* Right Icon */}
         {finalRightIcon && (
           <TouchableOpacity
             style={styles.rightIconContainer}
@@ -283,20 +325,24 @@ export default function AuthInput({
         )}
       </View>
 
-      {/* Password Strength Indicator */}
       {passwordStrength && !error && (
         <View style={styles.strengthContainer}>
+          <Text style={[styles.strengthLabel, getStrengthLabelStyle(passwordStrength.score)]}>
+            Força da senha: {getStrengthLabel(passwordStrength.score)}
+          </Text>
+
           <View style={styles.strengthBar}>
             <View
               style={[
                 styles.strengthProgress,
                 {
-                  width: `${passwordStrength.score}%`,
+                  width: `${Math.max(passwordStrength.score, 10)}%`,
                   backgroundColor: getStrengthColor(passwordStrength.score),
                 },
               ]}
             />
           </View>
+
           {passwordStrength.feedback.length > 0 && (
             <View style={styles.strengthFeedback}>
               {passwordStrength.feedback.map((item, index) => (
@@ -306,10 +352,15 @@ export default function AuthInput({
               ))}
             </View>
           )}
+
+          {passwordStrength.score >= 75 && (
+            <View style={styles.strengthFeedback}>
+              <Text style={[styles.strengthItem, styles.strengthItemMet]}>✓ Senha forte</Text>
+            </View>
+          )}
         </View>
       )}
 
-      {/* Error Message */}
       {error && (
         <View style={styles.errorContainer}>
           <Ionicons name="alert-circle" size={16} color="#FF3B30" />
@@ -317,7 +368,6 @@ export default function AuthInput({
         </View>
       )}
 
-      {/* Helper Text */}
       {!error && helperText && <Text style={styles.helperText}>{helperText}</Text>}
     </View>
   );
