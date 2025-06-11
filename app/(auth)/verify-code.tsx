@@ -21,6 +21,7 @@ import Logo from '../components/auth/Logo';
 import AuthButton from '@/components/auth/AuthButton';
 import CodeInput from '@/components/auth/CodeInput';
 import { useToast } from '@/components/ui/Toast';
+import { useProfileContext } from '@/contexts/ProfileContext';
 import apiClient from '@/lib/axios';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -44,6 +45,7 @@ export default function VerifyCodeScreen() {
   }>();
   const router = useRouter();
   const { showToast } = useToast();
+  const { refreshProfile } = useProfileContext();
   const mountedRef = useRef(true);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -194,6 +196,23 @@ export default function VerifyCodeScreen() {
           phoneNumber: params.phoneNumber,
         });
 
+        console.log('🔍 [VerifyCode] Verificando condições individuais:', {
+          'params.firstName && params.firstName.trim()': !!(
+            params.firstName && params.firstName.trim()
+          ),
+          'params.lastName && params.lastName.trim()': !!(
+            params.lastName && params.lastName.trim()
+          ),
+          'params.birthDate && params.birthDate.trim()': !!(
+            params.birthDate && params.birthDate.trim()
+          ),
+          'params.gender && params.gender.trim()': !!(params.gender && params.gender.trim()),
+          'params.phoneNumber && params.phoneNumber.trim()': !!(
+            params.phoneNumber && params.phoneNumber.trim()
+          ),
+          'mountedRef.current': mountedRef.current,
+        });
+
         const hasAdditionalData = !!(
           (params.firstName && params.firstName.trim()) ||
           (params.lastName && params.lastName.trim()) ||
@@ -202,7 +221,13 @@ export default function VerifyCodeScreen() {
           (params.phoneNumber && params.phoneNumber.trim())
         );
 
-        if (hasAdditionalData && mountedRef.current) {
+        console.log('🔍 [VerifyCode] Resultado das verificações:', {
+          hasAdditionalData,
+          mountedRef: mountedRef.current,
+          passouCondicao: hasAdditionalData && mountedRef.current,
+        });
+
+        if (hasAdditionalData) {
           console.log('📝 [VerifyCode] Atualizando dados adicionais via backend...');
 
           const updateData: any = {};
@@ -236,6 +261,11 @@ export default function VerifyCodeScreen() {
               '✅ [VerifyCode] Dados adicionais atualizados com sucesso:',
               updateResponse.data
             );
+
+            // Forçar refresh do ProfileContext para pegar os dados atualizados
+            console.log('🔄 [VerifyCode] Forçando refresh do ProfileContext...');
+            await refreshProfile(); // Refresh simples do perfil
+            console.log('✅ [VerifyCode] ProfileContext atualizado com sucesso');
           } catch (updateError: any) {
             console.error('❌ [VerifyCode] Erro ao atualizar dados adicionais:', {
               status: updateError.response?.status,
@@ -251,9 +281,7 @@ export default function VerifyCodeScreen() {
             }
           }
         } else {
-          console.log(
-            'ℹ️ [VerifyCode] Nenhum dado adicional para atualizar ou componente desmontado'
-          );
+          console.log('ℹ️ [VerifyCode] Nenhum dado adicional para atualizar');
         }
       } catch (syncError: any) {
         console.error('❌ [VerifyCode] Erro na sincronização final:', syncError);
@@ -263,11 +291,11 @@ export default function VerifyCodeScreen() {
       // Aguardar mais um pouco para garantir que tudo foi sincronizado
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
+      console.log('🎯 [VerifyCode] Redirecionando para o app...');
       if (mountedRef.current) {
-        console.log('🎯 [VerifyCode] Redirecionando para o app...');
         showToast('Conta verificada com sucesso!', 'success');
-        router.replace('/(root)/(tabs)');
       }
+      router.replace('/(root)/(tabs)');
     } catch (err: any) {
       console.error('❌ [VerifyCode] Erro no fluxo de verificação:', err);
 
