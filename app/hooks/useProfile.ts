@@ -1,11 +1,12 @@
-import { useProfileContext, UserProfile } from '@/contexts/ProfileContext';
+import { useProfileContext } from '@/contexts/ProfileContext';
+import { User } from '@/types/user';
 
 export interface UseProfileResult {
-  profile: UserProfile | null;
+  profile: User | null;
   loading: boolean;
   error: string | null;
   refetch: () => Promise<void>;
-  updateLocalProfile: (updates: Partial<UserProfile>) => void;
+  updateLocalProfile: (updates: Partial<User>) => void;
   syncUser: () => Promise<boolean>;
   isInitialized: boolean;
 }
@@ -37,4 +38,4 @@ const profileHook = {
 export default profileHook;
 
 // Export do tipo para compatibilidade
-export type { UserProfile };
+export type { User };

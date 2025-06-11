@@ -165,6 +165,76 @@ export default function VerifyCodeScreen() {
 
       if (!mountedRef.current) return;
 
+      // IMPORTANTE: Aguardar a sessão estar ativa antes de continuar
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Verificar se temos dados adicionais do registro
+      console.log('🔍 [VerifyCode] Verificando dados adicionais:', {
+        firstName: params.firstName,
+        lastName: params.lastName,
+        birthDate: params.birthDate,
+        gender: params.gender,
+        phoneNumber: params.phoneNumber,
+      });
+
+      const hasAdditionalData = !!(
+        (params.firstName && params.firstName.trim()) ||
+        (params.lastName && params.lastName.trim()) ||
+        (params.birthDate && params.birthDate.trim()) ||
+        (params.gender && params.gender.trim()) ||
+        (params.phoneNumber && params.phoneNumber.trim())
+      );
+
+      if (hasAdditionalData && mountedRef.current) {
+        console.log('📝 [VerifyCode] Atualizando dados no Clerk primeiro...');
+
+        try {
+          // Verificar se temos acesso ao usuário criado
+          if (completeSignUp.createdUserId) {
+            await signUp.reload();
+            const clerkUser = signUp;
+
+            // Atualizar dados básicos no Clerk primeiro
+            const updateData: any = {};
+
+            if (params.firstName && params.firstName.trim()) {
+              updateData.firstName = params.firstName.trim();
+            }
+            if (params.lastName && params.lastName.trim()) {
+              updateData.lastName = params.lastName.trim();
+            }
+
+            // Atualizar metadados públicos (birthDate, gender)
+            const publicMetadata: any = {};
+            if (params.birthDate && params.birthDate.trim()) {
+              publicMetadata.birthDate = params.birthDate.trim();
+            }
+            if (params.gender && params.gender.trim()) {
+              publicMetadata.gender = params.gender.trim();
+            }
+
+            if (Object.keys(publicMetadata).length > 0) {
+              updateData.publicMetadata = publicMetadata;
+            }
+
+            // Atualizar no Clerk se há dados para atualizar
+            if (Object.keys(updateData).length > 0) {
+              console.log('📤 [VerifyCode] Enviando dados para Clerk:', updateData);
+              await clerkUser.update(updateData);
+              console.log('✅ [VerifyCode] Dados atualizados no Clerk com sucesso');
+            }
+
+            // Telefone será sincronizado via backend após registro
+          }
+        } catch (clerkUpdateError) {
+          console.error('❌ [VerifyCode] Erro ao atualizar dados no Clerk:', clerkUpdateError);
+          // Não falhar aqui, continuar com sincronização
+        }
+      }
+
+      // Aguardar um pouco para o Clerk processar as atualizações
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
       console.log('🎫 [VerifyCode] Obtendo token de autenticação...');
       const token = await getToken();
 
@@ -174,87 +244,40 @@ export default function VerifyCodeScreen() {
 
       console.log('✅ [VerifyCode] Token obtido com sucesso');
 
-      console.log('🔄 [VerifyCode] Iniciando sincronização básica...');
+      console.log('🔄 [VerifyCode] Iniciando sincronização final...');
 
       const authHeader = { headers: { Authorization: `Bearer ${token}` } };
 
       try {
-        await apiClient.post('/users/sync', {}, authHeader);
-        console.log('✅ [VerifyCode] Sincronização básica concluída');
+        const syncResponse = await apiClient.post('/users/sync', {}, authHeader);
+        console.log('✅ [VerifyCode] Sincronização final concluída', syncResponse.data);
+
+        // Se temos dados adicionais (como telefone) que não puderam ser atualizados no Clerk,
+        // vamos atualizar via backend
+        if (hasAdditionalData && params.phoneNumber && params.phoneNumber.trim()) {
+          console.log('📱 [VerifyCode] Atualizando telefone via backend...');
+          try {
+            const updateData: any = {};
+            if (params.phoneNumber && params.phoneNumber.trim()) {
+              updateData.phoneNumber = params.phoneNumber.trim();
+            }
+
+            await apiClient.patch('/users/me', updateData, authHeader);
+            console.log('✅ [VerifyCode] Telefone atualizado via backend');
+          } catch (phoneUpdateError) {
+            console.warn(
+              '⚠️ [VerifyCode] Erro ao atualizar telefone via backend:',
+              phoneUpdateError
+            );
+          }
+        }
       } catch (syncError: any) {
-        console.error('❌ [VerifyCode] Erro na sincronização básica:', syncError);
+        console.error('❌ [VerifyCode] Erro na sincronização final:', syncError);
         throw new Error('Falha na sincronização inicial');
       }
 
+      // Aguardar mais um pouco para garantir que tudo foi sincronizado
       await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      console.log('🔍 [VerifyCode] Verificando dados adicionais:', {
-        firstName: params.firstName,
-        lastName: params.lastName,
-        birthDate: params.birthDate,
-        gender: params.gender,
-        phoneNumber: params.phoneNumber,
-      });
-
-      const profileData: any = {};
-      let hasAdditionalData = false;
-
-      if (params.firstName && params.firstName.trim()) {
-        profileData.firstName = params.firstName.trim();
-        hasAdditionalData = true;
-        console.log('✅ [VerifyCode] Adicionando firstName:', params.firstName.trim());
-      }
-      if (params.lastName && params.lastName.trim()) {
-        profileData.lastName = params.lastName.trim();
-        hasAdditionalData = true;
-        console.log('✅ [VerifyCode] Adicionando lastName:', params.lastName.trim());
-      }
-      if (params.birthDate && params.birthDate.trim()) {
-        profileData.birthDate = params.birthDate.trim();
-        hasAdditionalData = true;
-        console.log('✅ [VerifyCode] Adicionando birthDate:', params.birthDate.trim());
-      }
-      if (params.gender && params.gender.trim()) {
-        profileData.gender = params.gender.trim();
-        hasAdditionalData = true;
-        console.log('✅ [VerifyCode] Adicionando gender:', params.gender.trim());
-      }
-      if (params.phoneNumber && params.phoneNumber.trim()) {
-        profileData.phoneNumber = params.phoneNumber.trim();
-        hasAdditionalData = true;
-        console.log('✅ [VerifyCode] Adicionando phoneNumber:', params.phoneNumber.trim());
-      }
-
-      if (hasAdditionalData && mountedRef.current) {
-        console.log('📝 [VerifyCode] Iniciando atualização com dados adicionais...');
-        console.log('📊 [VerifyCode] Payload completo:', profileData);
-
-        try {
-          const updateResponse = await apiClient.patch('/users/me', profileData, authHeader);
-          console.log(
-            '✅ [VerifyCode] Dados adicionais atualizados com sucesso:',
-            updateResponse.data
-          );
-
-          await new Promise((resolve) => setTimeout(resolve, 500));
-        } catch (updateError: any) {
-          console.error('❌ [VerifyCode] ERRO ao atualizar dados adicionais:', {
-            status: updateError.response?.status,
-            message: updateError.response?.data?.message || updateError.message,
-            data: updateError.response?.data,
-          });
-
-          if (mountedRef.current) {
-            showToast('Conta criada! Alguns dados precisam ser atualizados no perfil.', 'warning');
-          }
-        }
-      } else {
-        console.log(
-          'ℹ️ [VerifyCode] Nenhum dado adicional para atualizar ou componente desmontado'
-        );
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, 500));
 
       if (mountedRef.current) {
         console.log('🎯 [VerifyCode] Redirecionando para o app...');

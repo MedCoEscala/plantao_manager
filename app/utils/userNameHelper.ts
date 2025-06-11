@@ -1,7 +1,7 @@
-import { UserProfile } from '@/hooks/useProfile';
+import { User } from '@/types/user';
 
 export class UserNameHelper {
-  static getDisplayName(profile: UserProfile | null | undefined): string {
+  static getDisplayName(profile: User | null | undefined): string {
     if (!profile) return 'Usuário';
 
     console.log('🔍 [UserNameHelper] Determinando nome para exibição:', {
@@ -38,7 +38,7 @@ export class UserNameHelper {
     return 'Usuário';
   }
 
-  static getInitials(profile: UserProfile | null | undefined): string {
+  static getInitials(profile: User | null | undefined): string {
     if (!profile) return '?';
 
     const firstName = profile.firstName?.trim() || '';
@@ -86,7 +86,7 @@ export class UserNameHelper {
     return `${firstInitial}${secondInitial}`;
   }
 
-  static getFirstName(profile: UserProfile | null | undefined): string {
+  static getFirstName(profile: User | null | undefined): string {
     if (!profile) return '';
 
     if (profile.firstName && profile.firstName.trim()) {
@@ -106,7 +106,7 @@ export class UserNameHelper {
     return '';
   }
 
-  static hasCompleteName(profile: UserProfile | null | undefined): boolean {
+  static hasCompleteName(profile: User | null | undefined): boolean {
     if (!profile) return false;
 
     const hasFirstOrLast = !!(
@@ -126,7 +126,7 @@ export class UserNameHelper {
   }
 
   static getGreeting(
-    profile: UserProfile | null | undefined,
+    profile: User | null | undefined,
     timeOfDay: 'morning' | 'afternoon' | 'evening' = 'morning'
   ): string {
     const firstName = UserNameHelper.getFirstName(profile);
@@ -146,7 +146,7 @@ export class UserNameHelper {
     return `${greeting}!`;
   }
 
-  static getAutoGreeting(profile: UserProfile | null | undefined): string {
+  static getAutoGreeting(profile: User | null | undefined): string {
     const hour = new Date().getHours();
 
     let timeOfDay: 'morning' | 'afternoon' | 'evening';
@@ -161,7 +161,7 @@ export class UserNameHelper {
     return UserNameHelper.getGreeting(profile, timeOfDay);
   }
 
-  static getDebugInfo(profile: UserProfile | null | undefined): object {
+  static getDebugInfo(profile: User | null | undefined): object {
     return {
       profile: profile
         ? {

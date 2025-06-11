@@ -2,11 +2,11 @@ import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 
-import { UserProfile } from '@/hooks/useProfile';
+import { User } from '@/types/user';
 import { getDisplayName, getInitials } from '@/utils/userNameHelper';
 
 interface ProfileHeaderProps {
-  profile: UserProfile | null;
+  profile: User | null;
   isLoading: boolean;
   onEditPress?: () => void;
   allowEdit?: boolean;

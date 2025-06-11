@@ -1,7 +1,6 @@
-import { fetchWithAuth } from '@app/utils/api-client';
-
-import { ProfileResponse, ProfileService, ProfileUpdateData } from './profileTypes';
-import { User } from '../../types/user';
+import { fetchWithAuth } from '@/utils/api-client';
+import { User, UserUpdateInput } from '@/types/user';
+import { ProfileService, ProfileResponse } from './profileTypes';
 
 class ApiProfileService implements ProfileService {
   constructor(private getToken: () => Promise<string | null>) {}
@@ -20,14 +19,25 @@ class ApiProfileService implements ProfileService {
       const user: User = {
         id: userData.id,
         email: userData.email,
-        name: userData.name || `${userData.firstName || ''} ${userData.lastName || ''}`.trim(),
+        name: userData.name,
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        phoneNumber: userData.phoneNumber || undefined,
+        birthDate: userData.birthDate || undefined,
+        gender: userData.gender || undefined,
+        imageUrl: userData.imageUrl || undefined,
+        clerkId: userData.clerkId,
         createdAt: userData.createdAt,
         updatedAt: userData.updatedAt,
-        phoneNumber: userData.phoneNumber || '',
-        birthDate: userData.birthDate || '',
       };
 
-      console.log('✅ [ApiProfileService] Perfil carregado:', user);
+      console.log('✅ [ApiProfileService] Perfil carregado:', {
+        id: user.id,
+        name: user.name,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+      });
       return user;
     } catch (error) {
       console.error('❌ [ApiProfileService] Erro ao obter perfil:', error);
@@ -48,13 +58,16 @@ class ApiProfileService implements ProfileService {
           const user: User = {
             id: syncedUserData.id,
             email: syncedUserData.email,
-            name:
-              syncedUserData.name ||
-              `${syncedUserData.firstName || ''} ${syncedUserData.lastName || ''}`.trim(),
+            name: syncedUserData.name,
+            firstName: syncedUserData.firstName,
+            lastName: syncedUserData.lastName,
+            phoneNumber: syncedUserData.phoneNumber || undefined,
+            birthDate: syncedUserData.birthDate || undefined,
+            gender: syncedUserData.gender || undefined,
+            imageUrl: syncedUserData.imageUrl || undefined,
+            clerkId: syncedUserData.clerkId,
             createdAt: syncedUserData.createdAt,
             updatedAt: syncedUserData.updatedAt,
-            phoneNumber: syncedUserData.phoneNumber || '',
-            birthDate: syncedUserData.birthDate || '',
           };
 
           console.log('✅ [ApiProfileService] Perfil sincronizado e carregado:', user);
@@ -69,66 +82,57 @@ class ApiProfileService implements ProfileService {
     }
   }
 
-  async updateUserProfile(data: ProfileUpdateData): Promise<ProfileResponse> {
+  async updateUserProfile(data: UserUpdateInput): Promise<ProfileResponse> {
     try {
-      console.log('💾 [ApiProfileService] Atualizando perfil:', data);
+      console.log('📝 [ApiProfileService] Atualizando perfil:', data);
 
-      const updatePayload: any = {};
-
-      if (data.name) {
-        const nameParts = data.name.split(' ');
-        updatePayload.firstName = nameParts[0];
-        updatePayload.lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
-      }
-
-      if (data.phoneNumber !== undefined) {
-        updatePayload.phoneNumber = data.phoneNumber;
-      }
-
-      if (data.birthDate) {
-        updatePayload.birthDate = data.birthDate;
-      }
-
-      const updatedUser = await fetchWithAuth<any>(
+      const updatedUserData = await fetchWithAuth<any>(
         '/users/me',
         {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(updatePayload),
+          body: JSON.stringify(data),
         },
         this.getToken
       );
 
       const user: User = {
-        id: updatedUser.id,
-        email: updatedUser.email,
-        name:
-          updatedUser.name || `${updatedUser.firstName || ''} ${updatedUser.lastName || ''}`.trim(),
-        createdAt: updatedUser.createdAt,
-        updatedAt: updatedUser.updatedAt,
-        phoneNumber: updatedUser.phoneNumber || '',
-        birthDate: updatedUser.birthDate || '',
+        id: updatedUserData.id,
+        email: updatedUserData.email,
+        name: updatedUserData.name,
+        firstName: updatedUserData.firstName,
+        lastName: updatedUserData.lastName,
+        phoneNumber: updatedUserData.phoneNumber || undefined,
+        birthDate: updatedUserData.birthDate || undefined,
+        gender: updatedUserData.gender || undefined,
+        imageUrl: updatedUserData.imageUrl || undefined,
+        clerkId: updatedUserData.clerkId,
+        createdAt: updatedUserData.createdAt,
+        updatedAt: updatedUserData.updatedAt,
       };
 
-      console.log('✅ [ApiProfileService] Perfil atualizado com sucesso:', user);
-
+      console.log('✅ [ApiProfileService] Perfil atualizado:', user);
       return {
         success: true,
         user,
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ [ApiProfileService] Erro ao atualizar perfil:', error);
       return {
         success: false,
-        error: (error as any)?.response?.data?.message || 'Erro ao atualizar perfil',
+        error: error?.response?.data?.message || error?.message || 'Erro ao atualizar perfil',
       };
     }
   }
 }
 
-export const createApiProfileService = (getToken: () => Promise<string | null>) => {
-  return new ApiProfileService(getToken);
-};
+let profileServiceInstance: ApiProfileService | null = null;
 
-// Default export para resolver warning do React Router
-export default { createApiProfileService };
+export function getProfileService(getToken: () => Promise<string | null>): ProfileService {
+  if (!profileServiceInstance) {
+    profileServiceInstance = new ApiProfileService(getToken);
+  }
+  return profileServiceInstance;
+}
+
+export default profileServiceInstance;

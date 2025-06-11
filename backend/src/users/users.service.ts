@@ -59,16 +59,20 @@ export class UsersService {
       const imageUrl = clerkUser.imageUrl || null;
       const phoneNumber = clerkUser.phoneNumbers?.[0]?.phoneNumber || null;
 
-      let clerkFullName = `${firstName} ${lastName}`.trim();
+      let fullName = `${firstName} ${lastName}`.trim();
 
-      if (!clerkFullName) {
+      if (!fullName) {
         const emailName = email.split('@')[0];
-        clerkFullName = emailName.charAt(0).toUpperCase() + emailName.slice(1);
+        fullName = emailName.charAt(0).toUpperCase() + emailName.slice(1);
       }
 
-      this.logger.log(
-        `📊 [Sync] Dados extraídos do Clerk - nome: "${clerkFullName}", email: "${email}", telefone: "${phoneNumber || 'N/A'}"`,
-      );
+      this.logger.log(`📊 [Sync] Dados extraídos do Clerk:`, {
+        firstName: `"${firstName}"`,
+        lastName: `"${lastName}"`,
+        fullName: `"${fullName}"`,
+        email: `"${email}"`,
+        phoneNumber: phoneNumber || 'N/A',
+      });
 
       const existingUser = await this.prisma.user.findUnique({
         where: { clerkId },
@@ -84,36 +88,29 @@ export class UsersService {
           imageUrl,
         };
 
-        if (!existingUser.firstName && firstName) {
+        if (firstName) {
           updateData.firstName = firstName;
         }
-
-        if (!existingUser.lastName && lastName) {
+        if (lastName) {
           updateData.lastName = lastName;
         }
+
+        updateData.name = fullName;
 
         if (!existingUser.phoneNumber && phoneNumber) {
           updateData.phoneNumber = phoneNumber;
         }
-
-        const finalFirstName = existingUser.firstName || firstName;
-        const finalLastName = existingUser.lastName || lastName;
-        let finalFullName = `${finalFirstName} ${finalLastName}`.trim();
-
-        if (!finalFullName) {
-          finalFullName = existingUser.name || clerkFullName;
-        }
-
-        updateData.name = finalFullName;
 
         const user = await this.prisma.user.update({
           where: { clerkId },
           data: updateData,
         });
 
-        this.logger.log(
-          `✅ [Sync] Usuário atualizado: DB ID ${user.id}, nome final: "${user.name}"`,
-        );
+        this.logger.log(`✅ [Sync] Usuário atualizado: DB ID ${user.id}`, {
+          name: `"${user.name}"`,
+          firstName: `"${user.firstName}"`,
+          lastName: `"${user.lastName}"`,
+        });
         return user;
       }
 
@@ -129,27 +126,18 @@ export class UsersService {
         const updateData: Prisma.UserUpdateInput = {
           clerkId,
           imageUrl,
+          name: fullName,
         };
 
-        if (!userWithSameEmail.firstName && firstName) {
+        if (firstName) {
           updateData.firstName = firstName;
         }
-        if (!userWithSameEmail.lastName && lastName) {
+        if (lastName) {
           updateData.lastName = lastName;
         }
         if (!userWithSameEmail.phoneNumber && phoneNumber) {
           updateData.phoneNumber = phoneNumber;
         }
-
-        const finalFirstName = userWithSameEmail.firstName || firstName;
-        const finalLastName = userWithSameEmail.lastName || lastName;
-        let finalFullName = `${finalFirstName} ${finalLastName}`.trim();
-
-        if (!finalFullName) {
-          finalFullName = userWithSameEmail.name || clerkFullName;
-        }
-
-        updateData.name = finalFullName;
 
         const user = await this.prisma.user.update({
           where: { email },
@@ -157,7 +145,12 @@ export class UsersService {
         });
 
         this.logger.log(
-          `✅ [Sync] Usuário sincronizado (email existente): DB ID ${user.id}, nome final: "${user.name}"`,
+          `✅ [Sync] Usuário sincronizado (email existente): DB ID ${user.id}`,
+          {
+            name: `"${user.name}"`,
+            firstName: `"${user.firstName}"`,
+            lastName: `"${user.lastName}"`,
+          },
         );
         return user;
       }
@@ -170,15 +163,17 @@ export class UsersService {
           email,
           firstName: firstName || null,
           lastName: lastName || null,
-          name: clerkFullName,
+          name: fullName,
           imageUrl,
           phoneNumber,
         },
       });
 
-      this.logger.log(
-        `🎉 [Sync] Novo usuário criado: DB ID ${user.id}, nome: "${user.name}"`,
-      );
+      this.logger.log(`🎉 [Sync] Novo usuário criado: DB ID ${user.id}`, {
+        name: `"${user.name}"`,
+        firstName: `"${user.firstName}"`,
+        lastName: `"${user.lastName}"`,
+      });
 
       return user;
     } catch (error: any) {
