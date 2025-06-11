@@ -46,7 +46,6 @@ export default function VerifyCodeScreen() {
   const { showToast } = useToast();
   const mountedRef = useRef(true);
 
-  // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -94,7 +93,6 @@ export default function VerifyCodeScreen() {
   }, [countdown]);
 
   useEffect(() => {
-    // Pulse animation for the icon
     const animation = Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {
@@ -119,7 +117,6 @@ export default function VerifyCodeScreen() {
 
   const handleCodeComplete = useCallback(
     async (verificationCode: string) => {
-      // Evita múltiplas chamadas simultâneas
       if (isLoading || !mountedRef.current) return;
       await handleVerifyCodeAndSync(verificationCode);
     },
@@ -149,7 +146,6 @@ export default function VerifyCodeScreen() {
     try {
       console.log('📧 [VerifyCode] Verificando código no Clerk...');
 
-      // 1. Verificar o código
       const completeSignUp = await signUp.attemptEmailAddressVerification({
         code: codeToVerify,
       });
@@ -164,7 +160,6 @@ export default function VerifyCodeScreen() {
 
       console.log('🎉 [VerifyCode] Código verificado com sucesso');
 
-      // 2. Ativar sessão e obter token
       console.log('🔑 [VerifyCode] Ativando sessão...');
       await setActive({ session: completeSignUp.createdSessionId });
 
@@ -179,7 +174,6 @@ export default function VerifyCodeScreen() {
 
       console.log('✅ [VerifyCode] Token obtido com sucesso');
 
-      // 3. Sincronização básica primeiro (garantir que o usuário existe no DB)
       console.log('🔄 [VerifyCode] Iniciando sincronização básica...');
 
       const authHeader = { headers: { Authorization: `Bearer ${token}` } };
@@ -192,56 +186,76 @@ export default function VerifyCodeScreen() {
         throw new Error('Falha na sincronização inicial');
       }
 
-      // 4. Aguardar um pouco para garantir processamento
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      // 5. Atualizar com dados adicionais se fornecidos
-      const hasAdditionalData =
-        params.firstName ||
-        params.lastName ||
-        params.birthDate ||
-        params.gender ||
-        params.phoneNumber;
+      console.log('🔍 [VerifyCode] Verificando dados adicionais:', {
+        firstName: params.firstName,
+        lastName: params.lastName,
+        birthDate: params.birthDate,
+        gender: params.gender,
+        phoneNumber: params.phoneNumber,
+      });
 
-      if (hasAdditionalData && mountedRef.current) {
-        console.log('📝 [VerifyCode] Atualizando com dados adicionais...');
+      const profileData: any = {};
+      let hasAdditionalData = false;
 
-        const profileData: any = {};
-
-        if (params.firstName?.trim()) {
-          profileData.firstName = params.firstName.trim();
-        }
-        if (params.lastName?.trim()) {
-          profileData.lastName = params.lastName.trim();
-        }
-        if (params.birthDate) {
-          profileData.birthDate = params.birthDate;
-        }
-        if (params.gender) {
-          profileData.gender = params.gender;
-        }
-        if (params.phoneNumber?.trim()) {
-          profileData.phoneNumber = params.phoneNumber.trim();
-        }
-
-        console.log('📊 [VerifyCode] Dados do perfil a serem enviados:', profileData);
-
-        try {
-          await apiClient.patch('/users/me', profileData, authHeader);
-          console.log('✅ [VerifyCode] Dados adicionais atualizados com sucesso');
-        } catch (updateError: any) {
-          console.error('⚠️ [VerifyCode] Erro ao atualizar dados adicionais:', updateError);
-          // Não falhar o fluxo por causa dos dados adicionais
-          if (mountedRef.current) {
-            showToast('Conta criada! Alguns dados serão atualizados no seu perfil.', 'success');
-          }
-        }
+      if (params.firstName && params.firstName.trim()) {
+        profileData.firstName = params.firstName.trim();
+        hasAdditionalData = true;
+        console.log('✅ [VerifyCode] Adicionando firstName:', params.firstName.trim());
+      }
+      if (params.lastName && params.lastName.trim()) {
+        profileData.lastName = params.lastName.trim();
+        hasAdditionalData = true;
+        console.log('✅ [VerifyCode] Adicionando lastName:', params.lastName.trim());
+      }
+      if (params.birthDate && params.birthDate.trim()) {
+        profileData.birthDate = params.birthDate.trim();
+        hasAdditionalData = true;
+        console.log('✅ [VerifyCode] Adicionando birthDate:', params.birthDate.trim());
+      }
+      if (params.gender && params.gender.trim()) {
+        profileData.gender = params.gender.trim();
+        hasAdditionalData = true;
+        console.log('✅ [VerifyCode] Adicionando gender:', params.gender.trim());
+      }
+      if (params.phoneNumber && params.phoneNumber.trim()) {
+        profileData.phoneNumber = params.phoneNumber.trim();
+        hasAdditionalData = true;
+        console.log('✅ [VerifyCode] Adicionando phoneNumber:', params.phoneNumber.trim());
       }
 
-      // 6. Aguardar mais um pouco para garantir que tudo foi processado
+      if (hasAdditionalData && mountedRef.current) {
+        console.log('📝 [VerifyCode] Iniciando atualização com dados adicionais...');
+        console.log('📊 [VerifyCode] Payload completo:', profileData);
+
+        try {
+          const updateResponse = await apiClient.patch('/users/me', profileData, authHeader);
+          console.log(
+            '✅ [VerifyCode] Dados adicionais atualizados com sucesso:',
+            updateResponse.data
+          );
+
+          await new Promise((resolve) => setTimeout(resolve, 500));
+        } catch (updateError: any) {
+          console.error('❌ [VerifyCode] ERRO ao atualizar dados adicionais:', {
+            status: updateError.response?.status,
+            message: updateError.response?.data?.message || updateError.message,
+            data: updateError.response?.data,
+          });
+
+          if (mountedRef.current) {
+            showToast('Conta criada! Alguns dados precisam ser atualizados no perfil.', 'warning');
+          }
+        }
+      } else {
+        console.log(
+          'ℹ️ [VerifyCode] Nenhum dado adicional para atualizar ou componente desmontado'
+        );
+      }
+
       await new Promise((resolve) => setTimeout(resolve, 500));
 
-      // 7. Redirecionamento final
       if (mountedRef.current) {
         console.log('🎯 [VerifyCode] Redirecionando para o app...');
         showToast('Conta verificada com sucesso!', 'success');

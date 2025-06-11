@@ -56,13 +56,11 @@ export default function SignUpScreen() {
   const router = useRouter();
   const { showInfo, showError } = useNotification();
 
-  // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
   const stepAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Entrance animation
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -222,15 +220,28 @@ export default function SignUpScreen() {
         hasBirthDate: !!birthDateString,
       });
 
+      const cleanFirstName = formData.firstName.trim();
+      const cleanLastName = formData.lastName.trim();
+      const cleanPhoneNumber = formData.phoneNumber.trim();
+      const cleanGender = formData.gender || '';
+
+      console.log('✅ [Signup] Dados limpos para envio:', {
+        firstName: cleanFirstName,
+        lastName: cleanLastName,
+        phoneNumber: cleanPhoneNumber,
+        gender: cleanGender,
+        birthDate: birthDateString,
+      });
+
       router.push({
         pathname: '/(auth)/verify-code',
         params: {
           email: formData.email.trim(),
-          firstName: formData.firstName.trim(),
-          lastName: formData.lastName.trim(),
+          firstName: cleanFirstName,
+          lastName: cleanLastName,
           birthDate: birthDateString,
-          gender: formData.gender || '',
-          phoneNumber: formData.phoneNumber.trim(),
+          gender: cleanGender,
+          phoneNumber: cleanPhoneNumber,
         },
       });
     } catch (err: any) {

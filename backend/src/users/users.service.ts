@@ -263,9 +263,19 @@ export class UsersService {
     data: UpdateProfileDto,
   ): Promise<User> {
     this.logger.log(`📝 [Update] Atualizando perfil para Clerk ID: ${clerkId}`);
-    this.logger.log(`📋 [Update] Dados recebidos:`, data);
+    this.logger.log(
+      `📋 [Update] Dados recebidos:`,
+      JSON.stringify(data, null, 2),
+    );
 
     const currentUser = await this.findOneByClerkId(clerkId);
+    this.logger.log(`👤 [Update] Usuário atual:`, {
+      id: currentUser.id,
+      name: currentUser.name,
+      firstName: currentUser.firstName,
+      lastName: currentUser.lastName,
+      email: currentUser.email,
+    });
 
     let birthDateForUpdate: Date | undefined = undefined;
     if (data.birthDate) {
@@ -273,6 +283,9 @@ export class UsersService {
         const parsedDate = new Date(data.birthDate);
         if (!isNaN(parsedDate.getTime())) {
           birthDateForUpdate = parsedDate;
+          this.logger.log(
+            `📅 [Update] Data de nascimento processada: ${parsedDate.toISOString()}`,
+          );
         }
       } catch {
         this.logger.warn(
@@ -285,12 +298,21 @@ export class UsersService {
 
     if (data.phoneNumber !== undefined) {
       updateData.phoneNumber = data.phoneNumber || null;
+      this.logger.log(
+        `📞 [Update] Telefone: "${data.phoneNumber}" -> "${updateData.phoneNumber}"`,
+      );
     }
     if (data.gender !== undefined) {
       updateData.gender = data.gender || null;
+      this.logger.log(
+        `🚻 [Update] Gênero: "${data.gender}" -> "${updateData.gender}"`,
+      );
     }
     if (data.imageUrl !== undefined) {
       updateData.imageUrl = data.imageUrl || null;
+      this.logger.log(
+        `🖼️ [Update] ImageUrl: "${data.imageUrl}" -> "${updateData.imageUrl}"`,
+      );
     }
     if (birthDateForUpdate !== undefined) {
       updateData.birthDate = birthDateForUpdate;
@@ -313,12 +335,16 @@ export class UsersService {
     if (data.firstName !== undefined) {
       newFirstName = data.firstName.trim();
       needsNameUpdate = true;
-      this.logger.log(`📝 [Update] FirstName definido: "${newFirstName}"`);
+      this.logger.log(
+        `👤 [Update] FirstName NOVO: "${newFirstName}" (era: "${currentUser.firstName}")`,
+      );
     }
     if (data.lastName !== undefined) {
       newLastName = data.lastName.trim();
       needsNameUpdate = true;
-      this.logger.log(`📝 [Update] LastName definido: "${newLastName}"`);
+      this.logger.log(
+        `👤 [Update] LastName NOVO: "${newLastName}" (era: "${currentUser.lastName}")`,
+      );
     }
 
     if (needsNameUpdate) {
@@ -329,14 +355,15 @@ export class UsersService {
 
       if (fullName.length > 0) {
         updateData.name = fullName;
-        this.logger.log(`📝 [Update] Nome completo construído: "${fullName}"`);
+        this.logger.log(
+          `✅ [Update] Nome completo NOVO: "${fullName}" (era: "${currentUser.name}")`,
+        );
       } else {
         const emailPrefix = currentUser.email.split('@')[0];
         updateData.name =
-          currentUser.name ||
           emailPrefix.charAt(0).toUpperCase() + emailPrefix.slice(1);
         this.logger.log(
-          `📝 [Update] Usando fallback para nome: "${updateData.name}"`,
+          `🔄 [Update] Usando fallback para nome: "${updateData.name}"`,
         );
       }
     }
@@ -349,7 +376,10 @@ export class UsersService {
     }
 
     try {
-      this.logger.log(`💾 [Update] Atualizando no banco:`, updateData);
+      this.logger.log(
+        `💾 [Update] Dados a serem atualizados no banco:`,
+        JSON.stringify(updateData, null, 2),
+      );
 
       const user = await this.prisma.user.update({
         where: { clerkId },
@@ -357,8 +387,17 @@ export class UsersService {
       });
 
       this.logger.log(
-        `✅ [Update] Perfil atualizado: DB ID ${user.id}, nome final: "${user.name}"`,
+        `🎉 [Update] Perfil atualizado com sucesso! DB ID: ${user.id}`,
       );
+      this.logger.log(`✅ [Update] Resultado final:`, {
+        name: user.name,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        phoneNumber: user.phoneNumber,
+        gender: user.gender,
+        birthDate: user.birthDate,
+      });
+
       return user;
     } catch (error: any) {
       if (error.code === 'P2025') {
