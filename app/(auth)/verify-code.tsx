@@ -132,7 +132,15 @@ export default function VerifyCodeScreen() {
     if (!isLoaded || !mountedRef.current) return;
 
     const codeToVerify = verificationCode || code;
+    console.log('[DEBUG] handleVerifyCodeAndSync called with:', {
+      codeLength: codeToVerify?.length || 0,
+      hasCode: !!codeToVerify,
+      isLoaded,
+      isMounted: mountedRef.current,
+    });
+
     if (!codeToVerify || codeToVerify.length !== 6) {
+      console.log('[DEBUG] Invalid code format');
       setError('Por favor, insira o código de 6 dígitos');
       return;
     }
@@ -141,7 +149,7 @@ export default function VerifyCodeScreen() {
     setError('');
 
     try {
-      console.log('🔐 Iniciando verificação de código...');
+      console.log('[DEBUG] Iniciando verificação de código...');
 
       // 1. Verificar o código
       const completeSignUp = await signUp.attemptEmailAddressVerification({
@@ -150,24 +158,28 @@ export default function VerifyCodeScreen() {
 
       if (!mountedRef.current) return;
 
+      console.log('[DEBUG] Clerk verification result:', completeSignUp.status);
+
       if (completeSignUp.status !== 'complete') {
         throw new Error('Falha na verificação do código.');
       }
 
-      console.log('✅ Código verificado com sucesso');
+      console.log('[SUCCESS] Código verificado com sucesso');
 
       // 2. Ativar sessão e obter token
+      console.log('[DEBUG] Ativando sessão...');
       await setActive({ session: completeSignUp.createdSessionId });
 
       if (!mountedRef.current) return;
 
+      console.log('[DEBUG] Obtendo token de autenticação...');
       const token = await getToken();
 
       if (!token) {
         throw new Error('Falha ao obter token de autenticação.');
       }
 
-      console.log('🔐 Token de autenticação obtido');
+      console.log('[SUCCESS] Token de autenticação obtido');
 
       // 3. Preparar dados do perfil para sincronização
       const profileData: any = {};
@@ -177,11 +189,13 @@ export default function VerifyCodeScreen() {
       if (params.gender) profileData.gender = params.gender;
       if (params.phoneNumber) profileData.phoneNumber = params.phoneNumber;
 
+      console.log('[DEBUG] Profile data to sync:', profileData);
+
       const authHeader = { headers: { Authorization: `Bearer ${token}` } };
 
       // 4. Sincronização com aguardo de estabilização
       try {
-        console.log('🔄 Sincronizando usuário com dados completos...');
+        console.log('[DEBUG] Iniciando sincronização com backend...');
 
         // Primeiro faz a sincronização básica com retry
         let syncAttempts = 0;
@@ -190,14 +204,22 @@ export default function VerifyCodeScreen() {
 
         while (syncAttempts < maxSyncAttempts && !syncSuccess) {
           try {
-            await apiClient.post('/users/sync', {}, authHeader);
-            console.log('✅ Sincronização básica concluída');
+            console.log(
+              `[DEBUG] Tentativa de sincronização ${syncAttempts + 1}/${maxSyncAttempts}`
+            );
+
+            const syncResponse = await apiClient.post('/users/sync', {}, authHeader);
+            console.log('[SUCCESS] Sincronização básica concluída:', syncResponse.status);
             syncSuccess = true;
           } catch (syncErr: any) {
             syncAttempts++;
-            console.log(`⏳ Tentativa de sincronização ${syncAttempts}/${maxSyncAttempts}...`);
+            console.log(
+              `[WARN] Falha na tentativa ${syncAttempts}:`,
+              syncErr.response?.status || syncErr.message
+            );
 
             if (syncAttempts < maxSyncAttempts) {
+              console.log(`[DEBUG] Aguardando antes da próxima tentativa...`);
               await new Promise((resolve) => setTimeout(resolve, 1500));
             } else {
               throw syncErr;
@@ -206,17 +228,21 @@ export default function VerifyCodeScreen() {
         }
 
         // Aguarda um pouco para garantir que a sincronização foi processada
+        console.log('[DEBUG] Aguardando processamento da sincronização...');
         await new Promise((resolve) => setTimeout(resolve, 1000));
 
         // Se tem dados adicionais, atualiza o perfil
         if (Object.keys(profileData).length > 0 && mountedRef.current) {
-          console.log('🔄 Atualizando perfil com dados adicionais...', profileData);
+          console.log('[DEBUG] Atualizando perfil com dados adicionais...');
 
           try {
-            await apiClient.patch('/users/me', profileData, authHeader);
-            console.log('✅ Perfil atualizado com dados adicionais');
+            const updateResponse = await apiClient.patch('/users/me', profileData, authHeader);
+            console.log('[SUCCESS] Perfil atualizado com dados adicionais:', updateResponse.status);
           } catch (updateError: any) {
-            console.error('⚠️ Erro ao atualizar dados adicionais:', updateError);
+            console.error(
+              '[WARN] Erro ao atualizar dados adicionais:',
+              updateError.response?.status || updateError.message
+            );
             // Não falha o fluxo se os dados adicionais não foram salvos
             if (mountedRef.current) {
               showToast('Conta criada! Alguns dados podem ser atualizados no perfil.', 'success');
@@ -224,12 +250,15 @@ export default function VerifyCodeScreen() {
           }
         }
       } catch (syncError: any) {
-        console.error('❌ Erro na sincronização:', syncError);
+        console.error(
+          '[ERROR] Erro na sincronização:',
+          syncError.response?.status || syncError.message
+        );
 
         // Se for erro de autenticação, pode ser problema temporário
         if (syncError.response?.status === 401 || syncError.response?.status === 500) {
           console.log(
-            '⚠️ Erro temporário na sincronização, usuário será criado no primeiro acesso'
+            '[WARN] Erro temporário na sincronização, usuário será criado no primeiro acesso'
           );
           if (mountedRef.current) {
             showToast(

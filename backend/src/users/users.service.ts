@@ -20,15 +20,19 @@ export class UsersService {
   async syncUserWithClerk(tokenPayload: Record<string, any>): Promise<User> {
     const clerkId = tokenPayload?.sub;
     if (!clerkId) {
-      this.logger.error("Payload do token não contém 'sub'", tokenPayload);
+      this.logger.error(
+        '[ERROR] Payload do token não contém "sub"',
+        tokenPayload,
+      );
       throw new InternalServerErrorException(
         'ID do usuário Clerk ausente no token.',
       );
     }
 
-    this.logger.log(`syncUser iniciado para Clerk ID: ${clerkId}`);
+    this.logger.log(`[DEBUG] syncUser iniciado para Clerk ID: ${clerkId}`);
 
     try {
+      this.logger.log(`[DEBUG] Buscando usuário no Clerk: ${clerkId}`);
       const clerkUser = await clerkClient.users.getUser(clerkId);
 
       const primaryEmailObject = clerkUser.emailAddresses.find(
@@ -40,7 +44,7 @@ export class UsersService {
 
       if (!email) {
         this.logger.error(
-          `Email não encontrado no Clerk para ${clerkId}`,
+          `[ERROR] Email não encontrado no Clerk para ${clerkId}`,
           clerkUser.emailAddresses,
         );
         throw new InternalServerErrorException(
@@ -62,7 +66,7 @@ export class UsersService {
       const phoneNumber = clerkUser.phoneNumbers?.[0]?.phoneNumber || null;
 
       this.logger.log(
-        `Sincronizando ${clerkId} com dados: nome="${fullName}", email="${email}"`,
+        `[DEBUG] Dados extraídos do Clerk - nome: "${fullName}", email: "${email}", telefone: "${phoneNumber || 'N/A'}"`,
       );
 
       // Primeiro, verifica se já existe um usuário com este clerkId
@@ -72,6 +76,10 @@ export class UsersService {
 
       if (existingUser) {
         // Usuário já existe, apenas atualiza
+        this.logger.log(
+          `[DEBUG] Usuário existente encontrado, atualizando: ${existingUser.id}`,
+        );
+
         const user = await this.prisma.user.update({
           where: { clerkId },
           data: {
@@ -85,7 +93,7 @@ export class UsersService {
         });
 
         this.logger.log(
-          `Usuário atualizado: DB ID ${user.id}, nome: "${user.name}"`,
+          `[SUCCESS] Usuário atualizado: DB ID ${user.id}, nome: "${user.name}"`,
         );
         return user;
       }
@@ -99,7 +107,7 @@ export class UsersService {
         // Se existe usuário com mesmo email mas clerkId diferente,
         // provavelmente é uma inconsistência. Vamos atualizar o clerkId.
         this.logger.warn(
-          `Usuário com email ${email} já existe com clerkId diferente. Atualizando clerkId de ${userWithSameEmail.clerkId} para ${clerkId}`,
+          `[WARN] Usuário com email ${email} já existe com clerkId diferente. Atualizando clerkId de ${userWithSameEmail.clerkId} para ${clerkId}`,
         );
 
         const user = await this.prisma.user.update({
@@ -115,12 +123,14 @@ export class UsersService {
         });
 
         this.logger.log(
-          `Usuário sincronizado (email existente): DB ID ${user.id}, nome: "${user.name}"`,
+          `[SUCCESS] Usuário sincronizado (email existente): DB ID ${user.id}, nome: "${user.name}"`,
         );
         return user;
       }
 
       // Nenhum usuário encontrado, criar novo
+      this.logger.log(`[DEBUG] Criando novo usuário no banco de dados`);
+
       const user = await this.prisma.user.create({
         data: {
           clerkId,
@@ -134,23 +144,30 @@ export class UsersService {
       });
 
       this.logger.log(
-        `Novo usuário criado: DB ID ${user.id}, nome: "${user.name}"`,
+        `[SUCCESS] Novo usuário criado: DB ID ${user.id}, nome: "${user.name}"`,
       );
 
       return user;
     } catch (error: any) {
-      this.logger.error(`Falha ao sincronizar usuário ${clerkId}:`, error);
+      this.logger.error(
+        `[ERROR] Falha ao sincronizar usuário ${clerkId}:`,
+        error,
+      );
 
       // Tratamento específico para erros de constraint único
       if (error.code === 'P2002') {
         const constraintField = error.meta?.target;
         this.logger.error(
-          `Constraint único falhou em ${constraintField} (P2002).`,
+          `[ERROR] Constraint único falhou em ${constraintField} (P2002).`,
         );
 
         if (constraintField?.includes('email')) {
           // Tenta recuperar o usuário existente com este email
           try {
+            this.logger.log(
+              `[DEBUG] Tentando recuperar usuário existente após P2002`,
+            );
+
             const existingUser = await this.prisma.user.findFirst({
               where: {
                 OR: [{ clerkId }, { email: tokenPayload.email }],
@@ -159,13 +176,13 @@ export class UsersService {
 
             if (existingUser) {
               this.logger.log(
-                `Retornando usuário existente após erro P2002: ${existingUser.id}`,
+                `[SUCCESS] Usuário existente recuperado após erro P2002: ${existingUser.id}`,
               );
               return existingUser;
             }
           } catch (recoveryError) {
             this.logger.error(
-              'Falha na recuperação após P2002:',
+              '[ERROR] Falha na recuperação após P2002:',
               recoveryError,
             );
           }

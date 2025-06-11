@@ -123,33 +123,59 @@ export default function SignUpScreen() {
   };
 
   const validateStep2 = () => {
+    console.log('[DEBUG] validateStep2 called with:', {
+      password: formData.password ? '***' : 'empty',
+      confirmPassword: formData.confirmPassword ? '***' : 'empty',
+      passwordsMatch: formData.password === formData.confirmPassword,
+      passwordLength: formData.password?.length || 0,
+      confirmPasswordLength: formData.confirmPassword?.length || 0,
+    });
+
     const newErrors: Record<string, string> = {};
 
     // Usar a nova validação de senha
     const passwordValidation = validatePassword(formData.password);
     if (!passwordValidation.isValid) {
       newErrors.password = passwordValidation.message || 'Senha inválida';
+      console.log('[DEBUG] Password validation failed:', passwordValidation.message);
     }
 
     if (!formData.confirmPassword.trim()) {
       newErrors.confirmPassword = 'Confirmação de senha é obrigatória';
+      console.log('[DEBUG] Confirm password is empty');
     } else if (formData.password !== formData.confirmPassword) {
       newErrors.confirmPassword = 'Senhas não conferem';
+      console.log('[DEBUG] Passwords do not match');
     }
 
     if (formData.phoneNumber.trim() && !/^[\d\s\-\(\)]+$/.test(formData.phoneNumber.trim())) {
       newErrors.phoneNumber = 'Formato de telefone inválido';
+      console.log('[DEBUG] Invalid phone format');
     }
 
+    console.log('[DEBUG] Validation errors:', newErrors);
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleNext = () => {
-    if (currentStep === 1 && validateStep1()) {
-      setCurrentStep(2);
-    } else if (currentStep === 2 && validateStep2()) {
-      handleSubmit();
+    console.log('[DEBUG] handleNext called, currentStep:', currentStep);
+
+    if (currentStep === 1) {
+      const isStep1Valid = validateStep1();
+      console.log('[DEBUG] Step 1 validation result:', isStep1Valid);
+      if (isStep1Valid) {
+        setCurrentStep(2);
+      }
+    } else if (currentStep === 2) {
+      const isStep2Valid = validateStep2();
+      console.log('[DEBUG] Step 2 validation result:', isStep2Valid);
+      // Só permite submit se a validação passou
+      if (isStep2Valid) {
+        handleSubmit();
+      } else {
+        console.log('[DEBUG] Step 2 validation failed, not submitting');
+      }
     }
   };
 
@@ -164,18 +190,42 @@ export default function SignUpScreen() {
   const handleSubmit = async () => {
     if (!isLoaded) return;
 
+    console.log('[DEBUG] handleSubmit called with form data:', {
+      email: formData.email,
+      firstName: formData.firstName,
+      lastName: formData.lastName,
+      phoneNumber: formData.phoneNumber,
+      birthDate: formData.birthDate ? format(formData.birthDate, 'yyyy-MM-dd') : '',
+      gender: formData.gender,
+    });
+
     setIsLoading(true);
     try {
-      await signUp.create({
+      console.log('[DEBUG] Creating Clerk user...');
+
+      const signUpResult = await signUp.create({
         emailAddress: formData.email.trim(),
         password: formData.password.trim(),
       });
 
+      console.log('[DEBUG] Clerk user created:', signUpResult.status);
+
       await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
+      console.log('[DEBUG] Email verification prepared');
 
       showInfo('Código de verificação enviado!');
 
       const birthDateString = formData.birthDate ? format(formData.birthDate, 'yyyy-MM-dd') : '';
+
+      console.log('[DEBUG] Navigating to verify-code with params:', {
+        email: formData.email.trim(),
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
+        birthDate: birthDateString,
+        gender: formData.gender || '',
+        phoneNumber: formData.phoneNumber.trim(),
+      });
+
       router.push({
         pathname: '/(auth)/verify-code',
         params: {
@@ -188,19 +238,25 @@ export default function SignUpScreen() {
         },
       });
     } catch (err: any) {
-      console.error('Erro de Registro Clerk:', JSON.stringify(err, null, 2));
+      console.error('[ERROR] Erro de Registro Clerk:', JSON.stringify(err, null, 2));
       const firstError = err.errors?.[0];
 
       // Tratamento específico para tipos de erro
       if (firstError?.code === 'form_identifier_exists') {
-        showError('Este email já está cadastrado.');
+        showError('Este email já está cadastrado. Tente fazer login ou usar outro email.');
       } else if (firstError?.code === 'form_password_pwned') {
         showError(
           'Esta senha foi encontrada em vazamentos de dados. Por segurança, use uma senha diferente.'
         );
       } else if (firstError?.code === 'form_password_not_strong_enough') {
         showError(
-          'Senha muito fraca. Use pelo menos 6 caracteres, 1 letra minúscula e 1 caractere especial.'
+          'Senha muito fraca. Use pelo menos 8 caracteres com maiúscula, minúscula, número e caractere especial.'
+        );
+      } else if (firstError?.code === 'form_password_too_common') {
+        showError('Esta senha é muito comum. Escolha uma senha mais única e segura.');
+      } else if (firstError?.message?.includes('password')) {
+        showError(
+          `Erro na senha: ${firstError.message}. Certifique-se de usar pelo menos 8 caracteres com maiúscula, minúscula, número e caractere especial.`
         );
       } else {
         const errorMessage =
@@ -209,6 +265,8 @@ export default function SignUpScreen() {
           'Erro ao criar conta. Verifique os dados e tente novamente.';
         showError(errorMessage);
       }
+
+      console.log('[DEBUG] Error handled, staying on current step');
     } finally {
       setIsLoading(false);
     }
@@ -270,8 +328,9 @@ export default function SignUpScreen() {
         onChangeText={(text) => updateField('password', text)}
         error={errors.password}
         required
-        helperText="Mín. 6 caracteres, 1 letra minúscula e 1 especial"
+        helperText="Mín. 8 caracteres, 1 maiúscula, 1 minúscula, 1 número e 1 especial"
         secureTextEntry
+        showPasswordStrength
         leftIcon="lock-closed"
       />
 

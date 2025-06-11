@@ -197,7 +197,18 @@ const ProfileSettingsScreen = () => {
   };
 
   const validatePasswordForm = () => {
+    console.log('[DEBUG] validatePasswordForm called with:', {
+      currentPassword: passwordData.currentPassword ? '***' : 'empty',
+      newPassword: passwordData.newPassword ? '***' : 'empty',
+      confirmPassword: passwordData.confirmPassword ? '***' : 'empty',
+      currentPasswordLength: passwordData.currentPassword?.length || 0,
+      newPasswordLength: passwordData.newPassword?.length || 0,
+      confirmPasswordLength: passwordData.confirmPassword?.length || 0,
+      passwordsMatch: passwordData.newPassword === passwordData.confirmPassword,
+    });
+
     if (!passwordData.currentPassword) {
+      console.log('[DEBUG] Current password is empty');
       showToast('Informe sua senha atual', 'error');
       return false;
     }
@@ -205,15 +216,18 @@ const ProfileSettingsScreen = () => {
     // Usar a nova validação de senha
     const passwordValidation = validatePassword(passwordData.newPassword);
     if (!passwordValidation.isValid) {
+      console.log('[DEBUG] New password validation failed:', passwordValidation.message);
       showToast(passwordValidation.message || 'Senha inválida', 'error');
       return false;
     }
 
     if (passwordData.newPassword !== passwordData.confirmPassword) {
+      console.log('[DEBUG] Passwords do not match');
       showToast('As senhas não coincidem', 'error');
       return false;
     }
 
+    console.log('[DEBUG] Password validation passed');
     return true;
   };
 

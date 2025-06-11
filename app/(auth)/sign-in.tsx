@@ -85,37 +85,62 @@ export default function SignInScreen() {
   };
 
   const handleLogin = async () => {
+    console.log('[DEBUG] handleLogin called with:', {
+      email: email ? '***' : 'empty',
+      password: password ? '***' : 'empty',
+      emailLength: email?.length || 0,
+      passwordLength: password?.length || 0,
+    });
+
     if (!validateForm() || !isLoaded) {
+      console.log('[DEBUG] Form validation failed or Clerk not loaded');
       return;
     }
 
     setIsLoading(true);
     try {
+      console.log('[DEBUG] Attempting Clerk sign in...');
+
       const signInAttempt = await signIn.create({
         identifier: email.trim(),
         password: password.trim(),
       });
 
+      console.log('[DEBUG] Sign in attempt result:', signInAttempt.status);
+
       if (signInAttempt.status === 'complete') {
+        console.log('[DEBUG] Setting active session...');
         await setActive({ session: signInAttempt.createdSessionId });
 
+        console.log('[DEBUG] Login successful, redirecting...');
         showSuccess('Login realizado com sucesso!');
         router.replace('/(root)/profile');
       } else {
         console.error(
-          'Status inesperado do Clerk Sign In:',
+          '[ERROR] Status inesperado do Clerk Sign In:',
           JSON.stringify(signInAttempt, null, 2)
         );
         showError('Status de login inesperado.');
       }
     } catch (err: any) {
-      console.error('Erro de Login Clerk:', JSON.stringify(err, null, 2));
+      console.error('[ERROR] Erro de Login Clerk:', JSON.stringify(err, null, 2));
       const firstError = err.errors?.[0];
-      const errorMessage =
-        firstError?.longMessage ||
-        firstError?.message ||
-        'Erro ao fazer login. Verifique suas credenciais.';
 
+      let errorMessage = 'Erro ao fazer login. Verifique suas credenciais.';
+
+      if (firstError?.code === 'form_identifier_not_found') {
+        errorMessage = 'Email não cadastrado. Verifique o email ou cadastre-se.';
+      } else if (firstError?.code === 'form_password_incorrect') {
+        errorMessage = 'Senha incorreta. Tente novamente ou redefina sua senha.';
+      } else if (firstError?.code === 'session_exists') {
+        errorMessage = 'Você já está logado. Redirecionando...';
+        router.replace('/(root)/profile');
+        return;
+      } else if (firstError?.longMessage || firstError?.message) {
+        errorMessage = firstError.longMessage || firstError.message;
+      }
+
+      console.log('[DEBUG] Showing error to user:', errorMessage);
       showError(errorMessage);
     } finally {
       setIsLoading(false);

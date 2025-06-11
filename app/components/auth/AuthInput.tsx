@@ -23,7 +23,30 @@ interface AuthInputProps extends TextInputProps {
   required?: boolean;
   disabled?: boolean;
   secureTextEntry?: boolean;
+  showPasswordStrength?: boolean;
 }
+
+const calculatePasswordStrength = (password: string) => {
+  let score = 0;
+  const feedback: string[] = [];
+
+  if (password.length >= 8) score += 25;
+  else feedback.push('Mín. 8 caracteres');
+
+  if (/[a-z]/.test(password)) score += 20;
+  else feedback.push('Letra minúscula');
+
+  if (/[A-Z]/.test(password)) score += 20;
+  else feedback.push('Letra maiúscula');
+
+  if (/[0-9]/.test(password)) score += 20;
+  else feedback.push('Número');
+
+  if (/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password)) score += 15;
+  else feedback.push('Caractere especial');
+
+  return { score, feedback };
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -104,6 +127,39 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: 'rgba(60, 60, 67, 0.7)',
   },
+  strengthContainer: {
+    marginTop: 8,
+  },
+  strengthBar: {
+    height: 4,
+    backgroundColor: '#e5e5e5',
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  strengthProgress: {
+    height: '100%',
+    borderRadius: 2,
+  },
+  strengthFeedback: {
+    marginTop: 4,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  strengthItem: {
+    fontSize: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  strengthItemMet: {
+    backgroundColor: '#dcfce7',
+    color: '#16a34a',
+  },
+  strengthItemUnmet: {
+    backgroundColor: '#fef2f2',
+    color: '#dc2626',
+  },
 });
 
 export default function AuthInput({
@@ -119,6 +175,7 @@ export default function AuthInput({
   required = false,
   disabled = false,
   secureTextEntry = false,
+  showPasswordStrength = false,
   ...props
 }: AuthInputProps) {
   const [isFocused, setIsFocused] = useState(false);
@@ -140,6 +197,16 @@ export default function AuthInput({
 
   const finalRightIcon = secureTextEntry ? (isPasswordVisible ? 'eye-off' : 'eye') : rightIcon;
   const finalRightIconPress = secureTextEntry ? togglePasswordVisibility : onRightIconPress;
+
+  const passwordStrength =
+    showPasswordStrength && secureTextEntry && value ? calculatePasswordStrength(value) : null;
+
+  const getStrengthColor = (score: number) => {
+    if (score < 25) return '#dc2626';
+    if (score < 50) return '#ea580c';
+    if (score < 75) return '#ca8a04';
+    return '#16a34a';
+  };
 
   const getInputContainerStyle = (): ViewStyle[] => {
     const containerStyles: ViewStyle[] = [styles.inputContainer];
@@ -215,6 +282,32 @@ export default function AuthInput({
           </TouchableOpacity>
         )}
       </View>
+
+      {/* Password Strength Indicator */}
+      {passwordStrength && !error && (
+        <View style={styles.strengthContainer}>
+          <View style={styles.strengthBar}>
+            <View
+              style={[
+                styles.strengthProgress,
+                {
+                  width: `${passwordStrength.score}%`,
+                  backgroundColor: getStrengthColor(passwordStrength.score),
+                },
+              ]}
+            />
+          </View>
+          {passwordStrength.feedback.length > 0 && (
+            <View style={styles.strengthFeedback}>
+              {passwordStrength.feedback.map((item, index) => (
+                <Text key={index} style={[styles.strengthItem, styles.strengthItemUnmet]}>
+                  {item}
+                </Text>
+              ))}
+            </View>
+          )}
+        </View>
+      )}
 
       {/* Error Message */}
       {error && (
