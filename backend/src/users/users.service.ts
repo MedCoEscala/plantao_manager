@@ -88,30 +88,54 @@ export class UsersService {
           imageUrl,
         };
 
-        if (firstName) {
+        if (firstName && !existingUser.firstName) {
           updateData.firstName = firstName;
+          this.logger.log(`📝 [Sync] Adicionando firstName: "${firstName}"`);
         }
-        if (lastName) {
+        if (lastName && !existingUser.lastName) {
           updateData.lastName = lastName;
+          this.logger.log(`📝 [Sync] Adicionando lastName: "${lastName}"`);
         }
 
-        updateData.name = fullName;
+        const finalFirstName = existingUser.firstName || firstName;
+        const finalLastName = existingUser.lastName || lastName;
+
+        if (finalFirstName || finalLastName) {
+          const newFullName = `${finalFirstName} ${finalLastName}`.trim();
+          if (newFullName && newFullName !== existingUser.name) {
+            updateData.name = newFullName;
+            this.logger.log(
+              `📝 [Sync] Atualizando nome completo: "${existingUser.name}" → "${newFullName}"`,
+            );
+          }
+        } else if (!existingUser.name || existingUser.name === fullName) {
+          updateData.name = fullName;
+          this.logger.log(`📝 [Sync] Atualizando nome fallback: "${fullName}"`);
+        }
 
         if (!existingUser.phoneNumber && phoneNumber) {
           updateData.phoneNumber = phoneNumber;
+          this.logger.log(`📞 [Sync] Adicionando telefone: "${phoneNumber}"`);
         }
 
-        const user = await this.prisma.user.update({
-          where: { clerkId },
-          data: updateData,
-        });
+        if (Object.keys(updateData).length > 2) {
+          const user = await this.prisma.user.update({
+            where: { clerkId },
+            data: updateData,
+          });
 
-        this.logger.log(`✅ [Sync] Usuário atualizado: DB ID ${user.id}`, {
-          name: `"${user.name}"`,
-          firstName: `"${user.firstName}"`,
-          lastName: `"${user.lastName}"`,
-        });
-        return user;
+          this.logger.log(`✅ [Sync] Usuário atualizado: DB ID ${user.id}`, {
+            name: `"${user.name}"`,
+            firstName: `"${user.firstName}"`,
+            lastName: `"${user.lastName}"`,
+          });
+          return user;
+        } else {
+          this.logger.log(
+            `ℹ️ [Sync] Nenhuma atualização necessária para usuário existente`,
+          );
+          return existingUser;
+        }
       }
 
       const userWithSameEmail = await this.prisma.user.findUnique({
