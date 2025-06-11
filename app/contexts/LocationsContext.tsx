@@ -1,5 +1,5 @@
 import { useAuth } from '@clerk/clerk-expo';
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 
 import { useToast } from '@/components/ui/Toast';
 import { useProfile } from '@/hooks/useProfile';
@@ -37,16 +37,16 @@ export function LocationsProvider({ children }: { children: React.ReactNode }) {
   const { showToast } = useToast();
   const { isInitialized: isProfileInitialized } = useProfile();
 
+  const hasInitialized = useRef(false);
+
   const fetchLocations = useCallback(async (): Promise<void> => {
     // Só busca se o profile estiver inicializado
     if (!isAuthLoaded || !userId || !isProfileInitialized) {
-      console.log('📍 [Locations] Aguardando inicialização do profile...');
       setIsLoading(false);
       return;
     }
 
     try {
-      console.log('🚀 [Locations] Requisição para: /locations');
       const token = await getToken();
       if (!token) {
         throw new Error('Token de autenticação não disponível');
@@ -61,10 +61,8 @@ export function LocationsProvider({ children }: { children: React.ReactNode }) {
         async () => token
       );
 
-      console.log('✅ [Locations] Locais carregados:', data?.length || 0);
       setLocations(data || []);
     } catch (error: any) {
-      console.log('❌ [Locations] Erro ao buscar locais:', error);
       const errorMessage =
         error?.response?.data?.message || error?.message || 'Erro ao carregar locais';
       setError(errorMessage);
@@ -160,8 +158,8 @@ export function LocationsProvider({ children }: { children: React.ReactNode }) {
 
   // Carrega locais quando o profile estiver inicializado
   useEffect(() => {
-    if (isProfileInitialized) {
-      console.log('📍 [Locations] Profile inicializado, carregando locais...');
+    if (isProfileInitialized && !hasInitialized.current) {
+      hasInitialized.current = true;
       fetchLocations();
     }
   }, [isProfileInitialized, fetchLocations]);
@@ -169,10 +167,10 @@ export function LocationsProvider({ children }: { children: React.ReactNode }) {
   // Reset quando usuário desloga
   useEffect(() => {
     if (isAuthLoaded && !userId) {
-      console.log('🔄 [Locations] Usuário deslogado, resetando contexto...');
       setLocations([]);
       setError(null);
       setIsLoading(false);
+      hasInitialized.current = false;
     }
   }, [isAuthLoaded, userId]);
 

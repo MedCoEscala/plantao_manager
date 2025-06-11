@@ -11,25 +11,7 @@ import { useProfile } from '@/hooks/useProfile';
 
 const ProfileScreen = memo(() => {
   const router = useRouter();
-  const { profile, loading, refetch } = useProfile();
-
-  // Controle para evitar múltiplas chamadas do refetch
-  const lastFocusTime = useRef(0);
-  const THROTTLE_TIME = 30000; // 30 segundos
-
-  // Throttled focus effect - totalmente estável
-  useFocusEffect(
-    useCallback(() => {
-      const now = Date.now();
-      if (now - lastFocusTime.current > THROTTLE_TIME) {
-        console.log('📱 [ProfileScreen] Tela ganhou foco, verificando atualizações...');
-        lastFocusTime.current = now;
-        refetch().catch(console.error);
-      } else {
-        console.log('📱 [ProfileScreen] Foco detectado, mas throttling ativo');
-      }
-    }, [refetch])
-  );
+  const { profile, loading } = useProfile();
 
   const handleEditProfile = useCallback(() => {
     router.push('/profile/edit');

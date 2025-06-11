@@ -1,5 +1,5 @@
 import { useAuth } from '@clerk/clerk-expo';
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 
 import { useToast } from '@/components/ui/Toast';
 import { useProfile } from '@/hooks/useProfile';
@@ -22,8 +22,10 @@ interface ContractorsContextType {
   isLoading: boolean;
   error: string | null;
   refreshContractors: () => Promise<void>;
-  addContractor: (contractor: Omit<Contractor, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
-  updateContractor: (id: string, contractor: Partial<Contractor>) => Promise<void>;
+  addContractor: (
+    contractorData: Omit<Contractor, 'id' | 'createdAt' | 'updatedAt'>
+  ) => Promise<void>;
+  updateContractor: (id: string, contractorData: Partial<Contractor>) => Promise<void>;
   deleteContractor: (id: string) => Promise<void>;
 }
 
@@ -38,36 +40,32 @@ export function ContractorsProvider({ children }: { children: React.ReactNode })
   const { showToast } = useToast();
   const { isInitialized: isProfileInitialized } = useProfile();
 
+  const hasInitialized = useRef(false);
+
   const fetchContractors = useCallback(async (): Promise<void> => {
     // Só busca se o profile estiver inicializado
     if (!isAuthLoaded || !userId || !isProfileInitialized) {
-      console.log('🔐 [Contractors] Aguardando inicialização do profile...');
       setIsLoading(false);
       return;
     }
 
     try {
-      console.log('🔐 [Contractors] Obtendo token de autenticação...');
       const token = await getToken();
       if (!token) {
-        console.error('❌ [Contractors] Token não obtido - usuário não autenticado');
         throw new Error('Usuário não autenticado');
       }
 
       setIsLoading(true);
       setError(null);
 
-      console.log('🚀 [Contractors] Buscando contratantes...');
       const data = await fetchWithAuth<Contractor[]>(
         '/contractors',
         { method: 'GET' },
         async () => token
       );
 
-      console.log('✅ [Contractors] Contratantes carregados:', data?.length || 0);
       setContractors(data || []);
     } catch (error: any) {
-      console.error('❌ [Contractors] Erro ao buscar contratantes:', error);
       const errorMessage =
         error?.response?.data?.message || error?.message || 'Erro ao carregar contratantes';
       setError(errorMessage);
@@ -163,8 +161,8 @@ export function ContractorsProvider({ children }: { children: React.ReactNode })
 
   // Carrega contratantes quando o profile estiver inicializado
   useEffect(() => {
-    if (isProfileInitialized) {
-      console.log('👥 [Contractors] Profile inicializado, carregando contratantes...');
+    if (isProfileInitialized && !hasInitialized.current) {
+      hasInitialized.current = true;
       fetchContractors();
     }
   }, [isProfileInitialized, fetchContractors]);
@@ -172,10 +170,10 @@ export function ContractorsProvider({ children }: { children: React.ReactNode })
   // Reset quando usuário desloga
   useEffect(() => {
     if (isAuthLoaded && !userId) {
-      console.log('🔄 [Contractors] Usuário deslogado, resetando contexto...');
       setContractors([]);
       setError(null);
       setIsLoading(false);
+      hasInitialized.current = false;
     }
   }, [isAuthLoaded, userId]);
 

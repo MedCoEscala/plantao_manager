@@ -30,18 +30,11 @@ export const useContractorsApi = () => {
 
   const getContractors = async (filters?: ContractorsFilters): Promise<Contractor[]> => {
     try {
-      console.log('🔐 [Contractors] Obtendo token de autenticação...');
       const token = await getToken();
 
       if (!token) {
-        console.error('❌ [Contractors] Token não obtido - usuário não autenticado');
         throw new Error('Usuário não autenticado');
       }
-
-      console.log(
-        '✅ [Contractors] Token obtido (primeiros 20 chars):',
-        token.substring(0, 20) + '...'
-      );
 
       let queryParams = '';
 
@@ -49,15 +42,12 @@ export const useContractorsApi = () => {
         queryParams = `?searchTerm=${encodeURIComponent(filters.searchTerm)}`;
       }
 
-      console.log('🚀 [Contractors] Fazendo requisição para:', `/contractors${queryParams}`);
-
       const response = await apiClient.get(`/contractors${queryParams}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
 
-      console.log('✅ [Contractors] Resposta recebida:', response.data?.length, 'contratantes');
       return response.data;
     } catch (error) {
       console.error('❌ [Contractors] Erro ao buscar contratantes:', error);
@@ -67,11 +57,9 @@ export const useContractorsApi = () => {
 
   const getContractorById = async (id: string): Promise<Contractor> => {
     try {
-      console.log('🔐 [Contractors] Obtendo token para buscar contratante:', id);
       const token = await getToken();
 
       if (!token) {
-        console.error('❌ [Contractors] Token não obtido - usuário não autenticado');
         throw new Error('Usuário não autenticado');
       }
 
@@ -90,15 +78,11 @@ export const useContractorsApi = () => {
 
   const createContractor = async (data: CreateContractorData): Promise<Contractor> => {
     try {
-      console.log('🔐 [Contractors] Obtendo token para criar contratante...');
       const token = await getToken();
 
       if (!token) {
-        console.error('❌ [Contractors] Token não obtido - usuário não autenticado');
         throw new Error('Usuário não autenticado');
       }
-
-      console.log('✅ [Contractors] Token obtido para criação');
 
       const response = await apiClient.post('/contractors', data, {
         headers: {
