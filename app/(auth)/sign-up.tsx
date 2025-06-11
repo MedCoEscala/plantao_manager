@@ -133,7 +133,7 @@ export default function SignUpScreen() {
 
     if (!formData.confirmPassword.trim()) {
       newErrors.confirmPassword = 'Confirmação de senha é obrigatória';
-    } else if (formData.password !== formData.confirmPassword) {
+    } else if (formData.password.trim() !== formData.confirmPassword.trim()) {
       newErrors.confirmPassword = 'Senhas não conferem';
     }
 
@@ -142,7 +142,16 @@ export default function SignUpScreen() {
     }
 
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    const isValid = Object.keys(newErrors).length === 0;
+
+    // Debug para verificar validação
+    if (!isValid) {
+      console.log('❌ [VALIDAÇÃO] Erros encontrados:', newErrors);
+    } else {
+      console.log('✅ [VALIDAÇÃO] Step 2 válido - prosseguindo');
+    }
+
+    return isValid;
   };
 
   const handleNext = () => {

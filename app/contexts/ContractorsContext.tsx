@@ -198,6 +198,17 @@ export function useContractorsContext(): ContractorsContextType {
   return context;
 }
 
+// Alias para compatibilidade com useContractorsSelector
+export function useContractors(): ContractorsContextType & {
+  loadContractors: () => Promise<void>;
+} {
+  const context = useContractorsContext();
+  return {
+    ...context,
+    loadContractors: context.refreshContractors,
+  };
+}
+
 // Default export para resolver warning do React Router
 const contractorsContext = {
   ContractorsProvider,

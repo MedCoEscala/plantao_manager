@@ -195,6 +195,15 @@ export function useLocationsContext(): LocationsContextType {
   return context;
 }
 
+// Alias para compatibilidade com useLocationsSelector
+export function useLocations(): LocationsContextType & { loadLocations: () => Promise<void> } {
+  const context = useLocationsContext();
+  return {
+    ...context,
+    loadLocations: context.refreshLocations,
+  };
+}
+
 // Default export para resolver warning do React Router
 const locationsContext = {
   LocationsProvider,
