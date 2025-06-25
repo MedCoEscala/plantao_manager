@@ -1,8 +1,6 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { networkInterfaces } from 'os';
-import { NestExpressApplication } from '@nestjs/platform-express';
-import { join } from 'path';
 
 import { AppModule } from './app.module';
 
@@ -29,7 +27,7 @@ function getNetworkIP(): string {
 async function createApp() {
   if (app) return app;
 
-  app = await NestFactory.create<NestExpressApplication>(AppModule);
+  app = await NestFactory.create(AppModule);
 
   // Sem prefixo global - rotas diretas como /locations, /users, etc
 
@@ -53,9 +51,6 @@ async function createApp() {
       },
     }),
   );
-
-  // Servir arquivos estáticos
-  app.useStaticAssets(join(__dirname, '..', 'public'));
 
   await app.init();
   return app;
