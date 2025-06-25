@@ -6,12 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
-    "extra": {
-      "eas": {
-        "projectId": "plantao-manager-prod"
-      }
-    },
+    "newArchEnabled": false,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -46,6 +41,17 @@
           "defaultChannel": "default"
         }
       ]
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "c236b910-f135-4d1f-81e6-04e69e64fe7c"
+      }
+    },
+    "owner": "lucaserib",
+    "runtimeVersion": "1.0.0",
+    "updates": {
+      "url": "https://u.expo.dev/c236b910-f135-4d1f-81e6-04e69e64fe7c"
+    }
   }
 }

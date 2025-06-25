@@ -1,0 +1,20 @@
+{
+  "version": 2,
+  "name": "medescala-privacy",
+  "builds": [
+    {
+      "src": "privacy-policy.html",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/",
+      "dest": "/privacy-policy.html"
+    },
+    {
+      "src": "/privacy",
+      "dest": "/privacy-policy.html"
+    }
+  ]
+}

@@ -208,4 +208,100 @@ export class PrivacyController {
     // Redireciona /politica-privacidade para /privacy
     return res.redirect('/privacy');
   }
+
+  @Get('data-deletion')
+  getDataDeletionPage() {
+    return `
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solicitação de Exclusão de Dados - MedEscala</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px; }
+        h1 { color: #2c5aa0; }
+        h2 { color: #34495e; margin-top: 30px; }
+        .form-container { background: #f8f9fa; padding: 30px; border-radius: 8px; margin: 20px 0; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input, textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 16px; }
+        textarea { height: 100px; resize: vertical; }
+        .btn { background: #e74c3c; color: white; padding: 12px 24px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
+        .btn:hover { background: #c0392b; }
+        .info-box { background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 4px; margin: 20px 0; }
+        .back-link { display: inline-block; margin-top: 20px; color: #2c5aa0; text-decoration: none; }
+        .back-link:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <h1>Solicitação de Exclusão de Dados</h1>
+    
+    <div class="info-box">
+        <h3>⚠️ Importante</h3>
+        <p>A exclusão dos dados é <strong>irreversível</strong>. Após a confirmação:</p>
+        <ul>
+            <li>Todos os seus dados pessoais serão permanentemente removidos</li>
+            <li>Você perderá acesso ao aplicativo MedEscala</li>
+            <li>Todos os plantões e configurações serão deletados</li>
+            <li>O processo pode levar até 30 dias para ser concluído</li>
+        </ul>
+    </div>
+
+    <div class="form-container">
+        <h2>Formulário de Solicitação</h2>
+        <form action="mailto:privacidade@medescalaapp.com.br" method="post" enctype="text/plain">
+            <div class="form-group">
+                <label for="email">E-mail cadastrado no MedEscala:</label>
+                <input type="email" id="email" name="email" required placeholder="seu.email@exemplo.com">
+            </div>
+            
+            <div class="form-group">
+                <label for="nome">Nome completo:</label>
+                <input type="text" id="nome" name="nome" required placeholder="Seu nome completo">
+            </div>
+            
+            <div class="form-group">
+                <label for="motivo">Motivo da exclusão (opcional):</label>
+                <textarea id="motivo" name="motivo" placeholder="Conte-nos o motivo para nos ajudar a melhorar o serviço"></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" required> 
+                    Confirmo que entendo que esta ação é irreversível e todos os meus dados serão permanentemente excluídos.
+                </label>
+            </div>
+            
+            <button type="submit" class="btn">Solicitar Exclusão de Dados</button>
+        </form>
+        
+        <div style="margin-top: 20px; padding: 15px; background: #e8f4fd; border-radius: 4px;">
+            <h4>📧 Método Alternativo</h4>
+            <p>Você também pode enviar um e-mail diretamente para:</p>
+            <p><strong>privacidade@medescalaapp.com.br</strong></p>
+            <p>Inclua seu e-mail cadastrado e a solicitação de exclusão de dados.</p>
+        </div>
+    </div>
+
+    <h2>Processo de Exclusão</h2>
+    <ol>
+        <li><strong>Solicitação:</strong> Preencha o formulário acima ou envie um e-mail</li>
+        <li><strong>Verificação:</strong> Confirmaremos sua identidade (prazo: 2-5 dias úteis)</li>
+        <li><strong>Processamento:</strong> Iniciaremos a exclusão dos dados (prazo: até 30 dias)</li>
+        <li><strong>Confirmação:</strong> Você receberá uma confirmação quando concluído</li>
+    </ol>
+
+    <h2>Dúvidas?</h2>
+    <p>Entre em contato conosco:</p>
+    <ul>
+        <li><strong>E-mail:</strong> privacidade@medescalaapp.com.br</li>
+        <li><strong>Assunto:</strong> "Dúvidas sobre Exclusão de Dados"</li>
+    </ul>
+
+    <a href="/privacy" class="back-link">← Voltar para Política de Privacidade</a>
+</body>
+</html>
+    `;
+  }
 }
