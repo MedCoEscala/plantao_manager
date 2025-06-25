@@ -12,5 +12,10 @@
       "src": "/(.*)",
       "dest": "/api/index.js"
     }
-  ]
+  ],
+  "functions": {
+    "api/index.js": {
+      "includeFiles": "backend/dist/**"
+    }
+  }
 }
