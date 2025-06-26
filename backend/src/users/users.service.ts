@@ -32,7 +32,7 @@ export class UsersService {
       userContext.primary_email_address ||
       userContext.emailAddress;
 
-    this.logger.debug('Contexto do usuário:', {
+    this.logger.log('Contexto do usuário:', {
       sub: userContext.sub,
       email: userContext.email,
       email_address: userContext.email_address,

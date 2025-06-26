@@ -42,7 +42,7 @@ export class ClerkAuthGuard implements CanActivate {
       }
 
       // Log detalhado do payload para debug
-      this.logger.debug('Payload do token verificado:', {
+      this.logger.log('Payload do token verificado:', {
         sub: payload.sub,
         email: payload.email,
         keys: Object.keys(payload),
