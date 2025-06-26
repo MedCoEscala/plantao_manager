@@ -1,4 +1,5 @@
 import { useAuth } from '@clerk/clerk-expo';
+import { useCallback } from 'react';
 
 import apiClient from '@/lib/axios';
 
@@ -28,108 +29,123 @@ export interface ContractorsFilters {
 export const useContractorsApi = () => {
   const { getToken } = useAuth();
 
-  const getContractors = async (filters?: ContractorsFilters): Promise<Contractor[]> => {
-    try {
-      const token = await getToken();
+  const getContractors = useCallback(
+    async (filters?: ContractorsFilters): Promise<Contractor[]> => {
+      try {
+        const token = await getToken();
 
-      if (!token) {
-        throw new Error('Usuário não autenticado');
+        if (!token) {
+          throw new Error('Usuário não autenticado');
+        }
+
+        let queryParams = '';
+
+        if (filters?.searchTerm) {
+          queryParams = `?searchTerm=${encodeURIComponent(filters.searchTerm)}`;
+        }
+
+        const response = await apiClient.get(`/contractors${queryParams}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        return response.data;
+      } catch (error) {
+        console.error('❌ [Contractors] Erro ao buscar contratantes:', error);
+        throw error;
       }
+    },
+    [getToken]
+  );
 
-      let queryParams = '';
+  const getContractorById = useCallback(
+    async (id: string): Promise<Contractor> => {
+      try {
+        const token = await getToken();
 
-      if (filters?.searchTerm) {
-        queryParams = `?searchTerm=${encodeURIComponent(filters.searchTerm)}`;
+        if (!token) {
+          throw new Error('Usuário não autenticado');
+        }
+
+        const response = await apiClient.get(`contractors/${id}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        return response.data;
+      } catch (error) {
+        console.log(`Erro ao buscar contratante ${id}`, error);
+        throw error;
       }
+    },
+    [getToken]
+  );
 
-      const response = await apiClient.get(`/contractors${queryParams}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+  const createContractor = useCallback(
+    async (data: CreateContractorData): Promise<Contractor> => {
+      try {
+        const token = await getToken();
 
-      return response.data;
-    } catch (error) {
-      console.error('❌ [Contractors] Erro ao buscar contratantes:', error);
-      throw error;
-    }
-  };
+        if (!token) {
+          throw new Error('Usuário não autenticado');
+        }
 
-  const getContractorById = async (id: string): Promise<Contractor> => {
-    try {
-      const token = await getToken();
+        const response = await apiClient.post('/contractors', data, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
 
-      if (!token) {
-        throw new Error('Usuário não autenticado');
+        return response.data;
+      } catch (error) {
+        console.log('Erro ao criar contratante', error);
+        throw error;
       }
+    },
+    [getToken]
+  );
 
-      const response = await apiClient.get(`contractors/${id}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+  const updateContractor = useCallback(
+    async (id: string, data: UpdateContractorData): Promise<Contractor> => {
+      try {
+        const token = await getToken();
 
-      return response.data;
-    } catch (error) {
-      console.log(`Erro ao buscar contratante ${id}`, error);
-      throw error;
-    }
-  };
+        const response = await apiClient.put(`/contractors/${id}`, data, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
 
-  const createContractor = async (data: CreateContractorData): Promise<Contractor> => {
-    try {
-      const token = await getToken();
-
-      if (!token) {
-        throw new Error('Usuário não autenticado');
+        return response.data;
+      } catch (error) {
+        console.error(`Erro ao atualizar contratante ${id}:`, error);
+        throw error;
       }
+    },
+    [getToken]
+  );
 
-      const response = await apiClient.post('/contractors', data, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+  const deleteContractor = useCallback(
+    async (id: string): Promise<Contractor> => {
+      try {
+        const token = await getToken();
 
-      return response.data;
-    } catch (error) {
-      console.log('Erro ao criar contratante', error);
-      throw error;
-    }
-  };
+        const response = await apiClient.delete(`/contractors/${id}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
 
-  const updateContractor = async (id: string, data: UpdateContractorData): Promise<Contractor> => {
-    try {
-      const token = await getToken();
-
-      const response = await apiClient.put(`/contractors/${id}`, data, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      return response.data;
-    } catch (error) {
-      console.error(`Erro ao atualizar contratante ${id}:`, error);
-      throw error;
-    }
-  };
-
-  const deleteContractor = async (id: string): Promise<Contractor> => {
-    try {
-      const token = await getToken();
-
-      const response = await apiClient.delete(`/contractors/${id}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      return response.data;
-    } catch (error) {
-      console.error(`Erro ao excluir contratante ${id}:`, error);
-      throw error;
-    }
-  };
+        return response.data;
+      } catch (error) {
+        console.error(`Erro ao excluir contratante ${id}:`, error);
+        throw error;
+      }
+    },
+    [getToken]
+  );
 
   return {
     getContractors,

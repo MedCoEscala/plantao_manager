@@ -18,6 +18,7 @@ export interface Location {
 
 interface LocationsContextType {
   locations: Location[];
+  locationOptions: { label: string; value: string; icon?: string; color?: string }[];
   isLoading: boolean;
   error: string | null;
   refreshLocations: () => Promise<void>;
@@ -176,6 +177,12 @@ export function LocationsProvider({ children }: { children: React.ReactNode }) {
 
   const value: LocationsContextType = {
     locations,
+    locationOptions: locations.map((location) => ({
+      label: location.name,
+      value: location.id,
+      icon: 'location-outline',
+      color: location.color,
+    })),
     isLoading,
     error,
     refreshLocations: fetchLocations,

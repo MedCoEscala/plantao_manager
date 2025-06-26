@@ -1,4 +1,5 @@
 import { useAuth } from '@clerk/clerk-expo';
+import { useCallback } from 'react';
 
 import apiClient from '../lib/axios';
 
@@ -42,58 +43,61 @@ export interface PaymentFilters {
 export const usePaymentsApi = () => {
   const { getToken } = useAuth();
 
-  const getPayments = async (filters?: PaymentFilters): Promise<Payment[]> => {
-    try {
-      const token = await getToken();
+  const getPayments = useCallback(
+    async (filters?: PaymentFilters): Promise<Payment[]> => {
+      try {
+        const token = await getToken();
 
-      let queryParams = '';
-      if (filters) {
-        const params = new URLSearchParams();
-        if (filters.startDate) params.append('startDate', filters.startDate);
-        if (filters.endDate) params.append('endDate', filters.endDate);
-        if (filters.status) params.append('status', filters.status);
-        if (filters.searchTerm) params.append('searchTerm', filters.searchTerm);
+        let queryParams = '';
+        if (filters) {
+          const params = new URLSearchParams();
+          if (filters.startDate) params.append('startDate', filters.startDate);
+          if (filters.endDate) params.append('endDate', filters.endDate);
+          if (filters.status) params.append('status', filters.status);
+          if (filters.searchTerm) params.append('searchTerm', filters.searchTerm);
 
-        queryParams = `?${params.toString()}`;
+          queryParams = `?${params.toString()}`;
+        }
+
+        const response = await apiClient.get(`/payments${queryParams}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        // Transformar dados do backend para o formato esperado pela UI
+        return response.data.map((payment: any) => {
+          const isPaid = Boolean(payment.paid || payment.status === 'completed'); // Usar campo paid primeiro, fallback para status
+          const status = isPaid ? 'completed' : 'pending';
+
+          console.log(
+            `💳 Processando pagamento ${payment.id}: paid=${payment.paid}, status=${status}, shiftId=${payment.shiftId}`
+          );
+
+          return {
+            id: payment.id,
+            description: payment.plantao?.location?.name
+              ? `Plantão ${payment.plantao.location.name} - ${new Date(payment.plantao.date).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })}`
+              : `Pagamento de ${new Date(payment.paymentDate || payment.createdAt).toLocaleDateString()}`,
+            amount: isPaid ? payment.amount || payment.plantao?.value || 0 : 0,
+            date: payment.date || payment.paymentDate || payment.createdAt,
+            status,
+            method: payment.method || 'Não informado',
+            shiftTitle: `Plantão ${new Date(payment.plantao?.date || '').toLocaleDateString()}`,
+            locationName:
+              payment.locationName || payment.plantao?.location?.name || 'Local não informado',
+            locationColor: payment.locationColor || payment.plantao?.location?.color || '#64748b',
+            shiftId: payment.shiftId || payment.plantao?.id,
+            paid: payment.paid,
+          };
+        });
+      } catch (error) {
+        console.error('❌ Erro ao buscar pagamentos:', error);
+        throw error;
       }
-
-      const response = await apiClient.get(`/payments${queryParams}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      // Transformar dados do backend para o formato esperado pela UI
-      return response.data.map((payment: any) => {
-        const isPaid = Boolean(payment.paid || payment.status === 'completed'); // Usar campo paid primeiro, fallback para status
-        const status = isPaid ? 'completed' : 'pending';
-
-        console.log(
-          `💳 Processando pagamento ${payment.id}: paid=${payment.paid}, status=${status}, shiftId=${payment.shiftId}`
-        );
-
-        return {
-          id: payment.id,
-          description: payment.plantao?.location?.name
-            ? `Plantão ${payment.plantao.location.name} - ${new Date(payment.plantao.date).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })}`
-            : `Pagamento de ${new Date(payment.paymentDate || payment.createdAt).toLocaleDateString()}`,
-          amount: isPaid ? payment.amount || payment.plantao?.value || 0 : 0,
-          date: payment.date || payment.paymentDate || payment.createdAt,
-          status,
-          method: payment.method || 'Não informado',
-          shiftTitle: `Plantão ${new Date(payment.plantao?.date || '').toLocaleDateString()}`,
-          locationName:
-            payment.locationName || payment.plantao?.location?.name || 'Local não informado',
-          locationColor: payment.locationColor || payment.plantao?.location?.color || '#64748b',
-          shiftId: payment.shiftId || payment.plantao?.id,
-          paid: payment.paid,
-        };
-      });
-    } catch (error) {
-      console.error('❌ Erro ao buscar pagamentos:', error);
-      throw error;
-    }
-  };
+    },
+    [getToken]
+  );
 
   const getPaymentById = async (id: string): Promise<Payment> => {
     try {

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 
 import LocationForm from './LocationForm';
@@ -24,38 +24,38 @@ const LocationFormModal: React.FC<LocationFormModalProps> = ({
   const locationsApi = useLocationsApi();
 
   // Buscar dados do local se for edição
-  useEffect(() => {
-    const fetchLocationData = async () => {
-      if (!locationId || !visible) return;
+  const fetchLocationData = useCallback(async () => {
+    if (!locationId || !visible) return;
 
-      try {
-        setIsLoading(true);
-        const location = await locationsApi.getLocationById(locationId);
+    try {
+      setIsLoading(true);
+      const location = await locationsApi.getLocationById(locationId);
 
-        setInitialValues({
-          name: location.name,
-          address: location.address,
-          phone: location.phone,
-          color: location.color,
-        });
-      } catch (error) {
-        console.error('Erro ao carregar local para edição:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchLocationData();
+      setInitialValues({
+        name: location.name,
+        address: location.address,
+        phone: location.phone,
+        color: location.color,
+      });
+    } catch (error) {
+      console.error('Erro ao carregar local para edição:', error);
+    } finally {
+      setIsLoading(false);
+    }
   }, [locationId, visible, locationsApi]);
 
-  const handleSuccess = () => {
+  useEffect(() => {
+    fetchLocationData();
+  }, [fetchLocationData]);
+
+  const handleSuccess = useCallback(() => {
     // Limpar valores iniciais quando fechar
     setInitialValues({});
 
     if (onSuccess) {
       onSuccess();
     }
-  };
+  }, [onSuccess]);
 
   return (
     <FormModal

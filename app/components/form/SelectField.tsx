@@ -39,7 +39,9 @@ export function SelectField({
 }: SelectFieldProps) {
   const [isOpen, setIsOpen] = useState(false);
 
-  const selectedOption = options.find((option) => option.value === value);
+  // Proteção contra options undefined
+  const safeOptions = options || [];
+  const selectedOption = safeOptions.find((option) => option.value === value);
 
   return (
     <FieldWrapper
@@ -81,7 +83,7 @@ export function SelectField({
 
       {isOpen && !isLoading && (
         <View className="z-10 mt-1 rounded-lg border border-gray-200 bg-white shadow-sm">
-          {options.map((option) => (
+          {safeOptions.map((option) => (
             <TouchableOpacity
               key={option.value}
               className={`flex-row items-center border-b border-gray-100 p-3 ${

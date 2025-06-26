@@ -19,6 +19,7 @@ export interface Contractor {
 
 interface ContractorsContextType {
   contractors: Contractor[];
+  contractorOptions: { label: string; value: string; icon?: string; color?: string }[];
   isLoading: boolean;
   error: string | null;
   refreshContractors: () => Promise<void>;
@@ -179,6 +180,12 @@ export function ContractorsProvider({ children }: { children: React.ReactNode })
 
   const value: ContractorsContextType = {
     contractors,
+    contractorOptions: contractors.map((contractor) => ({
+      label: contractor.name,
+      value: contractor.id,
+      icon: 'briefcase-outline',
+      color: undefined,
+    })),
     isLoading,
     error,
     refreshContractors: fetchContractors,

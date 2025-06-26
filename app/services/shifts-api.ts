@@ -1,4 +1,5 @@
 import { useAuth } from '@clerk/clerk-expo';
+import { useCallback } from 'react';
 
 import apiClient from '../lib/axios';
 
@@ -78,122 +79,140 @@ export interface ShiftFilters {
 export const useShiftsApi = () => {
   const { getToken } = useAuth();
 
-  const getShifts = async (filters?: ShiftFilters): Promise<Shift[]> => {
-    try {
-      const token = await getToken();
+  const getShifts = useCallback(
+    async (filters?: ShiftFilters): Promise<Shift[]> => {
+      try {
+        const token = await getToken();
 
-      let queryParams = '';
-      if (filters) {
-        const params = new URLSearchParams();
-        if (filters.startDate) params.append('startDate', filters.startDate);
-        if (filters.endDate) params.append('endDate', filters.endDate);
-        if (filters.locationId) params.append('locationId', filters.locationId);
-        if (filters.contractorId) params.append('contractorId', filters.contractorId);
-        if (filters.searchTerm) params.append('searchTerm', filters.searchTerm);
-        if (filters.status && filters.status.length > 0) {
-          filters.status.forEach((status) => params.append('status', status));
+        let queryParams = '';
+        if (filters) {
+          const params = new URLSearchParams();
+          if (filters.startDate) params.append('startDate', filters.startDate);
+          if (filters.endDate) params.append('endDate', filters.endDate);
+          if (filters.locationId) params.append('locationId', filters.locationId);
+          if (filters.contractorId) params.append('contractorId', filters.contractorId);
+          if (filters.searchTerm) params.append('searchTerm', filters.searchTerm);
+          if (filters.status && filters.status.length > 0) {
+            filters.status.forEach((status) => params.append('status', status));
+          }
+
+          queryParams = `?${params.toString()}`;
         }
 
-        queryParams = `?${params.toString()}`;
+        const response = await apiClient.get(`/shifts${queryParams}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        return response.data;
+      } catch (error) {
+        console.error('Erro ao buscar plantões:', error);
+        throw error;
       }
+    },
+    [getToken]
+  );
 
-      const response = await apiClient.get(`/shifts${queryParams}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+  const getShiftById = useCallback(
+    async (id: string): Promise<Shift> => {
+      try {
+        const token = await getToken();
 
-      return response.data;
-    } catch (error) {
-      console.error('Erro ao buscar plantões:', error);
-      throw error;
-    }
-  };
+        const response = await apiClient.get(`/shifts/${id}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
 
-  const getShiftById = async (id: string): Promise<Shift> => {
-    try {
-      const token = await getToken();
+        return response.data;
+      } catch (error) {
+        console.error(`Erro ao buscar plantão ${id}:`, error);
+        throw error;
+      }
+    },
+    [getToken]
+  );
 
-      const response = await apiClient.get(`/shifts/${id}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+  const createShift = useCallback(
+    async (data: CreateShiftData): Promise<Shift> => {
+      try {
+        const token = await getToken();
 
-      return response.data;
-    } catch (error) {
-      console.error(`Erro ao buscar plantão ${id}:`, error);
-      throw error;
-    }
-  };
+        const response = await apiClient.post('/shifts', data, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
 
-  const createShift = async (data: CreateShiftData): Promise<Shift> => {
-    try {
-      const token = await getToken();
+        return response.data;
+      } catch (error) {
+        console.error('Erro ao criar plantão:', error);
+        throw error;
+      }
+    },
+    [getToken]
+  );
 
-      const response = await apiClient.post('/shifts', data, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+  const createShiftsBatch = useCallback(
+    async (data: CreateShiftsBatchData): Promise<BatchCreateResult> => {
+      try {
+        const token = await getToken();
 
-      return response.data;
-    } catch (error) {
-      console.error('Erro ao criar plantão:', error);
-      throw error;
-    }
-  };
+        const response = await apiClient.post('/shifts/batch', data, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
 
-  const createShiftsBatch = async (data: CreateShiftsBatchData): Promise<BatchCreateResult> => {
-    try {
-      const token = await getToken();
+        return response.data;
+      } catch (error) {
+        console.error('Erro ao criar plantões em lote:', error);
+        throw error;
+      }
+    },
+    [getToken]
+  );
 
-      const response = await apiClient.post('/shifts/batch', data, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+  const updateShift = useCallback(
+    async (id: string, data: UpdateShiftData): Promise<Shift> => {
+      try {
+        const token = await getToken();
 
-      return response.data;
-    } catch (error) {
-      console.error('Erro ao criar plantões em lote:', error);
-      throw error;
-    }
-  };
+        const response = await apiClient.put(`/shifts/${id}`, data, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
 
-  const updateShift = async (id: string, data: UpdateShiftData): Promise<Shift> => {
-    try {
-      const token = await getToken();
+        return response.data;
+      } catch (error) {
+        console.error(`Erro ao atualizar plantão ${id}:`, error);
+        throw error;
+      }
+    },
+    [getToken]
+  );
 
-      const response = await apiClient.put(`/shifts/${id}`, data, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+  const deleteShift = useCallback(
+    async (id: string): Promise<Shift> => {
+      try {
+        const token = await getToken();
 
-      return response.data;
-    } catch (error) {
-      console.error(`Erro ao atualizar plantão ${id}:`, error);
-      throw error;
-    }
-  };
+        const response = await apiClient.delete(`/shifts/${id}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
 
-  const deleteShift = async (id: string): Promise<Shift> => {
-    try {
-      const token = await getToken();
-
-      const response = await apiClient.delete(`/shifts/${id}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      return response.data;
-    } catch (error) {
-      console.error(`Erro ao excluir plantão ${id}:`, error);
-      throw error;
-    }
-  };
+        return response.data;
+      } catch (error) {
+        console.error(`Erro ao excluir plantão ${id}:`, error);
+        throw error;
+      }
+    },
+    [getToken]
+  );
 
   return {
     getShifts,
