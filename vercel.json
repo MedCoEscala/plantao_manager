@@ -1,5 +1,6 @@
 {
   "version": 2,
+  "buildCommand": "node build-backend.js",
   "builds": [
     {
       "src": "api/index.js",
@@ -11,5 +12,10 @@
       "src": "/(.*)",
       "dest": "/api/index.js"
     }
-  ]
+  ],
+  "functions": {
+    "api/index.js": {
+      "includeFiles": "backend/dist/**"
+    }
+  }
 }
