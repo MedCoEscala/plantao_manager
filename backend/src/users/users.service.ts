@@ -41,12 +41,40 @@ export class UsersService {
       allKeys: Object.keys(userContext),
     });
 
+    // DEBUG: Log completo do contexto para investigação
+    this.logger.log(
+      'Contexto completo do usuário:',
+      JSON.stringify(userContext, null, 2),
+    );
+
+    // Se o AuthGuard já enriqueceu o contexto com dados do Clerk, usar esses dados
+    if (userContext.clerkUserData && !primaryEmailAddress) {
+      this.logger.log('✅ Usando dados já obtidos pelo AuthGuard...');
+      return this.syncUserWithEmail(
+        clerkId,
+        userContext.email,
+        userContext.clerkUserData,
+      );
+    }
+
     if (!primaryEmailAddress) {
       // Se não encontrou email no contexto, tentar buscar do Clerk diretamente
       try {
         const clerkUser = await clerkClient.users.getUser(clerkId);
-        const emailFromClerk = (clerkUser as any).primaryEmailAddress
-          ?.emailAddress;
+        const clerkUserAny = clerkUser as any;
+        let emailFromClerk = clerkUserAny.primaryEmailAddress?.emailAddress;
+
+        // Fallback: buscar email pelo primaryEmailAddressId se primaryEmailAddress não existir
+        if (
+          !emailFromClerk &&
+          clerkUser.emailAddresses &&
+          clerkUser.primaryEmailAddressId
+        ) {
+          const primaryEmail = clerkUser.emailAddresses.find(
+            (e: any) => e.id === clerkUser.primaryEmailAddressId,
+          );
+          emailFromClerk = primaryEmail?.emailAddress;
+        }
 
         if (!emailFromClerk) {
           throw new BadRequestException(
