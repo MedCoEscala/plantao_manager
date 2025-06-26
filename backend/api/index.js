@@ -27,15 +27,6 @@ ensureBuild();
 const { NestFactory } = require('@nestjs/core');
 const { ValidationPipe } = require('@nestjs/common');
 
-// Importar o AppModule compilado do dist
-let AppModule;
-try {
-  AppModule = require('../dist/app.module');
-} catch (error) {
-  console.error('❌ Failed to import AppModule:', error.message);
-  throw new Error('Could not load compiled application module');
-}
-
 let app;
 
 async function bootstrap() {
@@ -43,6 +34,17 @@ async function bootstrap() {
 
   try {
     console.log('🚀 Initializing NestJS application...');
+
+    // Importar o AppModule compilado do dist apenas quando necessário
+    let AppModule;
+    try {
+      AppModule = require('../dist/app.module');
+    } catch (error) {
+      console.error('❌ Failed to import AppModule:', error.message);
+      throw new Error(
+        'Could not load compiled application module: ' + error.message,
+      );
+    }
 
     // Verificar se AppModule foi carregado corretamente
     const moduleToUse = AppModule.AppModule || AppModule;
