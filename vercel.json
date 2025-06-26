@@ -17,5 +17,8 @@
     "api/index.js": {
       "includeFiles": "backend/dist/**"
     }
+  },
+  "env": {
+    "DEPLOY_TIMESTAMP": "1750899200"
   }
 }
