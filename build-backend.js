@@ -7,18 +7,31 @@ const path = require('path');
 console.log('🚀 Building backend for Vercel...');
 
 const backendPath = path.join(__dirname, 'backend');
-const rootPath = __dirname;
 
 try {
+  // Verificar se o diretório backend existe
+  if (!fs.existsSync(backendPath)) {
+    console.log('❌ Backend directory not found');
+    process.exit(1);
+  }
+
   // Mudar para o diretório do backend
   process.chdir(backendPath);
+  console.log('📂 Changed to backend directory');
 
+  // Instalar dependências (com cache do npm)
   console.log('📦 Installing dependencies...');
-  execSync('npm install', { stdio: 'inherit' });
+  execSync('npm ci --only=production', { stdio: 'inherit' });
 
+  // Instalar dependências de desenvolvimento necessárias para o build
+  console.log('🔧 Installing dev dependencies...');
+  execSync('npm install --only=dev', { stdio: 'inherit' });
+
+  // Gerar Prisma client
   console.log('🔧 Generating Prisma client...');
   execSync('npx prisma generate', { stdio: 'inherit' });
 
+  // Build do NestJS
   console.log('🏗️ Building NestJS...');
   execSync('npm run build', { stdio: 'inherit' });
 
@@ -28,26 +41,16 @@ try {
     throw new Error('Build failed - dist directory not found');
   }
 
-  // Copiar arquivos necessários para a raiz para o Vercel encontrar
-  console.log('📋 Copying backend files to root...');
-  const rootBackendPath = path.join(rootPath, 'backend');
-
-  // Garantir que a pasta backend existe na raiz
-  if (!fs.existsSync(rootBackendPath)) {
-    fs.mkdirSync(rootBackendPath, { recursive: true });
+  const mainJsPath = path.join(distPath, 'main.js');
+  if (!fs.existsSync(mainJsPath)) {
+    throw new Error('Build failed - main.js not found');
   }
-
-  const rootDistPath = path.join(rootBackendPath, 'dist');
-  if (!fs.existsSync(rootDistPath)) {
-    fs.mkdirSync(rootDistPath, { recursive: true });
-  }
-
-  // Copiar recursivamente o diretório dist
-  execSync(`cp -r ${distPath}/* ${rootDistPath}/`, { stdio: 'inherit' });
 
   console.log('✅ Backend build completed successfully!');
-  console.log('📂 Files copied to:', rootBackendPath);
+  console.log('📂 Build files available at:', distPath);
+  console.log('📄 Main file:', mainJsPath);
 } catch (error) {
   console.error('❌ Build failed:', error.message);
+  console.error('Stack:', error.stack);
   process.exit(1);
 }
