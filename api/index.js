@@ -1,5 +1,6 @@
-// MedEscala API Handler - Versão Simplificada
-// Deploy: $(date)
+// MedEscala API Handler - Versão Completa
+const path = require('path');
+const fs = require('fs');
 
 module.exports = async (req, res) => {
   const timestamp = new Date().toISOString();
@@ -14,56 +15,93 @@ module.exports = async (req, res) => {
     return res.status(200).end();
   }
 
-  // Rota de privacidade
-  if (req.url === '/privacy' || req.url === '/privacy/') {
-    return res.status(200).send(getPrivacyPage());
-  }
+  try {
+    // Rotas de privacidade sempre funcionam (fallback garantido)
+    if (req.url === '/privacy' || req.url === '/privacy/') {
+      return res.status(200).send(getPrivacyPage());
+    }
 
-  // Rota de exclusão de dados
-  if (req.url === '/privacy/data-deletion' || req.url === '/privacy/data-deletion/') {
-    return res.status(200).send(getDataDeletionPage());
-  }
+    if (req.url === '/privacy/data-deletion' || req.url === '/privacy/data-deletion/') {
+      return res.status(200).send(getDataDeletionPage());
+    }
 
-  // Rotas da API - retornar erro 503 (backend em manutenção)
-  const apiRoutes = [
-    '/users/',
-    '/shifts/',
-    '/contractors/',
-    '/locations/',
-    '/payments/',
-    '/notifications/',
-    '/cnpj/',
-  ];
-  if (apiRoutes.some((route) => req.url.startsWith(route))) {
-    return res.status(503).json({
-      error: 'Service Temporarily Unavailable',
-      message: 'Backend em manutenção temporária. Tente novamente em alguns minutos.',
+    // Tentar usar o backend NestJS para todas as outras rotas
+    const possiblePaths = [
+      path.join(process.cwd(), 'backend', 'dist', 'main.js'),
+      path.join(__dirname, '..', 'backend', 'dist', 'main.js'),
+      path.join('/var/task', 'backend', 'dist', 'main.js'),
+      path.join(process.cwd(), 'dist', 'main.js'),
+    ];
+
+    let mainJsPath = null;
+    for (const possiblePath of possiblePaths) {
+      if (fs.existsSync(possiblePath)) {
+        mainJsPath = possiblePath;
+        console.log('✅ Found main.js at:', mainJsPath);
+        break;
+      }
+    }
+
+    if (mainJsPath) {
+      // Tentar carregar e usar o backend NestJS
+      delete require.cache[mainJsPath]; // Limpar cache
+      const { default: nestHandler } = require(mainJsPath);
+      return await nestHandler(req, res);
+    } else {
+      console.log('❌ main.js not found, using fallback');
+      throw new Error('Backend NestJS not found');
+    }
+  } catch (backendError) {
+    console.log('⚠️ Backend error, using fallback:', backendError.message);
+
+    // Fallback para rotas essenciais se o backend não estiver disponível
+    if (
+      req.url.startsWith('/users/') ||
+      req.url.startsWith('/shifts/') ||
+      req.url.startsWith('/contractors/') ||
+      req.url.startsWith('/locations/') ||
+      req.url.startsWith('/payments/') ||
+      req.url.startsWith('/notifications/') ||
+      req.url.startsWith('/cnpj/')
+    ) {
+      return res.status(503).json({
+        error: 'Service Temporarily Unavailable',
+        message: 'Backend NestJS não encontrado. Verifique se o build foi executado corretamente.',
+        timestamp,
+        status: 503,
+        route: req.url,
+        paths_checked: [
+          'backend/dist/main.js',
+          '../backend/dist/main.js',
+          '/var/task/backend/dist/main.js',
+          'dist/main.js',
+        ],
+      });
+    }
+
+    // Rota raiz
+    if (req.url === '/' || req.url === '') {
+      return res.status(200).json({
+        message: 'MedEscala API - Backend com problemas',
+        timestamp,
+        status: 'backend_error',
+        error: backendError.message,
+        routes: {
+          privacy: '/privacy',
+          dataDelete: '/privacy/data-deletion',
+        },
+      });
+    }
+
+    // Qualquer outra rota
+    return res.status(404).json({
+      error: 'Not Found',
+      message: 'Rota não encontrada. Backend NestJS indisponível.',
       timestamp,
-      status: 503,
-      route: req.url,
+      backend_error: backendError.message,
+      availableRoutes: ['/privacy', '/privacy/data-deletion'],
     });
   }
-
-  // Rota raiz
-  if (req.url === '/' || req.url === '') {
-    return res.status(200).json({
-      message: 'MedEscala API - Backend funcionando',
-      timestamp,
-      status: 'maintenance',
-      routes: {
-        privacy: '/privacy',
-        dataDelete: '/privacy/data-deletion',
-      },
-    });
-  }
-
-  // Qualquer outra rota
-  return res.status(404).json({
-    error: 'Not Found',
-    message: 'Rota não encontrada. Acesse /privacy ou /privacy/data-deletion',
-    timestamp,
-    availableRoutes: ['/privacy', '/privacy/data-deletion'],
-  });
 };
 
 function getPrivacyPage() {
