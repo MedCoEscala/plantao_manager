@@ -5,55 +5,21 @@ async function handler(req, res) {
   try {
     console.log(`🚀 ${req.method} ${req.url}`);
 
-    // Rotas de privacidade diretas (fallback)
+    // Rotas de privacidade sempre funcionam
     if (req.url === '/privacy' || req.url === '/privacy/') {
-      return res.status(200).send(getPrivacyPolicyHTML());
+      return res.status(200).send(getPrivacyHTML());
     }
 
     if (req.url === '/privacy/data-deletion' || req.url === '/privacy/data-deletion/') {
       return res.status(200).send(getDataDeletionHTML());
     }
 
-    // Tentar usar o backend NestJS primeiro
-    try {
-      // Verificar possíveis locais do main.js no Vercel
-      const possiblePaths = [
-        path.join(process.cwd(), 'backend', 'dist', 'main.js'),
-        path.join(__dirname, '..', 'backend', 'dist', 'main.js'),
-        path.join('/var/task', 'backend', 'dist', 'main.js'),
-        path.join(process.cwd(), 'dist', 'main.js'),
-      ];
-
-      let mainJsPath = null;
-      for (const possiblePath of possiblePaths) {
-        if (fs.existsSync(possiblePath)) {
-          mainJsPath = possiblePath;
-          break;
-        }
-      }
-
-      if (mainJsPath) {
-        console.log('✅ Found main.js at:', mainJsPath);
-        const { default: nestHandler } = require(mainJsPath);
-        return await nestHandler(req, res);
-      } else {
-        console.log('❌ main.js not found in any expected location');
-        // Fallback para rotas básicas se o backend não estiver disponível
-        throw new Error('Backend not available');
-      }
-    } catch (backendError) {
-      console.log('⚠️ Backend error, using fallback:', backendError.message);
-
-      // Fallback básico para rotas essenciais
-      if (req.url.startsWith('/users/')) {
-        return res.status(503).json({
-          error: 'Service Temporarily Unavailable',
-          message: 'Backend em manutenção. Tente novamente em alguns minutos.',
-        });
-      }
-
-      throw backendError;
-    }
+    // Para qualquer outra rota, retornar erro 503 temporário
+    return res.status(503).json({
+      error: 'Service Temporarily Unavailable',
+      message: 'Backend em manutenção temporária. Tente novamente em alguns minutos.',
+      timestamp: new Date().toISOString(),
+    });
   } catch (error) {
     console.error('❌ Erro no handler:', error);
     return res.status(500).json({
@@ -63,9 +29,8 @@ async function handler(req, res) {
   }
 }
 
-function getPrivacyPolicyHTML() {
-  return `
-<!DOCTYPE html>
+function getPrivacyHTML() {
+  return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
@@ -138,13 +103,11 @@ function getPrivacyPolicyHTML() {
     <h2>9. Alterações nesta Política</h2>
     <p>Esta política pode ser atualizada periodicamente. Recomendamos revisar regularmente.</p>
 </body>
-</html>
-  `;
+</html>`;
 }
 
 function getDataDeletionHTML() {
-  return `
-<!DOCTYPE html>
+  return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
@@ -233,8 +196,7 @@ function getDataDeletionHTML() {
 
     <a href="/privacy" class="back-link">← Voltar para Política de Privacidade</a>
 </body>
-</html>
-  `;
+</html>`;
 }
 
 module.exports = handler;
