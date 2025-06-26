@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "buildCommand": "cd backend && npm install && npx prisma generate && npm run build",
+  "buildCommand": "cd backend && npm ci && npx prisma generate && npm run build",
   "builds": [
     {
       "src": "api/index.js",
@@ -12,5 +12,10 @@
       "src": "/(.*)",
       "dest": "/api/index.js"
     }
-  ]
+  ],
+  "functions": {
+    "api/index.js": {
+      "includeFiles": "backend/dist/**"
+    }
+  }
 }
