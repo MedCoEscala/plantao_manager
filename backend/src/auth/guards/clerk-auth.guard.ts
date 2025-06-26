@@ -41,6 +41,16 @@ export class ClerkAuthGuard implements CanActivate {
         throw new UnauthorizedException('Token inválido ou expirado');
       }
 
+      // Log detalhado do payload para debug
+      this.logger.debug('Payload do token verificado:', {
+        sub: payload.sub,
+        email: payload.email,
+        keys: Object.keys(payload),
+        hasEmail: !!payload.email,
+        hasEmailAddress: !!payload.email_address,
+        hasPrimaryEmailAddress: !!payload.primary_email_address,
+      });
+
       request.userContext = payload;
 
       return true;
