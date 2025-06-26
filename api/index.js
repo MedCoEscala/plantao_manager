@@ -1,4 +1,4 @@
-// MedEscala API Handler - Versão Completa
+// MedEscala API Handler - Versão Restaurada Completa
 const path = require('path');
 const fs = require('fs');
 
@@ -25,7 +25,7 @@ module.exports = async (req, res) => {
       return res.status(200).send(getDataDeletionPage());
     }
 
-    // Tentar usar o backend NestJS para todas as outras rotas
+    // Para TODAS as outras rotas, tentar usar o backend NestJS
     const possiblePaths = [
       path.join(process.cwd(), 'backend', 'dist', 'main.js'),
       path.join(__dirname, '..', 'backend', 'dist', 'main.js'),
@@ -43,18 +43,26 @@ module.exports = async (req, res) => {
     }
 
     if (mainJsPath) {
-      // Tentar carregar e usar o backend NestJS
+      // Usar o backend NestJS para TODAS as rotas (como era antes)
       delete require.cache[mainJsPath]; // Limpar cache
-      const { default: nestHandler } = require(mainJsPath);
-      return await nestHandler(req, res);
+      const nestApp = require(mainJsPath);
+
+      // Verificar se é função ou objeto com default
+      if (typeof nestApp === 'function') {
+        return await nestApp(req, res);
+      } else if (nestApp.default && typeof nestApp.default === 'function') {
+        return await nestApp.default(req, res);
+      } else {
+        throw new Error('NestJS handler not found in main.js');
+      }
     } else {
-      console.log('❌ main.js not found, using fallback');
+      console.log('❌ main.js not found in any location');
       throw new Error('Backend NestJS not found');
     }
   } catch (backendError) {
-    console.log('⚠️ Backend error, using fallback:', backendError.message);
+    console.error('⚠️ Backend error:', backendError.message);
 
-    // Fallback para rotas essenciais se o backend não estiver disponível
+    // Fallback apenas para rotas críticas da API
     if (
       req.url.startsWith('/users/') ||
       req.url.startsWith('/shifts/') ||
@@ -66,40 +74,20 @@ module.exports = async (req, res) => {
     ) {
       return res.status(503).json({
         error: 'Service Temporarily Unavailable',
-        message: 'Backend NestJS não encontrado. Verifique se o build foi executado corretamente.',
+        message:
+          'Backend NestJS temporariamente indisponível. Todas as funcionalidades serão restauradas em breve.',
         timestamp,
         status: 503,
         route: req.url,
-        paths_checked: [
-          'backend/dist/main.js',
-          '../backend/dist/main.js',
-          '/var/task/backend/dist/main.js',
-          'dist/main.js',
-        ],
       });
     }
 
-    // Rota raiz
-    if (req.url === '/' || req.url === '') {
-      return res.status(200).json({
-        message: 'MedEscala API - Backend com problemas',
-        timestamp,
-        status: 'backend_error',
-        error: backendError.message,
-        routes: {
-          privacy: '/privacy',
-          dataDelete: '/privacy/data-deletion',
-        },
-      });
-    }
-
-    // Qualquer outra rota
-    return res.status(404).json({
-      error: 'Not Found',
-      message: 'Rota não encontrada. Backend NestJS indisponível.',
+    // Para outras rotas, tentar resposta genérica
+    return res.status(500).json({
+      error: 'Internal Server Error',
+      message: 'Erro interno do servidor. Tente novamente.',
       timestamp,
-      backend_error: backendError.message,
-      availableRoutes: ['/privacy', '/privacy/data-deletion'],
+      route: req.url,
     });
   }
 };
