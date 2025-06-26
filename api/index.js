@@ -1,33 +1,43 @@
 const path = require('path');
 const fs = require('fs');
 
-async function handler(req, res) {
-  try {
-    console.log(`🚀 ${req.method} ${req.url}`);
+module.exports = async (req, res) => {
+  console.log(`🚀 ${new Date().toISOString()} - ${req.method} ${req.url}`);
 
-    // Rotas de privacidade sempre funcionam
-    if (req.url === '/privacy' || req.url === '/privacy/') {
-      return res.status(200).send(getPrivacyHTML());
-    }
+  // Rotas de privacidade sempre funcionam
+  if (req.url === '/privacy' || req.url === '/privacy/') {
+    return res.status(200).send(getPrivacyHTML());
+  }
 
-    if (req.url === '/privacy/data-deletion' || req.url === '/privacy/data-deletion/') {
-      return res.status(200).send(getDataDeletionHTML());
-    }
+  if (req.url === '/privacy/data-deletion' || req.url === '/privacy/data-deletion/') {
+    return res.status(200).send(getDataDeletionHTML());
+  }
 
-    // Para qualquer outra rota, retornar erro 503 temporário
+  // Para rotas da API, retornar erro 503 temporário
+  if (
+    req.url.startsWith('/users/') ||
+    req.url.startsWith('/shifts/') ||
+    req.url.startsWith('/contractors/') ||
+    req.url.startsWith('/locations/') ||
+    req.url.startsWith('/payments/') ||
+    req.url.startsWith('/notifications/') ||
+    req.url.startsWith('/cnpj/')
+  ) {
     return res.status(503).json({
       error: 'Service Temporarily Unavailable',
       message: 'Backend em manutenção temporária. Tente novamente em alguns minutos.',
       timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    console.error('❌ Erro no handler:', error);
-    return res.status(500).json({
-      error: 'Internal Server Error',
-      message: error.message,
+      status: 503,
     });
   }
-}
+
+  // Para qualquer outra rota
+  return res.status(404).json({
+    error: 'Not Found',
+    message: 'Rota não encontrada. Acesse /privacy ou /privacy/data-deletion',
+    timestamp: new Date().toISOString(),
+  });
+};
 
 function getPrivacyHTML() {
   return `<!DOCTYPE html>
@@ -198,5 +208,3 @@ function getDataDeletionHTML() {
 </body>
 </html>`;
 }
-
-module.exports = handler;
