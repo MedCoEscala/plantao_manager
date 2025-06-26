@@ -11,7 +11,8 @@
     "format": "eslint \"**/*.{js,jsx,ts,tsx}\" --fix && prettier \"**/*.{js,jsx,ts,tsx,json}\" --write",
     "web": "expo start --web",
     "build:dev": "eas build --profile development",
-    "build:prod": "eas build --profile production"
+    "build:prod": "eas build --profile production",
+    "vercel-build": "cd backend && npm install && npx prisma generate && npm run build"
   },
   "dependencies": {
     "@clerk/clerk-expo": "^2.9.6",

@@ -1,12 +1,5 @@
 {
   "version": 2,
-  "installCommand": "npm install && cd backend && npm install",
-  "buildCommand": "cd backend && npx prisma generate && npm run build",
-  "functions": {
-    "api/index.js": {
-      "maxDuration": 30
-    }
-  },
   "builds": [
     {
       "src": "api/index.js",
