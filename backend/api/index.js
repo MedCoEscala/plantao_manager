@@ -2,13 +2,11 @@ const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
-// Build da aplicação se necessário
 function ensureBuild() {
   const backendPath = path.join(__dirname, '..');
   const distPath = path.join(backendPath, 'dist');
 
   try {
-    // Verificar se dist existe e tem arquivos
     if (!fs.existsSync(distPath) || fs.readdirSync(distPath).length === 0) {
       console.log('🔨 Building NestJS application...');
       process.chdir(backendPath);
