@@ -7,14 +7,23 @@ async function handler(req, res) {
     console.log(`🚀 ${req.method} ${req.url}`);
 
     // Importar diretamente do backend compilado
-    const { default: nestHandler } = require(path.join(backendPath, 'dist', 'main.js'));
+    const nestHandler = require(path.join(backendPath, 'dist', 'main.js')).default;
 
     return await nestHandler(req, res);
   } catch (error) {
     console.error('❌ Erro no handler:', error);
+
+    // Fallback simples para debug
+    if (req.url === '/privacy' || req.url === '/politica-privacidade') {
+      return res.status(200).json({
+        message: '⚠️ Backend error, using fallback: Backend NestJS not found',
+      });
+    }
+
     return res.status(500).json({
       error: 'Internal Server Error',
       message: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
     });
   }
 }
