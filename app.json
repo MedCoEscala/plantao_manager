@@ -2,7 +2,7 @@
   "expo": {
     "name": "MedEscala",
     "slug": "medescala",
-    "version": "1.0.0",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -23,7 +23,7 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.lucaserib.medescala",
-      "versionCode": 1
+      "versionCode": 3
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -46,10 +46,11 @@
       "router": {},
       "eas": {
         "projectId": "c236b910-f135-4d1f-81e6-04e69e64fe7c"
-      }
+      },
+      "EXPO_PUBLIC_API_URL": "https://www.medescalaapp.com.br"
     },
     "owner": "lucaserib",
-    "runtimeVersion": "1.0.0",
+    "runtimeVersion": "1.0.2",
     "updates": {
       "url": "https://u.expo.dev/c236b910-f135-4d1f-81e6-04e69e64fe7c"
     }

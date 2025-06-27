@@ -4,7 +4,7 @@ import { useFonts } from 'expo-font';
 import { Redirect, SplashScreen, Stack, useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { useEffect, useState } from 'react';
-import { Platform, LogBox } from 'react-native';
+import { Platform, LogBox, View, Text } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { ContractorsProvider } from '@/contexts/ContractorsContext';
@@ -34,10 +34,24 @@ const tokenCache = {
   },
 };
 
-const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!;
+// PROTEÇÃO CONTRA CRASH: Verificação segura da chave do Clerk
+const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
 
-if (!publishableKey) {
-  throw new Error('Adicione EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY no seu arquivo .env');
+// Componente de erro para chave ausente (sem crash)
+function ClerkKeyMissingError() {
+  return (
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+      <Text style={{ fontSize: 18, textAlign: 'center', marginBottom: 20 }}>
+        Configuração do App Incompleta
+      </Text>
+      <Text style={{ fontSize: 14, textAlign: 'center', color: '#666' }}>
+        A chave de autenticação não foi encontrada. Entre em contato com o suporte.
+      </Text>
+      <Text style={{ fontSize: 12, textAlign: 'center', color: '#999', marginTop: 10 }}>
+        Erro: EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ausente
+      </Text>
+    </View>
+  );
 }
 
 SplashScreen.preventAutoHideAsync().catch(() => {
@@ -83,10 +97,15 @@ function RootLayoutNav() {
       return;
     }
 
-    if (isSignedIn) {
-      router.replace('/(root)/');
-    } else {
-      router.replace('/(auth)/sign-in');
+    try {
+      if (isSignedIn) {
+        router.replace('/(root)/');
+      } else {
+        router.replace('/(auth)/sign-in');
+      }
+    } catch (error) {
+      console.error('Erro na navegação:', error);
+      // Fallback navegação segura
     }
   }, [isLoaded, isSignedIn, appIsReady, fontsLoaded, fontError, router]);
 
@@ -116,6 +135,15 @@ function RootLayoutNav() {
 }
 
 export default function RootLayout() {
+  // PROTEÇÃO CRÍTICA: Se não tem chave do Clerk, exibe erro sem crash
+  if (!publishableKey) {
+    return (
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <ClerkKeyMissingError />
+      </GestureHandlerRootView>
+    );
+  }
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
