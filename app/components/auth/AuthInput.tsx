@@ -8,6 +8,7 @@ import {
   TextInputProps,
   StyleSheet,
   ViewStyle,
+  Platform,
 } from 'react-native';
 
 interface AuthInputProps extends TextInputProps {
@@ -118,7 +119,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     color: '#1a1a1a',
-    paddingVertical: 16,
+    paddingVertical: Platform.OS === 'android' ? 12 : 16,
+    ...(Platform.OS === 'android' && {
+      textAlignVertical: 'center',
+      includeFontPadding: false,
+    }),
   },
   textInputWithLeftIcon: {
     paddingLeft: 8,

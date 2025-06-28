@@ -53,7 +53,10 @@ export function ContractorsProvider({ children }: { children: React.ReactNode })
     try {
       const token = await getToken();
       if (!token) {
-        throw new Error('Usuário não autenticado');
+        // PROTEÇÃO: Log do erro mas não crashar
+        console.warn('Token não disponível para ContractorsContext');
+        setError('Erro de autenticação. Faça logout e login novamente.');
+        return;
       }
 
       setIsLoading(true);
@@ -86,7 +89,10 @@ export function ContractorsProvider({ children }: { children: React.ReactNode })
 
       try {
         const token = await getToken();
-        if (!token) throw new Error('Token não disponível');
+        if (!token) {
+          console.warn('Token não disponível para adicionar contratante');
+          throw new Error('AUTH_TOKEN_UNAVAILABLE');
+        }
 
         const newContractor = await fetchWithAuth<Contractor>(
           '/contractors',
@@ -115,7 +121,10 @@ export function ContractorsProvider({ children }: { children: React.ReactNode })
 
       try {
         const token = await getToken();
-        if (!token) throw new Error('Token não disponível');
+        if (!token) {
+          console.warn('Token não disponível para atualizar contratante');
+          throw new Error('AUTH_TOKEN_UNAVAILABLE');
+        }
 
         const updatedContractor = await fetchWithAuth<Contractor>(
           `/contractors/${id}`,
@@ -144,7 +153,10 @@ export function ContractorsProvider({ children }: { children: React.ReactNode })
 
       try {
         const token = await getToken();
-        if (!token) throw new Error('Token não disponível');
+        if (!token) {
+          console.warn('Token não disponível para remover contratante');
+          throw new Error('AUTH_TOKEN_UNAVAILABLE');
+        }
 
         await fetchWithAuth(`/contractors/${id}`, { method: 'DELETE' }, async () => token);
 

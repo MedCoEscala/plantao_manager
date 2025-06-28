@@ -16,7 +16,8 @@
     "production": {
       "channel": "production",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://www.medescalaapp.com.br"
+        "EXPO_PUBLIC_API_URL": "https://www.medescalaapp.com.br",
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_live_Y2xlcmsubWVkZXNjYWxhYXBwLmNvbS5iciQ"
       },
       "android": {
         "buildType": "app-bundle",

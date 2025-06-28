@@ -4,15 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, Link } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useState, useRef, useEffect } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  Platform,
-  KeyboardAvoidingView,
-  Animated,
-  Dimensions,
-} from 'react-native';
+import { View, Text, ScrollView, Platform, KeyboardAvoidingView, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import Logo from '../components/auth/Logo';
@@ -21,8 +13,6 @@ import { useNotification } from '@/components';
 import AuthButton from '@/components/auth/AuthButton';
 import AuthInput from '@/components/auth/AuthInput';
 import apiClient from '@/lib/axios';
-
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export default function SignInScreen() {
   const [email, setEmail] = useState('');
@@ -159,8 +149,8 @@ export default function SignInScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1" edges={['top']}>
-      <StatusBar style="dark" />
+    <SafeAreaView className="flex-1" edges={Platform.OS === 'ios' ? ['top'] : []}>
+      <StatusBar style="dark" backgroundColor="#f8f9fb" translucent={Platform.OS === 'android'} />
 
       {/* Background Gradient */}
       <LinearGradient
@@ -171,7 +161,8 @@ export default function SignInScreen() {
       />
 
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
         className="flex-1">
         <ScrollView
           className="flex-1"
@@ -211,7 +202,7 @@ export default function SignInScreen() {
             style={{
               opacity: fadeAnim,
               transform: [{ translateY: slideAnim }],
-              minHeight: SCREEN_HEIGHT * 0.5,
+              minHeight: Platform.OS === 'android' ? 400 : undefined,
             }}>
             {/* Welcome Message */}
             <View className="mb-7 items-center">

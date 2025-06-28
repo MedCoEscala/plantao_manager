@@ -50,7 +50,10 @@ export function LocationsProvider({ children }: { children: React.ReactNode }) {
     try {
       const token = await getToken();
       if (!token) {
-        throw new Error('Token de autenticação não disponível');
+        // PROTEÇÃO: Log do erro mas não crashar
+        console.warn('Token não disponível para LocationsContext');
+        setError('Erro de autenticação. Faça logout e login novamente.');
+        return;
       }
 
       setIsLoading(true);
@@ -83,7 +86,10 @@ export function LocationsProvider({ children }: { children: React.ReactNode }) {
 
       try {
         const token = await getToken();
-        if (!token) throw new Error('Token não disponível');
+        if (!token) {
+          console.warn('Token não disponível para adicionar local');
+          throw new Error('AUTH_TOKEN_UNAVAILABLE');
+        }
 
         const newLocation = await fetchWithAuth<Location>(
           '/locations',
@@ -112,7 +118,10 @@ export function LocationsProvider({ children }: { children: React.ReactNode }) {
 
       try {
         const token = await getToken();
-        if (!token) throw new Error('Token não disponível');
+        if (!token) {
+          console.warn('Token não disponível para atualizar local');
+          throw new Error('AUTH_TOKEN_UNAVAILABLE');
+        }
 
         const updatedLocation = await fetchWithAuth<Location>(
           `/locations/${id}`,
@@ -141,7 +150,10 @@ export function LocationsProvider({ children }: { children: React.ReactNode }) {
 
       try {
         const token = await getToken();
-        if (!token) throw new Error('Token não disponível');
+        if (!token) {
+          console.warn('Token não disponível para remover local');
+          throw new Error('AUTH_TOKEN_UNAVAILABLE');
+        }
 
         await fetchWithAuth(`/locations/${id}`, { method: 'DELETE' }, async () => token);
 

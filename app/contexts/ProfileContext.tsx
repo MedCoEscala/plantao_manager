@@ -84,7 +84,10 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
 
         const token = await getToken();
         if (!token) {
-          throw new Error('Token de autenticação não disponível');
+          // PROTEÇÃO: Não crashar se Clerk não estiver configurado
+          console.warn('Token de autenticação não disponível - possível problema de configuração');
+          setError('Erro de configuração. Entre em contato com o suporte.');
+          return;
         }
 
         let response;
@@ -105,7 +108,9 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
           const syncSuccess = await syncUserWithRetry(token, 3);
 
           if (!syncSuccess) {
-            throw new Error('Falha na sincronização do usuário após múltiplas tentativas');
+            console.error('Falha na sincronização do usuário após múltiplas tentativas');
+            setError('Erro na sincronização. Tente fazer logout e login novamente.');
+            return;
           }
 
           await new Promise((resolve) => setTimeout(resolve, 1000));

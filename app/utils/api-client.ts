@@ -9,7 +9,8 @@ export const fetchWithAuth = async <T = any>(
 ): Promise<T> => {
   const token = await getToken();
   if (!token) {
-    throw new Error('Não foi possível obter o token de autenticação.');
+    console.warn('Token de autenticação não disponível');
+    throw new Error('AUTH_TOKEN_UNAVAILABLE');
   }
 
   const headers = new Headers(options.headers || {});
@@ -38,7 +39,8 @@ export const useAuthenticatedFetch = () => {
 
   const fetchAuth = async <T = any>(endpoint: string, options: RequestInit = {}): Promise<T> => {
     if (!getToken) {
-      throw new Error('Hook useAuth não inicializado corretamente.');
+      console.warn('Hook useAuth não inicializado corretamente');
+      throw new Error('AUTH_HOOK_NOT_INITIALIZED');
     }
     return fetchWithAuth<T>(endpoint, options, getToken);
   };

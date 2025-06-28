@@ -9,6 +9,7 @@ import {
   StyleSheet,
   ViewStyle,
   TextStyle,
+  Platform,
 } from 'react-native';
 
 interface AuthButtonProps extends TouchableOpacityProps {
@@ -28,14 +29,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    ...(Platform.OS === 'ios'
+      ? {
+          shadowColor: '#000',
+          shadowOffset: {
+            width: 0,
+            height: 2,
+          },
+          shadowOpacity: 0.1,
+          shadowRadius: 8,
+        }
+      : {
+          elevation: 4,
+        }),
   },
   buttonSm: {
     paddingVertical: 10,
