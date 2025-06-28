@@ -31,7 +31,9 @@
         "VIBRATE",
         "INTERNET",
         "ACCESS_NETWORK_STATE"
-      ]
+      ],
+      "statusBarTranslucent": true,
+      "navigationBarHidden": false
     },
     "web": {
       "favicon": "./assets/favicon.png"

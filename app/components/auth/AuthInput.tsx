@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   TextInput,
@@ -89,19 +89,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 16,
     borderWidth: 1.5,
-    backgroundColor: 'rgba(120, 120, 128, 0.05)',
+    backgroundColor: Platform.OS === 'android' ? '#F9FAFB' : 'rgba(120, 120, 128, 0.05)',
     minHeight: 52,
   },
   inputContainerNormal: {
-    borderColor: 'rgba(120, 120, 128, 0.3)',
+    borderColor: Platform.OS === 'android' ? '#D1D5DB' : 'rgba(120, 120, 128, 0.3)',
   },
   inputContainerFocused: {
     borderColor: '#18cb96',
-    backgroundColor: 'rgba(24, 203, 150, 0.05)',
+    backgroundColor: Platform.OS === 'android' ? '#ECFDF5' : 'rgba(24, 203, 150, 0.05)',
   },
   inputContainerError: {
     borderColor: '#FF3B30',
-    backgroundColor: 'rgba(255, 59, 48, 0.05)',
+    backgroundColor: Platform.OS === 'android' ? '#FEF2F2' : 'rgba(255, 59, 48, 0.05)',
   },
   inputContainerDisabled: {
     opacity: 0.5,
@@ -145,7 +145,7 @@ const styles = StyleSheet.create({
   helperText: {
     marginTop: 6,
     fontSize: 14,
-    color: 'rgba(60, 60, 67, 0.7)',
+    color: Platform.OS === 'android' ? '#6B7280' : 'rgba(60, 60, 67, 0.7)',
   },
   strengthContainer: {
     marginTop: 8,
@@ -217,7 +217,9 @@ export default function AuthInput({
   ...props
 }: AuthInputProps) {
   const [isFocused, setIsFocused] = useState(false);
-  const [isPasswordVisible, setIsPasswordVisible] = useState(!secureTextEntry);
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const inputRef = useRef<TextInput>(null);
+  const containerRef = useRef<View>(null);
 
   const handleFocus = (e: any) => {
     setIsFocused(true);
@@ -230,7 +232,7 @@ export default function AuthInput({
   };
 
   const togglePasswordVisibility = () => {
-    setIsPasswordVisible(!isPasswordVisible);
+    setIsPasswordVisible((prev) => !prev);
   };
 
   const finalRightIcon = secureTextEntry ? (isPasswordVisible ? 'eye-off' : 'eye') : rightIcon;
@@ -283,14 +285,18 @@ export default function AuthInput({
   };
 
   const getIconColor = () => {
-    if (disabled) return 'rgba(60, 60, 67, 0.3)';
+    if (disabled) return '#9CA3AF';
     if (error) return '#FF3B30';
     if (isFocused) return '#18cb96';
-    return 'rgba(60, 60, 67, 0.6)';
+    return '#6B7280';
+  };
+
+  const getPlaceholderColor = () => {
+    return Platform.OS === 'android' ? '#9CA3AF' : '#9CA3AF';
   };
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} ref={containerRef}>
       {label && (
         <View style={styles.labelContainer}>
           <Text style={styles.label}>{label}</Text>
@@ -306,9 +312,10 @@ export default function AuthInput({
         )}
 
         <TextInput
+          ref={inputRef}
           style={[styles.textInput, leftIcon && styles.textInputWithLeftIcon]}
           placeholder={placeholder}
-          placeholderTextColor="rgba(60, 60, 67, 0.6)"
+          placeholderTextColor={getPlaceholderColor()}
           value={value}
           onChangeText={onChangeText}
           onFocus={handleFocus}
@@ -316,6 +323,10 @@ export default function AuthInput({
           secureTextEntry={secureTextEntry && !isPasswordVisible}
           textAlignVertical={props.multiline ? 'top' : 'center'}
           editable={!disabled}
+          autoCapitalize="none"
+          autoCorrect={false}
+          returnKeyType="next"
+          blurOnSubmit={false}
           {...props}
         />
 

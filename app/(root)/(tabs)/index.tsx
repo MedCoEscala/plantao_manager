@@ -13,8 +13,9 @@ import {
   ActivityIndicator,
   RefreshControl,
   Alert,
+  Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button, useNotification } from '@/components';
 import CalendarComponent from '@/components/CalendarComponent';
@@ -41,6 +42,8 @@ export default function ShiftsScreen() {
   const { showError, showSuccess } = useNotification();
   const router = useRouter();
   const shiftsApi = useShiftsApi();
+
+  const insets = useSafeAreaInsets();
 
   const userName = useMemo(() => {
     if (isProfileLoading || !profile) return 'Usuário';
@@ -375,6 +378,23 @@ export default function ShiftsScreen() {
     [navigateToAddShift]
   );
 
+  const getFloatingButtonPosition = () => {
+    if (Platform.OS === 'android') {
+      return {
+        bottom: Math.max(insets.bottom + 20, 36), // 20px acima da navigation bar
+      };
+    }
+    return { bottom: 24 }; // iOS padrão
+  };
+
+  const getContentPadding = () => {
+    if (Platform.OS === 'android') {
+      // Padding para compensar tab bar + navigation bar
+      return Math.max(insets.bottom + 80, 100);
+    }
+    return 80; // iOS padrão
+  };
+
   if (isProfileLoading) {
     return (
       <View className="flex-1 items-center justify-center bg-background">
@@ -384,7 +404,7 @@ export default function ShiftsScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-background" edges={Platform.OS === 'ios' ? ['top'] : []}>
       <StatusBar style="dark" />
 
       <View className="border-b border-background-300 bg-white">
@@ -430,7 +450,8 @@ export default function ShiftsScreen() {
       ) : (
         <FlatList
           className="flex-1"
-          contentContainerClassName="px-4 pb-16"
+          contentContainerClassName="px-4"
+          contentContainerStyle={{ paddingBottom: getContentPadding() }}
           data={shiftsForSelectedDate}
           keyExtractor={(item) => item.id}
           renderItem={renderShiftItem}
@@ -454,8 +475,11 @@ export default function ShiftsScreen() {
       )}
 
       <TouchableOpacity
-        className="absolute bottom-6 right-6 h-14 w-14 items-center justify-center rounded-full bg-primary shadow-lg"
-        style={{ elevation: 4 }}
+        className="absolute right-6 h-14 w-14 items-center justify-center rounded-full bg-primary shadow-lg"
+        style={{
+          elevation: 4,
+          ...getFloatingButtonPosition(),
+        }}
         activeOpacity={0.9}
         onPress={navigateToAddShift}>
         <Ionicons name="add" size={28} color="#FFFFFF" />

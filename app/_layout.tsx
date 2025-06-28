@@ -145,7 +145,7 @@ export default function RootLayout() {
   }
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#f8fafc' }}>
       <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
         <RootLayoutNav />
       </ClerkProvider>

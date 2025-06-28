@@ -1,7 +1,8 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React from 'react';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { Platform } from 'react-native';
+import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 
 import { useNotifications } from '../hooks/useNotifications';
 
@@ -10,8 +11,8 @@ const LayoutRoot = () => {
   useNotifications();
 
   return (
-    <SafeAreaProvider>
-      <StatusBar style="dark" />
+    <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+      <StatusBar style="dark" translucent={Platform.OS === 'android'} />
       <Stack
         screenOptions={{
           headerShown: false,

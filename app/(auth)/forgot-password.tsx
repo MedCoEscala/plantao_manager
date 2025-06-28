@@ -12,7 +12,6 @@ import {
   KeyboardAvoidingView,
   Animated,
   TouchableOpacity,
-  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -21,8 +20,6 @@ import Logo from '../components/auth/Logo';
 import AuthButton from '@/components/auth/AuthButton';
 import AuthInput from '@/components/auth/AuthInput';
 import { useToast } from '@/components/ui/Toast';
-
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState('');
@@ -141,8 +138,8 @@ export default function ForgotPasswordScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1" edges={['top']}>
-      <StatusBar style="dark" />
+    <SafeAreaView className="flex-1" edges={Platform.OS === 'ios' ? ['top'] : []}>
+      <StatusBar style="dark" translucent={Platform.OS === 'android'} />
 
       {/* Background Gradient */}
       <LinearGradient
@@ -154,6 +151,8 @@ export default function ForgotPasswordScreen() {
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        enabled
         className="flex-1">
         {/* Header with Back Button */}
         <View className="flex-row items-center justify-between px-5 pt-4">
@@ -174,7 +173,9 @@ export default function ForgotPasswordScreen() {
           className="flex-1"
           contentContainerStyle={{ flexGrow: 1 }}
           showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled">
+          keyboardShouldPersistTaps="handled"
+          automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
+          keyboardDismissMode="interactive">
           {/* Header Section */}
           <View className="flex-1 items-center justify-center px-6 pt-5">
             <Animated.View className="items-center" style={{ opacity: fadeAnim }}>
@@ -198,7 +199,7 @@ export default function ForgotPasswordScreen() {
             style={{
               opacity: fadeAnim,
               transform: [{ translateY: slideAnim }],
-              minHeight: SCREEN_HEIGHT * 0.5,
+              minHeight: Platform.OS === 'android' ? 400 : undefined,
             }}>
             {!isSubmitted ? (
               <>

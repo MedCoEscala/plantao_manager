@@ -150,7 +150,7 @@ export default function SignInScreen() {
 
   return (
     <SafeAreaView className="flex-1" edges={Platform.OS === 'ios' ? ['top'] : []}>
-      <StatusBar style="dark" backgroundColor="#f8f9fb" translucent={Platform.OS === 'android'} />
+      <StatusBar style="dark" translucent={Platform.OS === 'android'} />
 
       {/* Background Gradient */}
       <LinearGradient
@@ -161,14 +161,17 @@ export default function SignInScreen() {
       />
 
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        enabled
         className="flex-1">
         <ScrollView
           className="flex-1"
           contentContainerStyle={{ flexGrow: 1 }}
           showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled">
+          keyboardShouldPersistTaps="handled"
+          automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
+          keyboardDismissMode="interactive">
           {/* Header Section */}
           <View className="flex-1 items-center justify-center px-6 pt-5">
             <Animated.View

@@ -1,12 +1,42 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
-import React from 'react';
-import { Platform, View } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { Platform, View, Dimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
-  const bottomInset = Math.max(insets.bottom, 8);
+  const [isReady, setIsReady] = useState(false);
+
+  // Ensure proper initialization on Android
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsReady(true);
+    }, 100);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Android-specific calculations for navigation bar
+  const getBottomInset = () => {
+    if (Platform.OS === 'android') {
+      // More aggressive minimum padding for Android navigation buttons
+      const minPadding = insets.bottom > 0 ? insets.bottom : 20;
+      return Math.max(minPadding, 16);
+    }
+    return insets.bottom;
+  };
+
+  const getTabBarHeight = () => {
+    if (Platform.OS === 'android') {
+      return 60 + getBottomInset();
+    }
+    return 50 + getBottomInset();
+  };
+
+  // Don't render until properly initialized on Android
+  if (Platform.OS === 'android' && !isReady) {
+    return null;
+  }
 
   return (
     <Tabs
@@ -16,8 +46,8 @@ export default function TabsLayout() {
         tabBarStyle: {
           backgroundColor: '#ffffff',
           borderTopColor: '#e2e8f0',
-          height: Platform.OS === 'ios' ? 50 + bottomInset : 60,
-          paddingBottom: Platform.OS === 'ios' ? bottomInset : 8,
+          height: getTabBarHeight(),
+          paddingBottom: getBottomInset(),
           paddingTop: 8,
           elevation: 5,
           shadowColor: '#94a3b8',
@@ -25,7 +55,18 @@ export default function TabsLayout() {
           shadowOpacity: 0.1,
           shadowRadius: 3,
           borderTopWidth: 1,
+          // Force proper positioning on Android
+          ...(Platform.OS === 'android' && {
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+          }),
         },
+        // Ensure content doesn't overlap with tab bar
+        ...(Platform.OS === 'android' && {
+          tabBarHideOnKeyboard: true,
+        }),
         headerStyle: {
           backgroundColor: '#ffffff',
           elevation: 2,

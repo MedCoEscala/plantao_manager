@@ -12,7 +12,6 @@ import {
   KeyboardAvoidingView,
   Animated,
   TouchableOpacity,
-  Dimensions,
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -24,8 +23,6 @@ import CodeInput from '@/components/auth/CodeInput';
 import { useToast } from '@/components/ui/Toast';
 import { useProfileContext } from '@/contexts/ProfileContext';
 import apiClient from '@/lib/axios';
-
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export default function VerifyCodeScreen() {
   const [code, setCode] = useState('');
@@ -365,8 +362,8 @@ export default function VerifyCodeScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1" edges={['top']}>
-      <StatusBar style="dark" />
+    <SafeAreaView className="flex-1" edges={Platform.OS === 'ios' ? ['top'] : []}>
+      <StatusBar style="dark" translucent={Platform.OS === 'android'} />
 
       <LinearGradient
         colors={['#f8f9fb', '#e8eef7', '#f1f5f9']}
@@ -377,6 +374,8 @@ export default function VerifyCodeScreen() {
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        enabled
         className="flex-1">
         <View className="flex-row items-center justify-between px-5 pt-4">
           <TouchableOpacity
@@ -396,7 +395,9 @@ export default function VerifyCodeScreen() {
           className="flex-1"
           contentContainerStyle={{ flexGrow: 1 }}
           showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled">
+          keyboardShouldPersistTaps="handled"
+          automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
+          keyboardDismissMode="interactive">
           <View className="flex-1 items-center justify-center px-6 pt-5">
             <Animated.View className="items-center" style={{ opacity: fadeAnim }}>
               <Animated.View
@@ -421,7 +422,7 @@ export default function VerifyCodeScreen() {
             style={{
               opacity: fadeAnim,
               transform: [{ translateY: slideAnim }],
-              minHeight: SCREEN_HEIGHT * 0.45,
+              minHeight: Platform.OS === 'android' ? 350 : undefined,
             }}>
             <View className="mb-6 items-center">
               <Text className="text-center text-2xl font-bold tracking-tight text-gray-900">

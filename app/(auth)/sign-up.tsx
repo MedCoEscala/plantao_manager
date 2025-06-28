@@ -393,8 +393,8 @@ export default function SignUpScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1" edges={['top']}>
-      <StatusBar style="dark" />
+    <SafeAreaView className="flex-1" edges={Platform.OS === 'ios' ? ['top'] : []}>
+      <StatusBar style="dark" translucent={Platform.OS === 'android'} />
 
       <LinearGradient
         colors={['#f8f9fb', '#e8eef7', '#f1f5f9']}
@@ -405,6 +405,8 @@ export default function SignUpScreen() {
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        enabled
         className="flex-1">
         <View className="flex-row items-center justify-between px-5 pt-4">
           <TouchableOpacity
@@ -424,7 +426,9 @@ export default function SignUpScreen() {
           className="flex-1"
           contentContainerStyle={{ flexGrow: 1 }}
           showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled">
+          keyboardShouldPersistTaps="handled"
+          automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
+          keyboardDismissMode="interactive">
           <View className="flex-1 items-center justify-center px-6 pt-5">
             <Animated.View className="items-center" style={{ opacity: fadeAnim }}>
               <Text className="text-center text-3xl font-bold tracking-tight text-gray-900">
