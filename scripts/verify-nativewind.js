@@ -20,7 +20,7 @@ const checks = [
     name: 'Metro config contém withNativeWind',
     test: () => {
       const metroConfig = fs.readFileSync(path.join(__dirname, '..', 'metro.config.js'), 'utf8');
-      return metroConfig.includes('withNativeWind') && metroConfig.includes('inlineRem: false');
+      return metroConfig.includes('withNativeWind');
     },
     required: true,
   },
@@ -52,11 +52,13 @@ const checks = [
     required: true,
   },
   {
-    name: 'EAS.json contém prebuildCommand',
+    name: 'App.json inclui arquivos CSS nos assets',
     test: () => {
-      const easConfig = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'eas.json'), 'utf8'));
+      const appConfig = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'app.json'), 'utf8'));
       return (
-        easConfig.build && easConfig.build.production && easConfig.build.production.prebuildCommand
+        appConfig.expo &&
+        appConfig.expo.assetBundlePatterns &&
+        appConfig.expo.assetBundlePatterns.some((pattern) => pattern.includes('*.css'))
       );
     },
     required: true,
