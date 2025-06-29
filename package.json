@@ -11,8 +11,11 @@
     "format": "eslint \"**/*.{js,jsx,ts,tsx}\" --fix && prettier \"**/*.{js,jsx,ts,tsx,json}\" --write",
     "web": "expo start --web",
     "build:dev": "eas build --profile development",
-    "build:prod": "eas build --profile production",
-    "vercel-build": "cd backend && npm install && npx prisma generate && npm run build"
+    "build:prod": "npm run verify:nativewind && eas build --profile production",
+    "vercel-build": "cd backend && npm install && npx prisma generate && npm run build",
+    "generate:css": "npx tailwindcss -i ./app/styles/global.css -o ./app/styles/global.css.native.css --platform=native",
+    "verify:nativewind": "node scripts/verify-nativewind.js",
+    "postinstall": "npm run generate:css"
   },
   "dependencies": {
     "@clerk/clerk-expo": "^2.9.6",
