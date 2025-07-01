@@ -13,6 +13,9 @@ module.exports = function (api) {
           extensions: ['.js', '.jsx', '.ts', '.tsx'],
         },
       ],
+      ...(process.env.NODE_ENV === 'production'
+        ? [['transform-remove-console', { exclude: ['error', 'warn'] }]]
+        : []),
     ],
   };
 };

@@ -1,7 +1,6 @@
 {
   "cli": {
-    "version": ">= 12.0.0",
-    "appVersionSource": "local"
+    "version": ">= 12.0.0"
   },
   "build": {
     "development": {
@@ -16,11 +15,13 @@
     "production": {
       "channel": "production",
       "env": {
+        "NODE_ENV": "production",
         "EXPO_PUBLIC_API_URL": "https://www.medescalaapp.com.br",
         "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_live_Y2xlcmsubWVkZXNjYWxhYXBwLmNvbS5iciQ"
       },
       "android": {
         "buildType": "app-bundle",
+        "newArchEnabled": false,
         "gradleCommand": ":app:bundleRelease"
       }
     }
