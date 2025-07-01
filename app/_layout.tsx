@@ -12,7 +12,8 @@ import { DialogProvider } from '@/contexts/DialogContext';
 import { LocationsProvider } from '@/contexts/LocationsContext';
 import { NotificationProvider } from '@/contexts/NotificationContext';
 import { ProfileProvider } from '@/contexts/ProfileContext';
-import './styles/global.css';
+// Importar CSS nativo para builds de produção
+import './styles/global.css.native.css';
 
 LogBox.ignoreLogs(['Constants.platform.ios.model has been deprecated in favor of expo-device']);
 
