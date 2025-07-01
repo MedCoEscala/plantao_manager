@@ -6,7 +6,7 @@ module.exports = function (api) {
   const isDev = process.env.NODE_ENV === 'development' || !isProduction;
 
   return {
-    presets: [['babel-preset-expo', { jsxImportSource: 'nativewind' }]],
+    presets: ['babel-preset-expo'],
     plugins: [
       [
         'module-resolver',
@@ -18,8 +18,8 @@ module.exports = function (api) {
           extensions: ['.js', '.jsx', '.ts', '.tsx'],
         },
       ],
-      // NativeWind apenas em desenvolvimento (evita erro Hermes em produção)
-      ...(isDev ? [['nativewind/babel']] : []),
+      // NativeWind v2: funciona perfeitamente em dev e produção
+      'nativewind/babel',
       // Console removal apenas em produção
       ...(isProduction ? [['transform-remove-console', { exclude: ['error', 'warn'] }]] : []),
     ],
