@@ -21,7 +21,6 @@
       },
       "android": {
         "buildType": "app-bundle",
-        "newArchEnabled": false,
         "gradleCommand": ":app:bundleRelease"
       }
     }
