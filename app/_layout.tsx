@@ -13,13 +13,8 @@ import { LocationsProvider } from '@/contexts/LocationsContext';
 import { NotificationProvider } from '@/contexts/NotificationContext';
 import { ProfileProvider } from '@/contexts/ProfileContext';
 
-// Importação condicional para contornar incompatibilidade Expo SDK 53 + NativeWind v4
-if (Platform.OS === 'web') {
-  require('./styles/global.css');
-} else {
-  // Para mobile (incluindo Expo Go e builds de produção)
-  require('./styles/global.css');
-}
+// Solução para Expo SDK 53 + NativeWind: usar CSS pré-compilado
+import './styles/global.css.native.css';
 
 LogBox.ignoreLogs(['Constants.platform.ios.model has been deprecated in favor of expo-device']);
 

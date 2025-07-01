@@ -17,8 +17,6 @@ module.exports = function (api) {
           extensions: ['.js', '.jsx', '.ts', '.tsx'],
         },
       ],
-      // Plugin do NativeWind como plugin em vez de preset
-      ['nativewind/babel'],
       // Console removal apenas em produção
       ...(isProduction ? [['transform-remove-console', { exclude: ['error', 'warn'] }]] : []),
     ],
