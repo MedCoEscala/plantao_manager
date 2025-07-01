@@ -13,8 +13,14 @@ import { LocationsProvider } from '@/contexts/LocationsContext';
 import { NotificationProvider } from '@/contexts/NotificationContext';
 import { ProfileProvider } from '@/contexts/ProfileContext';
 
-// Solução para Expo SDK 53 + NativeWind: usar CSS pré-compilado
-import './styles/global.css.native.css';
+// Solução para Hermes: CSS estático em produção, dinâmico em dev
+if (__DEV__) {
+  // Desenvolvimento: NativeWind dinâmico
+  require('./styles/global.css');
+} else {
+  // Produção: CSS estático pré-compilado (compatível com Hermes)
+  require('./styles/global.css.native.css');
+}
 
 LogBox.ignoreLogs(['Constants.platform.ios.model has been deprecated in favor of expo-device']);
 
