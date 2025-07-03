@@ -13,19 +13,19 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import DateField from '@/components/form/DateField';
-import Card from '@/components/ui/Card';
-import SectionHeader from '@/components/ui/SectionHeader';
+import DateField from '../form/DateField';
+import Card from '../ui/Card';
+import SectionHeader from '../ui/SectionHeader';
 import {
   RecurrenceConfig,
   RecurrenceType,
   RecurrencePattern,
   WEEKDAYS,
   WEEK_NUMBERS,
-} from '@/types/recurrence';
-import { cn } from '@/utils/cn';
-import { formatShiftDate, dateToLocalDateString } from '@/utils/formatters';
-import { RecurrenceCalculator } from '@/utils/recurrence';
+} from '../../types/recurrence';
+import { cn } from '../../utils/cn';
+import { formatShiftDate, dateToLocalDateString } from '../../utils/formatters';
+import { RecurrenceCalculator } from '../../utils/recurrence';
 
 interface RecurrenceSelectorProps {
   startDate: Date;

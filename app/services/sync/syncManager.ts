@@ -1,8 +1,8 @@
 // Comentando todo o conteúdo
 /*
-import { initDatabase } from '@/database/init';
+import { initDatabase } from '../../database/init';
 import { SyncOperation, SyncStats } from './syncTypes';
-import { db } from '@/database/client';
+import { db } from '../../database/client';
 import NetInfo from '@react-native-community/netinfo';
 import { synchronizeShifts } from './syncActions/shiftSync';
 import { synchronizeLocations } from './syncActions/locationSync';

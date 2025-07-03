@@ -17,23 +17,23 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { SelectField } from '@/components/form/SelectField';
-import { Checkbox } from '@/components/ui/CheckBox';
-import MonthYearPicker from '@/components/ui/MonthYearPicker';
-import { SelectableListItem } from '@/components/ui/SelectableListItem';
-import { useToast } from '@/components/ui/Toast';
+import { SelectField } from '../../components/form/SelectField';
+import { Checkbox } from '../../components/ui/CheckBox';
+import MonthYearPicker from '../../components/ui/MonthYearPicker';
+import { SelectableListItem } from '../../components/ui/SelectableListItem';
+import { useToast } from '../../components/ui/Toast';
 import {
   PAYMENT_MESSAGES,
   PAYMENT_COLORS,
   PAYMENT_ANIMATIONS,
-} from '@/constants/payment-constants';
-import { useDialog } from '@/contexts/DialogContext';
-import { useContractorsSelector } from '@/hooks/useContractorsSelector';
-import { useLocationsSelector } from '@/hooks/useLocationsSelector';
-import { useSelection } from '@/hooks/useSelection';
-import { usePaymentsApi } from '@/services/payments-api';
-import { useShiftsApi, Shift } from '@/services/shifts-api';
-import formatters from '@/utils/formatters';
+} from '../../constants/payment-constants';
+import { useDialog } from '../../contexts/DialogContext';
+import { useContractorsSelector } from '../../hooks/useContractorsSelector';
+import { useLocationsSelector } from '../../hooks/useLocationsSelector';
+import { useSelection } from '../../hooks/useSelection';
+import { usePaymentsApi } from '../../services/payments-api';
+import { useShiftsApi, Shift } from '../../services/shifts-api';
+import formatters from '../../utils/formatters';
 
 const formatCurrency = (value: number): string => {
   return value.toLocaleString('pt-BR', {

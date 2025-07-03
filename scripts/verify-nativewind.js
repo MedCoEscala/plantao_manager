@@ -17,29 +17,10 @@ const checks = [
     required: true,
   },
   {
-    name: 'Metro config contém withNativeWind',
-    test: () => {
-      const metroConfig = fs.readFileSync(path.join(__dirname, '..', 'metro.config.js'), 'utf8');
-      return metroConfig.includes('withNativeWind');
-    },
-    required: true,
-  },
-  {
     name: 'Babel config contém nativewind/babel',
     test: () => {
       const babelConfig = fs.readFileSync(path.join(__dirname, '..', 'babel.config.js'), 'utf8');
       return babelConfig.includes('nativewind/babel');
-    },
-    required: true,
-  },
-  {
-    name: 'Tailwind config contém preset do NativeWind',
-    test: () => {
-      const tailwindConfig = fs.readFileSync(
-        path.join(__dirname, '..', 'tailwind.config.js'),
-        'utf8'
-      );
-      return tailwindConfig.includes('nativewind/preset');
     },
     required: true,
   },

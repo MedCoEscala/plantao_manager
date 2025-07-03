@@ -1,7 +1,7 @@
 import { useAuth } from '@clerk/clerk-expo';
 import { useCallback } from 'react';
 
-import apiClient from '@/lib/axios';
+import apiClient from '../lib/axios';
 
 export interface Location {
   id: string;

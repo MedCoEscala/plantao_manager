@@ -7,16 +7,16 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import Button from '@/components/ui/Button';
-import DatePicker from '@/components/ui/DatePicker';
-import Input from '@/components/ui/Input';
-import Select from '@/components/ui/Select';
-import { useToast } from '@/components/ui/Toast';
-import { useDialog } from '@/contexts/DialogContext';
-import { useProfile } from '@/hooks/useProfile';
-import { validatePassword } from '@/services/auth/utils';
-import { fetchWithAuth } from '@/utils/api-client';
-import { getInitials } from '@/utils/userNameHelper';
+import Button from '../../components/ui/Button';
+import DatePicker from '../../components/ui/DatePicker';
+import Input from '../../components/ui/Input';
+import Select from '../../components/ui/Select';
+import { useToast } from '../../components/ui/Toast';
+import { useDialog } from '../../contexts/DialogContext';
+import { useProfile } from '../../hooks/useProfile';
+import { validatePassword } from '../../services/auth/utils';
+import { fetchWithAuth } from '../../utils/api-client';
+import { getInitials } from '../../utils/userNameHelper';
 
 interface PasswordData {
   currentPassword: string;

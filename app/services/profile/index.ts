@@ -1,5 +1,5 @@
-import apiClient from '@/lib/axios';
-import { User } from '@/types/user';
+import apiClient from '../../lib/axios';
+import { User } from '../../types/user';
 
 interface ApiProfileResponse {
   user: User;

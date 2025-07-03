@@ -5,8 +5,8 @@ import React from 'react';
 import { View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import LocationForm from '@/components/locations/LocationForm';
-import { useToast } from '@/components/ui/Toast';
+import LocationForm from '../../components/locations/LocationForm';
+import { useToast } from '../../components/ui/Toast';
 
 export default function EditLocationScreen() {
   const router = useRouter();

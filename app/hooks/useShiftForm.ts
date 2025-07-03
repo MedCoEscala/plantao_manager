@@ -2,16 +2,16 @@ import { startOfDay, isBefore, isAfter, addDays } from 'date-fns';
 import { useState, useCallback, useMemo } from 'react';
 import { Alert } from 'react-native';
 
-import { useNotification } from '@/contexts/NotificationContext';
-import { useShiftsApi, CreateShiftData, UpdateShiftData, Shift } from '@/services/shifts-api';
-import { RecurrenceConfig } from '@/types/recurrence';
+import { useNotification } from '../contexts/NotificationContext';
+import { useShiftsApi, CreateShiftData, UpdateShiftData, Shift } from '../services/shifts-api';
+import { RecurrenceConfig } from '../types/recurrence';
 import formatters, {
   formatTime,
   dateToLocalDateString,
   dateToLocalTimeString,
   createLocalDateTime,
-} from '@/utils/formatters';
-import { RecurrenceCalculator } from '@/utils/recurrence';
+} from '../utils/formatters';
+import { RecurrenceCalculator } from '../utils/recurrence';
 
 interface FormData {
   date: Date;

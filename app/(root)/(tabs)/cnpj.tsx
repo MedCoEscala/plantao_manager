@@ -4,11 +4,11 @@ import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import CNPJForm from '@/components/cnpj/CNPJForm';
-import Card from '@/components/ui/Card';
-import SectionHeader from '@/components/ui/SectionHeader';
-import { useDialog } from '@/contexts/DialogContext';
-import { useCNPJData } from '@/hooks/useCNPJData';
+import CNPJForm from '../../components/cnpj/CNPJForm';
+import Card from '../../components/ui/Card';
+import SectionHeader from '../../components/ui/SectionHeader';
+import { useDialog } from '../../contexts/DialogContext';
+import { useCNPJData } from '../../hooks/useCNPJData';
 
 const CNPJScreen = React.memo(() => {
   const [showForm, setShowForm] = useState(false);

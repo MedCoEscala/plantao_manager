@@ -17,13 +17,13 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Button, useNotification } from '@/components';
-import CalendarComponent from '@/components/CalendarComponent';
-import ShiftFormModal from '@/components/shifts/ShiftFormModal';
-import { useDialog } from '@/contexts/DialogContext';
-import { useProfile } from '@/hooks/useProfile';
-import { useShiftsApi, Shift } from '@/services/shifts-api';
-import formatters, { formatDate, formatTime, formatCurrency } from '@/utils/formatters';
+import { Button, useNotification } from '../../components';
+import CalendarComponent from '../../components/CalendarComponent';
+import ShiftFormModal from '../../components/shifts/ShiftFormModal';
+import { useDialog } from '../../contexts/DialogContext';
+import { useProfile } from '../../hooks/useProfile';
+import { useShiftsApi, Shift } from '../../services/shifts-api';
+import formatters, { formatDate, formatTime, formatCurrency } from '../../utils/formatters';
 
 export default function ShiftsScreen() {
   const [shifts, setShifts] = useState<Shift[]>([]);

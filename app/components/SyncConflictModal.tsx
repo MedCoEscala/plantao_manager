@@ -1,4 +1,4 @@
-import { ConflictData } from '@app/services/sync/syncManager';
+import { ConflictData } from '../services/sync/syncManager';
 import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';

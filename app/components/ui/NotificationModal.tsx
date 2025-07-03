@@ -3,7 +3,7 @@ import React from 'react';
 import { View, Text, Modal, TouchableOpacity, TouchableWithoutFeedback } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { cn } from '@/utils/cn';
+import { cn } from '../../utils/cn';
 
 export type NotificationType = 'success' | 'error' | 'info' | 'warning';
 

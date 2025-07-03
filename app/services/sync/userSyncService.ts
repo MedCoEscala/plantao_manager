@@ -1,7 +1,7 @@
 import * as SecureStore from 'expo-secure-store';
 
 import { SyncResponse, SyncService } from './syncTypes';
-import { User } from '@/types/user';
+import { User } from '../../types/user';
 
 const LAST_SYNC_KEY = 'last_user_sync';
 

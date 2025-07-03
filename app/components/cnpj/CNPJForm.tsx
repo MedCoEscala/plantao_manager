@@ -1,9 +1,9 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { View, Text } from 'react-native';
 
-import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
-import { CNPJData, CreateCNPJData } from '@/services/cnpj-api';
+import Button from '../ui/Button';
+import Input from '../ui/Input';
+import { CNPJData, CreateCNPJData } from '../../services/cnpj-api';
 
 interface CNPJFormProps {
   initialData?: CNPJData | null;

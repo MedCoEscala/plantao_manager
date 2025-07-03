@@ -24,7 +24,7 @@ import {
   ManualRecurrence,
   WEEKDAYS,
   WEEK_NUMBERS,
-} from '@/types/recurrence';
+} from '../types/recurrence';
 
 export class RecurrenceCalculator {
   static calculateDates(config: RecurrenceConfig): Date[] {

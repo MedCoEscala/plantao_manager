@@ -12,14 +12,15 @@ import {
   Platform,
   KeyboardAvoidingView,
   StyleSheet,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-// Assumindo componentes UI
-import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
-import { useToast } from '@/components/ui/Toast';
-import { validatePassword } from '@/services/auth/utils';
+// Componentes UI com caminho relativo correto
+import Button from '../components/ui/Button';
+import Input from '../components/ui/Input';
+import { useToast } from '../components/ui/Toast';
+import { validatePassword } from '../services/auth/utils';
 
 export default function ResetPasswordScreen() {
   const [code, setCode] = useState('');

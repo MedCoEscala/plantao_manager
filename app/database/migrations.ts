@@ -1,4 +1,4 @@
-import database from '@app/database';
+import database from './';
 
 // Funções para executar migrações de banco de dados quando necessário
 // Este é um exemplo simples, mas você pode expandir conforme necessário

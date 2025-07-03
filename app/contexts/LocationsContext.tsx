@@ -1,9 +1,9 @@
 import { useAuth } from '@clerk/clerk-expo';
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 
-import { useToast } from '@/components/ui/Toast';
-import { useProfile } from '@/hooks/useProfile';
-import { fetchWithAuth } from '@/utils/api-client';
+import { useToast } from '../components/ui/Toast';
+import { useProfile } from '../hooks/useProfile';
+import { fetchWithAuth } from '../utils/api-client';
 
 export interface Location {
   id: string;

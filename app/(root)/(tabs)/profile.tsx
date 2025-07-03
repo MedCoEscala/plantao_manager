@@ -4,10 +4,10 @@ import React, { useCallback, useRef, memo } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import ContractorsList from '@/components/profile/ContractorsList';
-import ProfileActions from '@/components/profile/ProfileActions';
-import ProfileHeader from '@/components/profile/ProfileHeader';
-import { useProfile } from '@/hooks/useProfile';
+import ContractorsList from '../../components/profile/ContractorsList';
+import ProfileActions from '../../components/profile/ProfileActions';
+import ProfileHeader from '../../components/profile/ProfileHeader';
+import { useProfile } from '../../hooks/useProfile';
 
 const ProfileScreen = memo(() => {
   const router = useRouter();

@@ -3,9 +3,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, StatusBar, ActivityIndicator, Text, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import ShiftForm from '@/components/shifts/ShiftForm';
-import { useToast } from '@/components/ui/Toast';
-import { useShiftsApi, Shift } from '@/services/shifts-api';
+import ShiftForm from '../../../components/shifts/ShiftForm';
+import { useToast } from '../../../components/ui/Toast';
+import { useShiftsApi, Shift } from '../../../services/shifts-api';
 
 export default function EditShiftScreen() {
   const router = useRouter();

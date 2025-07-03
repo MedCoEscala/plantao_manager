@@ -1,9 +1,9 @@
 import React, { memo, useCallback } from 'react';
 
-import SelectField from '@/components/form/SelectField';
-import Card from '@/components/ui/Card';
-import Input from '@/components/ui/Input';
-import SectionHeader from '@/components/ui/SectionHeader';
+import SelectField from '../../form/SelectField';
+import Card from '../../ui/Card';
+import Input from '../../ui/Input';
+import SectionHeader from '../../ui/SectionHeader';
 
 const PAYMENT_TYPE_OPTIONS = [
   { label: 'Pessoa Física (PF)', value: 'PF', icon: 'person-outline' },

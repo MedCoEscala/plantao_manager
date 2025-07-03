@@ -9,10 +9,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import Logo from '../components/auth/Logo';
 
-import { useNotification } from '@/components';
-import AuthButton from '@/components/auth/AuthButton';
-import AuthInput from '@/components/auth/AuthInput';
-import apiClient from '@/lib/axios';
+import { useNotification } from '../components';
+import AuthButton from '../components/auth/AuthButton';
+import AuthInput from '../components/auth/AuthInput';
+import apiClient from '../lib/axios';
 
 export default function SignInScreen() {
   const [email, setEmail] = useState('');

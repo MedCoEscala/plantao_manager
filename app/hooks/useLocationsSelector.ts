@@ -1,4 +1,4 @@
-import { useLocations } from '@/contexts/LocationsContext';
+import { useLocations } from '../contexts/LocationsContext';
 
 /**
  * @deprecated Use useLocations from LocationsContext instead

@@ -4,7 +4,7 @@ import { ActivityIndicator, View } from 'react-native';
 import LocationForm from './LocationForm';
 import FormModal from '../form/FormModal';
 
-import { useLocationsApi } from '@/services/locations-api';
+import { useLocationsApi } from '../../services/locations-api';
 
 interface LocationFormModalProps {
   visible: boolean;

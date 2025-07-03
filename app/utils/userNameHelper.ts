@@ -1,4 +1,4 @@
-import { User } from '@/types/user';
+import { User } from '../types/user';
 
 export class UserNameHelper {
   static getDisplayName(profile: User | null | undefined): string {

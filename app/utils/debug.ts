@@ -1,5 +1,5 @@
-import database from '@app/database';
-import { Tables } from '@app/database/schema';
+import database from '../database';
+import { Tables } from '../database/schema';
 import { Alert } from 'react-native';
 
 // Função para exibir alertas com os dados do banco de dados

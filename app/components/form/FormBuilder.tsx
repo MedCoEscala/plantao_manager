@@ -16,8 +16,8 @@ import {
   TextInputProps,
 } from 'react-native';
 
-import Button from '@/components/ui/Button';
-import { useDialog } from '@/contexts/DialogContext';
+import Button from '../ui/Button';
+import { useDialog } from '../../contexts/DialogContext';
 
 // Tipo para definição de um campo de formulário
 export interface FormField {

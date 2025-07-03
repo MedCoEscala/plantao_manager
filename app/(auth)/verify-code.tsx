@@ -18,11 +18,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import Logo from '../components/auth/Logo';
 
-import AuthButton from '@/components/auth/AuthButton';
-import CodeInput from '@/components/auth/CodeInput';
-import { useToast } from '@/components/ui/Toast';
-import { useProfileContext } from '@/contexts/ProfileContext';
-import apiClient from '@/lib/axios';
+import AuthButton from '../components/auth/AuthButton';
+import CodeInput from '../components/auth/CodeInput';
+import { useToast } from '../components/ui/Toast';
+import { useProfileContext } from '../contexts/ProfileContext';
+import apiClient from '../lib/axios';
 
 export default function VerifyCodeScreen() {
   const [code, setCode] = useState('');

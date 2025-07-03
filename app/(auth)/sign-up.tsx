@@ -20,10 +20,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import Logo from '../components/auth/Logo';
 
-import { useNotification } from '@/components';
-import AuthButton from '@/components/auth/AuthButton';
-import AuthInput from '@/components/auth/AuthInput';
-import { validatePassword } from '@/services/auth/utils';
+import { useNotification } from '../components';
+import AuthButton from '../components/auth/AuthButton';
+import AuthInput from '../components/auth/AuthInput';
+import { validatePassword } from '../services/auth/utils';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 

@@ -2,11 +2,14 @@
   "expo": {
     "name": "MedEscala",
     "slug": "medescala",
-    "version": "1.1.0",
+    "version": "1.1.8",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": false,
+    "experiments": {
+      "tsconfigPaths": true
+    },
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -16,14 +19,14 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.lucaserib.medescala",
-      "buildNumber": "12"
+      "buildNumber": "21"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "versionCode": 12,
+      "versionCode": 21,
       "package": "com.lucaserib.medescala",
       "permissions": [
         "NOTIFICATIONS",
@@ -31,9 +34,7 @@
         "VIBRATE",
         "INTERNET",
         "ACCESS_NETWORK_STATE"
-      ],
-      "statusBarTranslucent": true,
-      "navigationBarHidden": false
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png",

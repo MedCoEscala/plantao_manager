@@ -2,11 +2,11 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useState, useCallback, memo } from 'react';
 import { View, Text, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
 
-import { ContractorFormModal } from '@/components/contractors/ContractorFormModal';
-import { useToast } from '@/components/ui/Toast';
-import { useDialog } from '@/contexts/DialogContext';
-import { useContractorsSelector } from '@/hooks/useContractorsSelector';
-import { useContractorsApi, Contractor } from '@/services/contractors-api';
+import { ContractorFormModal } from '../contractors/ContractorFormModal';
+import { useToast } from '../ui/Toast';
+import { useDialog } from '../../contexts/DialogContext';
+import { useContractorsSelector } from '../../hooks/useContractorsSelector';
+import { useContractorsApi, Contractor } from '../../services/contractors-api';
 
 interface ContractorsListProps {
   title?: string;

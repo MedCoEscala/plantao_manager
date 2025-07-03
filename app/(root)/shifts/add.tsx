@@ -3,8 +3,8 @@ import React from 'react';
 import { View, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useNotification } from '@/components';
-import ShiftForm from '@/components/shifts/ShiftForm';
+import { useNotification } from '../../components';
+import ShiftForm from '../../components/shifts/ShiftForm';
 
 export default function AddShiftScreen() {
   const router = useRouter();

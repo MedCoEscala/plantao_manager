@@ -209,7 +209,7 @@ export class PrivacyController {
     return res.redirect('/privacy');
   }
 
-  @Get('data-deletion')
+  @Get('privacy/data-deletion')
   getDataDeletionPage() {
     return `
 <!DOCTYPE html>

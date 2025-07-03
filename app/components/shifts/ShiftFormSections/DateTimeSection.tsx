@@ -1,10 +1,10 @@
 import React, { memo } from 'react';
 import { View, Text } from 'react-native';
 
-import DateField from '@/components/form/DateField';
-import Card from '@/components/ui/Card';
-import SectionHeader from '@/components/ui/SectionHeader';
-import { dateToLocalTimeString } from '@/utils/formatters';
+import DateField from '../../form/DateField';
+import Card from '../../ui/Card';
+import SectionHeader from '../../ui/SectionHeader';
+import { dateToLocalTimeString } from '../../../utils/formatters';
 
 interface DateTimeSectionProps {
   date: Date;

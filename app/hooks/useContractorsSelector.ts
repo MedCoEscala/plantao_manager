@@ -1,4 +1,4 @@
-import { useContractors } from '@/contexts/ContractorsContext';
+import { useContractors } from '../contexts/ContractorsContext';
 
 /**
  * @deprecated Use useContractors from ContractorsContext instead

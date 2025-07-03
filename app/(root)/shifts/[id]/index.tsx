@@ -7,10 +7,10 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useToast } from '@/components/ui/Toast';
-import { useDialog } from '@/contexts/DialogContext';
-import { useShiftsApi, Shift } from '@/services/shifts-api';
-import { formatDate, formatTime, formatCurrency } from '@/utils/formatters';
+import { useToast } from '../../../components/ui/Toast';
+import { useDialog } from '../../../contexts/DialogContext';
+import { useShiftsApi, Shift } from '../../../services/shifts-api';
+import { formatDate, formatTime, formatCurrency } from '../../../utils/formatters';
 
 // Função auxiliar para obter cor baseada no status
 const getStatusColor = (status: string) => {

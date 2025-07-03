@@ -5,8 +5,8 @@ import React from 'react';
 import { View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useNotification } from '@/components';
-import LocationForm from '@/components/locations/LocationForm';
+import { useNotification } from '../../components';
+import LocationForm from '../../components/locations/LocationForm';
 
 export default function AddLocationScreen() {
   const router = useRouter();

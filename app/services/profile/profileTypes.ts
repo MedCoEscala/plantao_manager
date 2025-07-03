@@ -1,4 +1,4 @@
-import { User, UserUpdateInput } from '@/types/user';
+import { User, UserUpdateInput } from '../../types/user';
 
 export interface ProfileResponse {
   success: boolean;

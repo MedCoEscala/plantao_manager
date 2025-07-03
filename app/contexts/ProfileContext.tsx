@@ -1,9 +1,9 @@
 import { useAuth } from '@clerk/clerk-expo';
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 
-import { useToast } from '@/components/ui/Toast';
-import { fetchWithAuth } from '@/utils/api-client';
-import { User } from '@/types/user';
+import { useToast } from '../components/ui/Toast';
+import { fetchWithAuth } from '../utils/api-client';
+import { User } from '../types/user';
 
 interface ProfileContextType {
   profile: User | null;

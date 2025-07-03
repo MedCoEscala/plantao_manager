@@ -2,8 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 
-import { User } from '@/types/user';
-import { getDisplayName, getInitials } from '@/utils/userNameHelper';
+import { User } from '../../types/user';
+import { getDisplayName, getInitials } from '../../utils/userNameHelper';
 
 interface ProfileHeaderProps {
   profile: User | null;

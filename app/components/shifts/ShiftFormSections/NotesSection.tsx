@@ -1,8 +1,8 @@
 import React, { memo } from 'react';
 
-import Card from '@/components/ui/Card';
-import Input from '@/components/ui/Input';
-import SectionHeader from '@/components/ui/SectionHeader';
+import Card from '../../ui/Card';
+import Input from '../../ui/Input';
+import SectionHeader from '../../ui/SectionHeader';
 
 interface NotesSectionProps {
   notes: string;

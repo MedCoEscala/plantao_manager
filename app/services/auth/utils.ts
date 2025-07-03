@@ -1,4 +1,4 @@
-import { User } from '@/types/user';
+import { User } from '../../types/user';
 
 export function validatePassword(password: string): { isValid: boolean; message?: string } {
   if (!password || password.trim().length === 0) {

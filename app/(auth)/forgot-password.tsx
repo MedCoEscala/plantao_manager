@@ -17,9 +17,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import Logo from '../components/auth/Logo';
 
-import AuthButton from '@/components/auth/AuthButton';
-import AuthInput from '@/components/auth/AuthInput';
-import { useToast } from '@/components/ui/Toast';
+import AuthButton from '../components/auth/AuthButton';
+import AuthInput from '../components/auth/AuthInput';
+import { useToast } from '../components/ui/Toast';
 
 export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState('');

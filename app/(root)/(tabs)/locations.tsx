@@ -13,10 +13,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { LocationFormModal } from '@/components/ui';
-import { useToast } from '@/components/ui/Toast';
-import { useDialog } from '@/contexts/DialogContext';
-import { useLocationsApi, Location, LocationsFilters } from '@/services/locations-api';
+import { LocationFormModal } from '../../components/ui';
+import { useToast } from '../../components/ui/Toast';
+import { useDialog } from '../../contexts/DialogContext';
+import { useLocationsApi, Location, LocationsFilters } from '../../services/locations-api';
 
 const LocationsScreen = () => {
   const [locations, setLocations] = useState<Location[]>([]);

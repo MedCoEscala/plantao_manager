@@ -1,5 +1,5 @@
-import { useProfileContext } from '@/contexts/ProfileContext';
-import { User } from '@/types/user';
+import { useProfileContext } from '../contexts/ProfileContext';
+import { User } from '../types/user';
 
 export interface UseProfileResult {
   profile: User | null;

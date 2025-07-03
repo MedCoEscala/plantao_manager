@@ -7,14 +7,22 @@ import { useEffect, useState } from 'react';
 import { Platform, LogBox, View, Text } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
-import { ContractorsProvider } from '@/contexts/ContractorsContext';
-import { DialogProvider } from '@/contexts/DialogContext';
-import { LocationsProvider } from '@/contexts/LocationsContext';
-import { NotificationProvider } from '@/contexts/NotificationContext';
-import { ProfileProvider } from '@/contexts/ProfileContext';
+import { ContractorsProvider } from './contexts/ContractorsContext';
+import { DialogProvider } from './contexts/DialogContext';
+import { LocationsProvider } from './contexts/LocationsContext';
+import { NotificationProvider } from './contexts/NotificationContext';
+import { ProfileProvider } from './contexts/ProfileContext';
 
-// NativeWind v2: funciona perfeitamente em dev e produção
-import './styles/global.css';
+// Estratégia híbrida para NativeWind v2:
+// - Desenvolvimento: CSS dinâmico com hot reload
+// - Produção: CSS estático pré-compilado (compatível com Hermes)
+if (__DEV__) {
+  // Desenvolvimento: NativeWind dinâmico
+  require('./styles/global.css');
+} else {
+  // Produção: CSS estático pré-compilado
+  require('./styles/global.css.native.css');
+}
 
 LogBox.ignoreLogs(['Constants.platform.ios.model has been deprecated in favor of expo-device']);
 
