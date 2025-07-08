@@ -201,13 +201,16 @@ export default function SignInScreen() {
 
           {/* Form Section */}
           <Animated.View
-            className="mx-5 mb-8 rounded-3xl border border-white/30 bg-white/90 p-7 shadow-xl"
+            className="mx-5 mb-8 rounded-3xl border border-white/20 bg-white/95 p-6 shadow-xl"
             style={{
               opacity: fadeAnim,
               transform: [{ translateY: slideAnim }],
-              minHeight: Platform.OS === 'android' ? 400 : undefined,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 8 },
+              shadowOpacity: 0.15,
+              shadowRadius: 16,
+              elevation: 12,
             }}>
-            {/* Welcome Message */}
             <View className="mb-7 items-center">
               <Text className="text-center text-3xl font-bold tracking-tight text-gray-900">
                 Entrar
@@ -216,9 +219,7 @@ export default function SignInScreen() {
                 Acesse sua conta de forma segura
               </Text>
             </View>
-
-            {/* Form Fields */}
-            <View className="space-y-5">
+            <View style={{ gap: 20 }}>
               <AuthInput
                 label="Email"
                 placeholder="seu@email.com"
@@ -233,7 +234,6 @@ export default function SignInScreen() {
                 keyboardType="email-address"
                 leftIcon="mail"
               />
-
               <AuthInput
                 label="Senha"
                 placeholder="Sua senha"
@@ -295,7 +295,7 @@ export default function SignInScreen() {
                 </View>
                 <View className="flex-1">
                   <Text className="text-sm font-semibold text-gray-900">Seguro e Protegido</Text>
-                  <Text className="mt-0.5 text-xs text-gray-700">
+                  <Text className="mt-2 text-xs text-gray-700">
                     Seus dados são protegidos com criptografia de ponta
                   </Text>
                 </View>

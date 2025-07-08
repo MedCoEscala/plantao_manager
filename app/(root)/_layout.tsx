@@ -4,11 +4,8 @@ import React from 'react';
 import { Platform } from 'react-native';
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 
-import { useNotifications } from '../hooks/useNotifications';
-
 const LayoutRoot = () => {
-  // Inicializar notificações globalmente (agora com verificação de auth)
-  useNotifications();
+  // useNotifications foi movido para dentro do ClerkProvider no _layout principal
 
   return (
     <SafeAreaProvider initialMetrics={initialWindowMetrics}>

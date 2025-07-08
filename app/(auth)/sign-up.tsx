@@ -23,6 +23,7 @@ import Logo from '../components/auth/Logo';
 import { useNotification } from '../components';
 import AuthButton from '../components/auth/AuthButton';
 import AuthInput from '../components/auth/AuthInput';
+import AuthDateInput from '../components/auth/AuthDateInput';
 import { validatePassword } from '../services/auth/utils';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -237,7 +238,7 @@ export default function SignUpScreen() {
   );
 
   const renderStep1 = () => (
-    <View className="space-y-5">
+    <View style={{ gap: 20 }}>
       <AuthInput
         label="Nome"
         placeholder="Seu primeiro nome"
@@ -248,7 +249,6 @@ export default function SignUpScreen() {
         autoFocus
         leftIcon="person-outline"
       />
-
       <AuthInput
         label="Sobrenome"
         placeholder="Seu sobrenome"
@@ -258,7 +258,6 @@ export default function SignUpScreen() {
         required
         leftIcon="person-outline"
       />
-
       <AuthInput
         label="Email"
         placeholder="seu@email.com"
@@ -273,7 +272,7 @@ export default function SignUpScreen() {
   );
 
   const renderStep2 = () => (
-    <View className="space-y-5">
+    <View style={{ gap: 20 }}>
       <AuthInput
         label="Senha"
         placeholder="Crie uma senha segura"
@@ -286,7 +285,6 @@ export default function SignUpScreen() {
         showPasswordStrength
         leftIcon="lock-closed"
       />
-
       <AuthInput
         label="Confirmar Senha"
         placeholder="Digite a senha novamente"
@@ -297,47 +295,25 @@ export default function SignUpScreen() {
         secureTextEntry
         leftIcon="lock-closed"
       />
-
-      <View>
-        <Text className="mb-2 text-base font-semibold text-gray-900">
-          Data de Nascimento <Text className="font-normal text-gray-700">(opcional)</Text>
-        </Text>
-        <TouchableOpacity
-          onPress={() => setDatePickerVisibility(true)}
-          className="border-1.5 flex-row items-center justify-between rounded-2xl border-gray-300 bg-gray-50 p-4">
-          <View className="flex-row items-center">
-            <Ionicons
-              name="calendar-outline"
-              size={20}
-              color="#18cb96"
-              style={{ marginRight: 12 }}
-            />
-            <Text
-              className={
-                formData.birthDate
-                  ? 'text-base font-medium text-gray-900'
-                  : 'text-base text-gray-600'
-              }>
-              {formData.birthDate
-                ? format(formData.birthDate, 'dd/MM/yyyy')
-                : 'Selecionar data de nascimento'}
-            </Text>
-          </View>
-        </TouchableOpacity>
-
-        <DateTimePickerModal
-          isVisible={isDatePickerVisible}
-          mode="date"
-          onConfirm={(date) => {
-            updateField('birthDate', date);
-            setDatePickerVisibility(false);
-          }}
-          onCancel={() => setDatePickerVisibility(false)}
-          locale="pt_BR"
-          maximumDate={new Date()}
-        />
-      </View>
-
+      <AuthDateInput
+        label="Data de Nascimento"
+        value={formData.birthDate ? format(formData.birthDate, 'dd/MM/yyyy') : null}
+        onPress={() => setDatePickerVisibility(true)}
+        placeholder="Selecionar data de nascimento"
+        error={errors.birthDate}
+        helperText="Opcional"
+      />
+      <DateTimePickerModal
+        isVisible={isDatePickerVisible}
+        mode="date"
+        onConfirm={(date) => {
+          updateField('birthDate', date);
+          setDatePickerVisibility(false);
+        }}
+        onCancel={() => setDatePickerVisibility(false)}
+        locale="pt_BR"
+        maximumDate={new Date()}
+      />
       <View>
         <Text className="mb-2 text-base font-semibold text-gray-900">
           Gênero <Text className="font-normal text-gray-700">(opcional)</Text>
@@ -347,27 +323,31 @@ export default function SignUpScreen() {
             <TouchableOpacity
               key={option.value}
               onPress={() => updateField('gender', option.value)}
-              className={`border-1.5 min-w-[45%] flex-row items-center rounded-xl px-4 py-3 ${
+              activeOpacity={0.7}
+              className={`flex-row items-center rounded-xl border-2 px-4 py-3 ${
                 formData.gender === option.value
-                  ? 'border-primary bg-primary/10'
+                  ? 'border-primary bg-primary/5'
                   : 'border-gray-300 bg-gray-50'
-              }`}>
+              }`}
+              style={{ minWidth: '45%' }}
+            >
               <Ionicons
                 name={option.icon as any}
-                size={16}
-                color={formData.gender === option.value ? '#18cb96' : 'rgba(60, 60, 67, 0.6)'}
+                size={18}
+                color={formData.gender === option.value ? '#18cb96' : '#6B7280'}
+                style={{ marginRight: 8 }}
               />
               <Text
-                className={`ml-2 text-sm font-medium ${
+                className={`text-sm font-medium ${
                   formData.gender === option.value ? 'text-primary' : 'text-gray-600'
-                }`}>
+                }`}
+              >
                 {option.label}
               </Text>
             </TouchableOpacity>
           ))}
         </View>
       </View>
-
       <AuthInput
         label="Telefone"
         placeholder="(11) 99999-9999"
@@ -411,8 +391,15 @@ export default function SignUpScreen() {
         <View className="flex-row items-center justify-between px-5 pt-4">
           <TouchableOpacity
             onPress={handleBack}
-            className="h-11 w-11 items-center justify-center rounded-full bg-gray-200">
-            <Ionicons name="arrow-back" size={24} color="#1a1a1a" />
+            className="h-12 w-12 items-center justify-center rounded-full bg-white/80 border border-gray-200"
+            style={{
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.1,
+              shadowRadius: 4,
+              elevation: 3,
+            }}>
+            <Ionicons name="arrow-back" size={22} color="#1a1a1a" />
           </TouchableOpacity>
 
           <View className="flex-1 items-center">
@@ -443,14 +430,17 @@ export default function SignUpScreen() {
           </View>
 
           <Animated.View
-            className="mx-5 mb-8 rounded-3xl border border-white/30 bg-white/90 p-7 shadow-xl"
+            className="mx-5 mb-8 rounded-3xl border border-white/20 bg-white/95 p-6 shadow-xl"
             style={{
               opacity: fadeAnim,
               transform: [{ translateY: slideAnim }],
-              minHeight: SCREEN_HEIGHT * 0.6,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 8 },
+              shadowOpacity: 0.15,
+              shadowRadius: 16,
+              elevation: 12,
             }}>
             {renderStepIndicator()}
-
             <View className="mb-6 items-center">
               <Text className="text-center text-2xl font-bold tracking-tight text-gray-900">
                 {currentStep === 1 ? 'Informações Pessoais' : 'Dados de Acesso'}
@@ -459,7 +449,6 @@ export default function SignUpScreen() {
                 {currentStep === 1 ? 'Como podemos te chamar?' : 'Crie suas credenciais de acesso'}
               </Text>
             </View>
-
             <Animated.View
               style={{
                 transform: [
@@ -473,7 +462,6 @@ export default function SignUpScreen() {
               }}>
               {currentStep === 1 ? renderStep1() : renderStep2()}
             </Animated.View>
-
             <View className="mt-7 space-y-4">
               <AuthButton
                 title={currentStep === 1 ? 'Continuar' : 'Criar Conta'}
@@ -481,7 +469,6 @@ export default function SignUpScreen() {
                 loading={isLoading}
                 leftIcon={currentStep === 1 ? 'arrow-forward' : 'person-add-outline'}
               />
-
               <View className="items-center">
                 <Text className="text-base text-gray-600">
                   Já tem uma conta?{' '}
@@ -493,7 +480,6 @@ export default function SignUpScreen() {
                 </Text>
               </View>
             </View>
-
             {currentStep === 2 && (
               <View className="mt-6 rounded-2xl border border-gray-100 bg-gray-50/80 p-4">
                 <View className="flex-row items-center">

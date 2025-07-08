@@ -1,65 +1,104 @@
 import { useSignIn } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams, Link } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
-  TextInput,
-  TouchableOpacity,
   ScrollView,
   Platform,
   KeyboardAvoidingView,
-  StyleSheet,
-  Alert,
+  TouchableOpacity,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-// Componentes UI com caminho relativo correto
-import Button from '../components/ui/Button';
-import Input from '../components/ui/Input';
-import { useToast } from '../components/ui/Toast';
+import Logo from '../components/auth/Logo';
+
+import AuthButton from '../components/auth/AuthButton';
+import AuthInput from '../components/auth/AuthInput';
+import { useNotification } from '../components';
 import { validatePassword } from '../services/auth/utils';
 
 export default function ResetPasswordScreen() {
   const [code, setCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const { signIn, setActive, isLoaded } = useSignIn();
   const router = useRouter();
-  const { showToast } = useToast();
+  const { showError, showSuccess } = useNotification();
   const params = useLocalSearchParams();
-  const email = params.email as string; // Pega o email passado da tela anterior
+  const email = params.email as string;
   const [isLoading, setIsLoading] = useState(false);
 
-  // Se não houver email (veio direto para cá), volta para o início do fluxo
-  if (!email && isLoaded) {
-    router.replace('/(auth)/forgot-password');
-    return null;
-  }
+  // Animations
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(50)).current;
+
+  useEffect(() => {
+    // Se não houver email, volta para o início do fluxo
+    if (!email && isLoaded) {
+      router.replace('/(auth)/forgot-password');
+      return;
+    }
+
+    // Entrada animada
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        friction: 8,
+        tension: 40,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [email, isLoaded]);
 
   const validateForm = () => {
+    const newErrors: Record<string, string> = {};
+
     if (!code.trim()) {
-      showToast('Por favor, informe o código de verificação', 'error');
-      return false;
+      newErrors.code = 'Código de verificação é obrigatório';
+    } else if (code.trim().length !== 6) {
+      newErrors.code = 'Código deve ter 6 dígitos';
     }
 
-    // Usar a nova validação de senha
     const passwordValidation = validatePassword(newPassword);
     if (!passwordValidation.isValid) {
-      showToast(passwordValidation.message || 'Senha inválida', 'error');
-      return false;
+      newErrors.newPassword = passwordValidation.message || 'Senha inválida';
     }
 
-    if (newPassword !== confirmPassword) {
-      showToast('As senhas não conferem', 'error');
-      return false;
+    if (!confirmPassword.trim()) {
+      newErrors.confirmPassword = 'Confirmação de senha é obrigatória';
+    } else if (newPassword !== confirmPassword) {
+      newErrors.confirmPassword = 'As senhas não conferem';
     }
-    return true;
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const updateField = (field: string, value: string) => {
+    if (field === 'code') setCode(value);
+    else if (field === 'newPassword') setNewPassword(value);
+    else if (field === 'confirmPassword') setConfirmPassword(value);
+
+    // Limpar erro do campo quando o usuário digitar
+    if (errors[field]) {
+      setErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors[field];
+        return newErrors;
+      });
+    }
   };
 
   const handleResetPassword = async () => {
@@ -69,7 +108,6 @@ export default function ResetPasswordScreen() {
 
     setIsLoading(true);
     try {
-      // Tenta completar o fluxo de reset de senha
       const result = await signIn.attemptFirstFactor({
         strategy: 'reset_password_email_code',
         code: code.trim(),
@@ -77,37 +115,30 @@ export default function ResetPasswordScreen() {
       });
 
       if (result.status === 'complete') {
-        // Senha redefinida com sucesso, ativa a nova sessão
         await setActive({ session: result.createdSessionId });
-        showToast('Senha redefinida com sucesso!', 'success');
-        router.replace('/(root)/(tabs)'); // Redireciona para a tela principal
+        showSuccess('Senha redefinida com sucesso!');
+        router.replace('/(root)/(tabs)');
       } else {
-        // Status inesperado
         console.error('Status inesperado ao resetar senha:', JSON.stringify(result, null, 2));
-        showToast('Status inesperado ao redefinir senha.', 'error');
+        showError('Status inesperado ao redefinir senha.');
       }
     } catch (err: any) {
       console.error('Erro ao resetar senha Clerk:', JSON.stringify(err, null, 2));
       const firstError = err.errors?.[0];
 
-      // Tratamento específico para tipos de erro
+      let errorMessage = 'Erro ao redefinir senha.';
+
       if (firstError?.code === 'form_code_incorrect') {
-        showToast('Código de verificação inválido ou expirado.', 'error');
+        errorMessage = 'Código de verificação inválido ou expirado.';
       } else if (firstError?.code === 'form_password_pwned') {
-        showToast(
-          'Esta senha foi encontrada em vazamentos de dados. Por segurança, use uma senha diferente.',
-          'error'
-        );
+        errorMessage = 'Esta senha foi encontrada em vazamentos de dados. Use uma senha diferente.';
       } else if (firstError?.code === 'form_password_not_strong_enough') {
-        showToast(
-          'Senha muito fraca. Use pelo menos 6 caracteres, 1 letra minúscula e 1 caractere especial.',
-          'error'
-        );
-      } else {
-        const errorMessage =
-          firstError?.longMessage || firstError?.message || 'Erro ao redefinir senha.';
-        showToast(errorMessage, 'error');
+        errorMessage = 'Senha muito fraca. Use pelo menos 8 caracteres, 1 maiúscula, 1 minúscula, 1 número e 1 especial.';
+      } else if (firstError?.longMessage || firstError?.message) {
+        errorMessage = firstError.longMessage || firstError.message;
       }
+
+      showError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -115,148 +146,171 @@ export default function ResetPasswordScreen() {
 
   if (!isLoaded) {
     return (
-      <SafeAreaView style={styles.loadingContainer}>
-        <Text>Carregando...</Text>
+      <SafeAreaView className="flex-1 bg-gray-50">
+        <View className="flex-1 items-center justify-center">
+          <Logo size="lg" />
+          <Text className="mt-4 text-gray-900">Carregando...</Text>
+        </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView className="flex-1" edges={Platform.OS === 'ios' ? ['top'] : []}>
       <StatusBar style="dark" translucent={Platform.OS === 'android'} />
+
+      {/* Background Gradient */}
+      <LinearGradient
+        colors={['#f8f9fb', '#e8eef7', '#f1f5f9']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        className="absolute inset-0"
+      />
+
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
         enabled
-        style={styles.keyboardView}>
+        className="flex-1">
+        {/* Header with Back Button */}
+        <View className="flex-row items-center justify-between px-5 pt-4">
+          <TouchableOpacity
+            onPress={() => router.back()}
+            className="h-12 w-12 items-center justify-center rounded-full bg-white/80 border border-gray-200"
+            style={{
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.1,
+              shadowRadius: 4,
+              elevation: 3,
+            }}>
+            <Ionicons name="arrow-back" size={22} color="#1a1a1a" />
+          </TouchableOpacity>
+
+          <View className="flex-1 items-center">
+            <Logo size="sm" animated={false} showText={false} />
+          </View>
+
+          <View className="h-12 w-12" />
+        </View>
+
         <ScrollView
-          contentContainerStyle={styles.scrollViewContent}
+          className="flex-1"
+          contentContainerStyle={{ flexGrow: 1 }}
+          showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
           keyboardDismissMode="interactive">
-          <View style={styles.container}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-              <Ionicons name="arrow-back" size={24} color="#333" />
-            </TouchableOpacity>
+          {/* Header Section */}
+          <View className="flex-1 items-center justify-center px-6 pt-5">
+            <Animated.View className="items-center" style={{ opacity: fadeAnim }}>
+              <View className="mb-4 h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+                <Ionicons name="lock-closed-outline" size={32} color="#18cb96" />
+              </View>
+              <Text className="text-center text-3xl font-bold tracking-tight text-gray-900">
+                Nova Senha
+              </Text>
+              <Text className="mt-2 text-center text-base font-normal text-gray-600">
+                Digite o código e defina sua nova senha
+              </Text>
+              <Text className="mt-1 text-center text-sm font-medium text-gray-500">
+                Código enviado para: {email}
+              </Text>
+            </Animated.View>
+          </View>
 
-            <View style={styles.header}>
-              <Text style={styles.title}>Redefinir Senha</Text>
-              <Text style={styles.subtitle}>
-                Digite o código enviado para {email} e defina sua nova senha.
+          {/* Form Section */}
+          <Animated.View
+            className="mx-5 mb-8 rounded-3xl border border-white/20 bg-white/95 p-6 shadow-xl"
+            style={{
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 8 },
+              shadowOpacity: 0.15,
+              shadowRadius: 16,
+              elevation: 12,
+            }}
+          >
+            <View className="mb-6 items-center">
+              <Text className="text-center text-2xl font-bold tracking-tight text-gray-900">
+                Redefinir Senha
+              </Text>
+              <Text className="mt-2 text-center text-base font-normal text-gray-700">
+                Complete o processo de recuperação
               </Text>
             </View>
-
-            <View style={styles.inputGroup}>
-              <Input
+            <View style={{ gap: 20 }}>
+              <AuthInput
                 label="Código de Verificação"
-                placeholder="Código recebido por email"
+                placeholder="Digite o código de 6 dígitos"
                 value={code}
-                onChangeText={setCode}
+                onChangeText={(text) => updateField('code', text)}
+                error={errors.code}
+                required
+                autoFocus
                 keyboardType="number-pad"
                 maxLength={6}
+                leftIcon="mail-outline"
+              />
+              <AuthInput
+                label="Nova Senha"
+                placeholder="Crie uma senha segura"
+                value={newPassword}
+                onChangeText={(text) => updateField('newPassword', text)}
+                error={errors.newPassword}
+                required
+                helperText="Mín. 8 caracteres, 1 maiúscula, 1 minúscula, 1 número e 1 especial"
+                secureTextEntry
+                showPasswordStrength
+                leftIcon="lock-closed"
+              />
+              <AuthInput
+                label="Confirmar Nova Senha"
+                placeholder="Digite a senha novamente"
+                value={confirmPassword}
+                onChangeText={(text) => updateField('confirmPassword', text)}
+                error={errors.confirmPassword}
+                required
+                secureTextEntry
+                leftIcon="lock-closed"
               />
             </View>
-
-            <View style={styles.inputGroup}>
-              {' '}
-              // Nova Senha
-              <Text style={styles.label}>Nova Senha</Text>
-              <View style={styles.passwordInputContainer}>
-                <Ionicons name="lock-closed-outline" size={20} color="#666" style={styles.icon} />
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="Nova senha (mín. 6 caracteres, 1 minúscula, 1 especial)"
-                  value={newPassword}
-                  onChangeText={setNewPassword}
-                  secureTextEntry={!showPassword}
-                />
-                <TouchableOpacity
-                  onPress={() => setShowPassword(!showPassword)}
-                  style={styles.eyeIcon}>
-                  <Ionicons
-                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                    size={24}
-                    color="#666"
-                  />
-                </TouchableOpacity>
+            <View className="mt-7">
+              <AuthButton
+                title="Redefinir Senha"
+                onPress={handleResetPassword}
+                loading={isLoading}
+                disabled={!code || !newPassword || !confirmPassword}
+                leftIcon="checkmark-circle-outline"
+              />
+            </View>
+            <View className="mt-6 items-center">
+              <Text className="text-base text-gray-600">
+                Lembrou sua senha?{' '}
+                <Link href="/(auth)/sign-in" asChild>
+                  <Text className="text-base font-semibold text-primary underline">
+                    Fazer login
+                  </Text>
+                </Link>
+              </Text>
+            </View>
+            <View className="mt-6 rounded-2xl border border-gray-100 bg-gray-50/80 p-4">
+              <View className="flex-row items-center">
+                <View className="mr-3 h-8 w-8 items-center justify-center rounded-2xl bg-green-100">
+                  <Ionicons name="shield-checkmark" size={16} color="#34C759" />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-sm font-semibold text-gray-900">Senha Segura</Text>
+                  <Text className="mt-0.5 text-xs text-gray-700">
+                    Sua nova senha será criptografada e protegida
+                  </Text>
+                </View>
               </View>
             </View>
-
-            <View style={styles.inputGroup}>
-              {' '}
-              // Confirmar Nova Senha
-              <Text style={styles.label}>Confirmar Nova Senha</Text>
-              <View style={styles.passwordInputContainer}>
-                <Ionicons name="lock-closed-outline" size={20} color="#666" style={styles.icon} />
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="Confirme a nova senha"
-                  value={confirmPassword}
-                  onChangeText={setConfirmPassword}
-                  secureTextEntry={!showConfirmPassword}
-                />
-                <TouchableOpacity
-                  onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-                  style={styles.eyeIcon}>
-                  <Ionicons
-                    name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
-                    size={24}
-                    color="#666"
-                  />
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            <Button
-              variant="primary"
-              loading={isLoading}
-              onPress={handleResetPassword}
-              style={styles.actionButton}>
-              Redefinir Senha
-            </Button>
-
-            <View style={styles.linksContainer}>
-              <Link href="/(auth)/sign-in" asChild>
-                <TouchableOpacity>
-                  <Text style={styles.footerLink}>Voltar para Login</Text>
-                </TouchableOpacity>
-              </Link>
-            </View>
-          </View>
+          </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
-
-// Estilos
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: 'white' },
-  keyboardView: { flex: 1 },
-  scrollViewContent: { flexGrow: 1, justifyContent: 'center' },
-  container: { paddingHorizontal: 24, paddingVertical: 32 },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  backButton: { marginBottom: 16, alignSelf: 'flex-start' },
-  header: { marginBottom: 32, alignItems: 'center' },
-  title: { fontSize: 30, fontWeight: 'bold', color: '#4F46E5', marginBottom: 8 },
-  subtitle: { color: '#6B7280', textAlign: 'center' },
-  inputGroup: { marginBottom: 16 },
-  label: { marginBottom: 4, fontSize: 14, fontWeight: '500', color: '#6B7280' },
-  passwordInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    paddingHorizontal: 12,
-  },
-  icon: { marginRight: 8 },
-  textInput: { flex: 1, color: '#1F2937', height: 48 },
-  eyeIcon: { padding: 5 },
-  actionButton: {
-    marginTop: 8,
-    marginBottom: 16,
-  },
-  linksContainer: { marginTop: 24, alignItems: 'center' },
-  footerLink: { fontWeight: '500', color: '#4F46E5' },
-});

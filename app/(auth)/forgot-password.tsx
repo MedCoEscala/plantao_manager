@@ -158,8 +158,15 @@ export default function ForgotPasswordScreen() {
         <View className="flex-row items-center justify-between px-5 pt-4">
           <TouchableOpacity
             onPress={() => router.back()}
-            className="h-11 w-11 items-center justify-center rounded-full bg-gray-200">
-            <Ionicons name="arrow-back" size={24} color="#1a1a1a" />
+            className="h-12 w-12 items-center justify-center rounded-full bg-white/80 border border-gray-200"
+            style={{
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.1,
+              shadowRadius: 4,
+              elevation: 3,
+            }}>
+            <Ionicons name="arrow-back" size={22} color="#1a1a1a" />
           </TouchableOpacity>
 
           <View className="flex-1 items-center">
@@ -195,15 +202,19 @@ export default function ForgotPasswordScreen() {
 
           {/* Form Section */}
           <Animated.View
-            className="mx-5 mb-8 rounded-3xl border border-white/30 bg-white/90 p-7 shadow-xl"
+            className="mx-5 mb-8 rounded-3xl border border-white/20 bg-white/95 p-6 shadow-xl"
             style={{
               opacity: fadeAnim,
               transform: [{ translateY: slideAnim }],
-              minHeight: Platform.OS === 'android' ? 400 : undefined,
-            }}>
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 8 },
+              shadowOpacity: 0.15,
+              shadowRadius: 16,
+              elevation: 12,
+            }}
+          >
             {!isSubmitted ? (
               <>
-                {/* Form Title */}
                 <View className="mb-6 items-center">
                   <Text className="text-center text-2xl font-bold tracking-tight text-gray-900">
                     Recuperar Senha
@@ -212,8 +223,6 @@ export default function ForgotPasswordScreen() {
                     Informe seu email para receber as instruções de recuperação
                   </Text>
                 </View>
-
-                {/* Email Input */}
                 <View className="mb-6">
                   <AuthInput
                     label="Email"
@@ -230,16 +239,12 @@ export default function ForgotPasswordScreen() {
                     leftIcon="mail"
                   />
                 </View>
-
-                {/* Send Code Button */}
                 <AuthButton
                   title="Enviar Código"
                   onPress={handleRequestReset}
                   loading={isLoading}
                   leftIcon="mail-outline"
                 />
-
-                {/* Back to Login Link */}
                 <View className="mt-6 items-center">
                   <Text className="text-base text-gray-600">
                     Lembrou sua senha?{' '}
@@ -264,13 +269,11 @@ export default function ForgotPasswordScreen() {
                       }),
                     },
                   ],
-                }}>
-                {/* Success Icon */}
+                }}
+              >
                 <View className="mb-6 h-20 w-20 items-center justify-center rounded-full bg-green-100">
                   <Ionicons name="checkmark-circle" size={48} color="#34C759" />
                 </View>
-
-                {/* Success Message */}
                 <Text className="text-center text-2xl font-bold tracking-tight text-gray-900">
                   Código Enviado!
                 </Text>
@@ -278,15 +281,12 @@ export default function ForgotPasswordScreen() {
                   Enviamos um código de recuperação para:
                 </Text>
                 <Text className="mb-8 text-center text-lg font-semibold text-primary">{email}</Text>
-
-                {/* Action Buttons */}
                 <View className="w-full space-y-4">
                   <AuthButton
                     title="Continuar"
                     onPress={handleContinueToReset}
                     leftIcon="arrow-forward"
                   />
-
                   <TouchableOpacity onPress={handleTryAgain} className="items-center py-3">
                     <Text className="text-base font-medium text-gray-500">
                       Tentar com outro email
@@ -295,8 +295,6 @@ export default function ForgotPasswordScreen() {
                 </View>
               </Animated.View>
             )}
-
-            {/* Security Note */}
             <View className="mt-6 rounded-2xl border border-gray-100 bg-gray-50/80 p-4">
               <View className="flex-row items-center">
                 <View className="mr-3 h-8 w-8 items-center justify-center rounded-2xl bg-green-100">

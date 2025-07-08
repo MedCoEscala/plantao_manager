@@ -2,11 +2,10 @@
   "expo": {
     "name": "MedEscala",
     "slug": "medescala",
-    "version": "1.1.8",
+    "version": "1.1.12",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": false,
     "experiments": {
       "tsconfigPaths": true
     },
@@ -19,14 +18,14 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.lucaserib.medescala",
-      "buildNumber": "21"
+      "buildNumber": "25"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "versionCode": 21,
+      "versionCode": 25,
       "package": "com.lucaserib.medescala",
       "permissions": [
         "NOTIFICATIONS",
@@ -45,17 +44,7 @@
       "expo-router",
       "expo-sqlite",
       "expo-secure-store",
-      [
-        "expo-build-properties",
-        {
-          "android": {
-            "newArchEnabled": false
-          },
-          "ios": {
-            "newArchEnabled": false
-          }
-        }
-      ],
+      "expo-build-properties",
       [
         "expo-notifications",
         {
@@ -73,7 +62,7 @@
       "EXPO_PUBLIC_API_URL": "https://www.medescalaapp.com.br"
     },
     "owner": "lucaserib",
-    "runtimeVersion": "1.0.8",
+    "runtimeVersion": "1.1.12",
     "updates": {
       "url": "https://u.expo.dev/c236b910-f135-4d1f-81e6-04e69e64fe7c"
     }

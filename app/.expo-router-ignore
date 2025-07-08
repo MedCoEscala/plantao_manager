@@ -1,0 +1,19 @@
+# Ignorar arquivos de componentes e utilitários
+components/**/*
+contexts/**/*
+hooks/**/*
+services/**/*
+utils/**/*
+types/**/*
+database/**/*
+constants/**/*
+lib/**/*
+styles/**/*
+
+# Ignorar arquivos de configuração e índices
+config.ts
+index.tsx
+test-nativewind.tsx
+
+# Ignorar arquivos TypeScript de definição
+*.d.ts 

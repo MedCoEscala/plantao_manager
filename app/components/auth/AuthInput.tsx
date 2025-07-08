@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   TextInputProps,
   StyleSheet,
-  ViewStyle,
   Platform,
 } from 'react-native';
 
@@ -67,85 +66,67 @@ const calculatePasswordStrength = (password: string) => {
 const styles = StyleSheet.create({
   container: {
     width: '100%',
-  },
-  labelContainer: {
-    marginBottom: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
+    marginBottom: 20,
   },
   label: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     color: '#1a1a1a',
+    marginBottom: 6,
+    marginLeft: 2,
   },
-  required: {
-    marginLeft: 4,
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FF3B30',
-  },
-  inputContainer: {
+  inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 16,
+    borderRadius: 14,
     borderWidth: 1.5,
-    backgroundColor: Platform.OS === 'android' ? '#F9FAFB' : 'rgba(120, 120, 128, 0.05)',
+    backgroundColor: Platform.OS === 'android' ? '#F9FAFB' : 'rgba(120,120,128,0.05)',
     minHeight: 52,
+    paddingHorizontal: 12,
+    borderColor: '#D1D5DB',
   },
-  inputContainerNormal: {
-    borderColor: Platform.OS === 'android' ? '#D1D5DB' : 'rgba(120, 120, 128, 0.3)',
-  },
-  inputContainerFocused: {
+  inputFocused: {
     borderColor: '#18cb96',
-    backgroundColor: Platform.OS === 'android' ? '#ECFDF5' : 'rgba(24, 203, 150, 0.05)',
   },
-  inputContainerError: {
+  inputError: {
     borderColor: '#FF3B30',
-    backgroundColor: Platform.OS === 'android' ? '#FEF2F2' : 'rgba(255, 59, 48, 0.05)',
   },
-  inputContainerDisabled: {
-    opacity: 0.5,
-  },
-  inputContainerMultiline: {
-    minHeight: 100,
-    alignItems: 'flex-start',
-  },
-  leftIconContainer: {
-    paddingLeft: 16,
+  leftIcon: {
+    marginRight: 10,
   },
   textInput: {
     flex: 1,
-    paddingHorizontal: 12,
     fontSize: 16,
     fontWeight: '500',
     color: '#1a1a1a',
-    paddingVertical: Platform.OS === 'android' ? 12 : 16,
-    ...(Platform.OS === 'android' && {
-      textAlignVertical: 'center',
-      includeFontPadding: false,
-    }),
+    paddingVertical: Platform.OS === 'android' ? 0 : 0,
+    minHeight: Platform.OS === 'android' ? 52 : 48,
+    textAlignVertical: Platform.OS === 'android' ? 'center' : 'center',
+    includeFontPadding: Platform.OS === 'android' ? false : undefined,
+    lineHeight: Platform.OS === 'android' ? 20 : 20,
+    marginRight: 8,
   },
-  textInputWithLeftIcon: {
-    paddingLeft: 8,
-  },
-  rightIconContainer: {
-    paddingRight: 16,
-  },
-  errorContainer: {
-    marginTop: 8,
-    flexDirection: 'row',
+  rightIconTouchable: {
+    padding: 8,
+    borderRadius: 20,
+    minWidth: 40,
+    minHeight: 40,
     alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 'auto',
   },
   errorText: {
-    marginLeft: 8,
-    fontSize: 14,
-    fontWeight: '500',
     color: '#FF3B30',
+    fontSize: 13,
+    marginTop: 5,
+    marginLeft: 2,
+    fontWeight: '500',
   },
   helperText: {
-    marginTop: 6,
-    fontSize: 14,
-    color: Platform.OS === 'android' ? '#6B7280' : 'rgba(60, 60, 67, 0.7)',
+    color: '#6B7280',
+    fontSize: 13,
+    marginTop: 4,
+    marginLeft: 2,
   },
   strengthContainer: {
     marginTop: 8,
@@ -219,24 +200,18 @@ export default function AuthInput({
   const [isFocused, setIsFocused] = useState(false);
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const inputRef = useRef<TextInput>(null);
-  const containerRef = useRef<View>(null);
 
-  const handleFocus = (e: any) => {
-    setIsFocused(true);
-    props.onFocus?.(e);
-  };
+  const showPasswordToggle = secureTextEntry;
+  const finalRightIcon = showPasswordToggle ? (isPasswordVisible ? 'eye-off' : 'eye') : rightIcon;
+  const finalRightIconPress = showPasswordToggle
+    ? () => setIsPasswordVisible((prev) => !prev)
+    : onRightIconPress;
 
-  const handleBlur = (e: any) => {
-    setIsFocused(false);
-    props.onBlur?.(e);
-  };
-
-  const togglePasswordVisibility = () => {
-    setIsPasswordVisible((prev) => !prev);
-  };
-
-  const finalRightIcon = secureTextEntry ? (isPasswordVisible ? 'eye-off' : 'eye') : rightIcon;
-  const finalRightIconPress = secureTextEntry ? togglePasswordVisibility : onRightIconPress;
+  const inputStyles = [
+    styles.inputWrapper,
+    isFocused && styles.inputFocused,
+    error && styles.inputError,
+  ];
 
   const passwordStrength =
     showPasswordStrength && secureTextEntry && value ? calculatePasswordStrength(value) : null;
@@ -262,84 +237,47 @@ export default function AuthInput({
     return styles.strengthStrong;
   };
 
-  const getInputContainerStyle = (): ViewStyle[] => {
-    const containerStyles: ViewStyle[] = [styles.inputContainer];
-
-    if (error) {
-      containerStyles.push(styles.inputContainerError);
-    } else if (isFocused) {
-      containerStyles.push(styles.inputContainerFocused);
-    } else {
-      containerStyles.push(styles.inputContainerNormal);
-    }
-
-    if (disabled) {
-      containerStyles.push(styles.inputContainerDisabled);
-    }
-
-    if (props.multiline) {
-      containerStyles.push(styles.inputContainerMultiline);
-    }
-
-    return containerStyles;
-  };
-
-  const getIconColor = () => {
-    if (disabled) return '#9CA3AF';
-    if (error) return '#FF3B30';
-    if (isFocused) return '#18cb96';
-    return '#6B7280';
-  };
-
-  const getPlaceholderColor = () => {
-    return Platform.OS === 'android' ? '#9CA3AF' : '#9CA3AF';
-  };
-
   return (
-    <View style={styles.container} ref={containerRef}>
+    <View style={styles.container}>
       {label && (
-        <View style={styles.labelContainer}>
-          <Text style={styles.label}>{label}</Text>
-          {required && <Text style={styles.required}>*</Text>}
-        </View>
+        <Text style={styles.label}>
+          {label} {required && <Text style={{ color: '#FF3B30' }}>*</Text>}
+        </Text>
       )}
-
-      <View style={getInputContainerStyle()}>
+      <View style={inputStyles}>
         {leftIcon && (
-          <View style={styles.leftIconContainer}>
-            <Ionicons name={leftIcon as any} size={20} color={getIconColor()} />
-          </View>
+          <Ionicons name={leftIcon as any} size={20} color={error ? '#FF3B30' : isFocused ? '#18cb96' : '#6B7280'} style={styles.leftIcon} />
         )}
-
         <TextInput
           ref={inputRef}
-          style={[styles.textInput, leftIcon && styles.textInputWithLeftIcon]}
+          style={styles.textInput}
           placeholder={placeholder}
-          placeholderTextColor={getPlaceholderColor()}
+          placeholderTextColor={'#9CA3AF'}
           value={value}
           onChangeText={onChangeText}
-          onFocus={handleFocus}
-          onBlur={handleBlur}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
           secureTextEntry={secureTextEntry && !isPasswordVisible}
-          textAlignVertical={props.multiline ? 'top' : 'center'}
           editable={!disabled}
           autoCapitalize="none"
           autoCorrect={false}
-          returnKeyType="next"
-          blurOnSubmit={false}
           {...props}
         />
-
         {finalRightIcon && (
           <TouchableOpacity
-            style={styles.rightIconContainer}
+            style={styles.rightIconTouchable}
             onPress={finalRightIconPress}
             disabled={!finalRightIconPress || disabled}
             activeOpacity={0.7}>
-            <Ionicons name={finalRightIcon as any} size={20} color={getIconColor()} />
+            <Ionicons name={finalRightIcon as any} size={20} color={error ? '#FF3B30' : isFocused ? '#18cb96' : '#6B7280'} />
           </TouchableOpacity>
         )}
       </View>
+      {error ? (
+        <Text style={styles.errorText}>{error}</Text>
+      ) : helperText ? (
+        <Text style={styles.helperText}>{helperText}</Text>
+      ) : null}
 
       {passwordStrength && !error && (
         <View style={styles.strengthContainer}>
@@ -376,15 +314,6 @@ export default function AuthInput({
           )}
         </View>
       )}
-
-      {error && (
-        <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle" size={16} color="#FF3B30" />
-          <Text style={styles.errorText}>{error}</Text>
-        </View>
-      )}
-
-      {!error && helperText && <Text style={styles.helperText}>{helperText}</Text>}
     </View>
   );
 }

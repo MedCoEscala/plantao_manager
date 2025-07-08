@@ -12,6 +12,7 @@ import { DialogProvider } from './contexts/DialogContext';
 import { LocationsProvider } from './contexts/LocationsContext';
 import { NotificationProvider } from './contexts/NotificationContext';
 import { ProfileProvider } from './contexts/ProfileContext';
+import { useNotifications } from './hooks/useNotifications';
 
 // Estratégia híbrida para NativeWind v2:
 // - Desenvolvimento: CSS dinâmico com hot reload
@@ -72,6 +73,9 @@ function RootLayoutNav() {
   const { isLoaded, isSignedIn } = useAuth();
   const router = useRouter();
   const [appIsReady, setAppIsReady] = useState(false);
+  
+  // Inicializar notificações dentro do ClerkProvider
+  useNotifications();
   const [fontsLoaded, fontError] = useFonts({
     'Jakarta-Bold': require('../assets/fonts/PlusJakartaSans-Bold.ttf'),
     'Jakarta-ExtraBold': require('../assets/fonts/PlusJakartaSans-ExtraBold.ttf'),

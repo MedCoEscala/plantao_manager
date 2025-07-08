@@ -12,7 +12,7 @@ module.exports = function (api) {
           },
         },
       ],
-      ...(process.env.NODE_ENV !== 'production' ? ['nativewind/babel'] : []),
+      'nativewind/babel', // Sempre incluir NativeWind, mesmo em produção
     ],
   };
 };

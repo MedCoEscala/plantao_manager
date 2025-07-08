@@ -380,8 +380,15 @@ export default function VerifyCodeScreen() {
         <View className="flex-row items-center justify-between px-5 pt-4">
           <TouchableOpacity
             onPress={() => router.back()}
-            className="h-11 w-11 items-center justify-center rounded-full bg-gray-200">
-            <Ionicons name="arrow-back" size={24} color="#1a1a1a" />
+            className="h-12 w-12 items-center justify-center rounded-full bg-white/80 border border-gray-200"
+            style={{
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.1,
+              shadowRadius: 4,
+              elevation: 3,
+            }}>
+            <Ionicons name="arrow-back" size={22} color="#1a1a1a" />
           </TouchableOpacity>
 
           <View className="flex-1 items-center">
@@ -418,12 +425,17 @@ export default function VerifyCodeScreen() {
           </View>
 
           <Animated.View
-            className="mx-5 mb-8 rounded-3xl border border-white/30 bg-white/90 p-7 shadow-xl"
+            className="mx-5 mb-8 rounded-3xl border border-white/20 bg-white/95 p-6 shadow-xl"
             style={{
               opacity: fadeAnim,
               transform: [{ translateY: slideAnim }],
-              minHeight: Platform.OS === 'android' ? 350 : undefined,
-            }}>
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 8 },
+              shadowOpacity: 0.15,
+              shadowRadius: 16,
+              elevation: 12,
+            }}
+          >
             <View className="mb-6 items-center">
               <Text className="text-center text-2xl font-bold tracking-tight text-gray-900">
                 Código de Verificação
@@ -432,7 +444,6 @@ export default function VerifyCodeScreen() {
                 Insira o código recebido em seu email
               </Text>
             </View>
-
             <View className="mb-6">
               <CodeInput
                 length={6}
@@ -442,7 +453,6 @@ export default function VerifyCodeScreen() {
                 error={error}
               />
             </View>
-
             <View className="mb-4">
               <AuthButton
                 title="Verificar Código"
@@ -452,22 +462,17 @@ export default function VerifyCodeScreen() {
                 leftIcon="checkmark-circle-outline"
               />
             </View>
-
             <View className="items-center">
               {countdown > 0 ? (
                 <Text className="text-base text-gray-500">Enviar novamente em {countdown}s</Text>
               ) : (
-                <TouchableOpacity
-                  onPress={handleResendCode}
-                  disabled={resendLoading}
-                  className="py-3">
+                <TouchableOpacity onPress={handleResendCode} disabled={resendLoading} className="py-3">
                   <Text className="text-base font-semibold text-primary">
                     {resendLoading ? 'Enviando...' : 'Reenviar código'}
                   </Text>
                 </TouchableOpacity>
               )}
             </View>
-
             <View className="mt-6 rounded-2xl border border-gray-100 bg-gray-50/80 p-4">
               <View className="flex-row items-center">
                 <View className="mr-3 h-8 w-8 items-center justify-center rounded-2xl bg-green-100">
