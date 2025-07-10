@@ -1,9 +1,32 @@
 const { getDefaultConfig } = require('expo/metro-config');
+const { withNativeWind } = require('nativewind/metro');
 
-/** @type {import('expo/metro-config').MetroConfig} */
 const config = getDefaultConfig(__dirname);
 
-// Desabilitar package.json exports - problema conhecido no SDK 53
-config.resolver.unstable_enablePackageExports = false;
+// Configurações específicas para produção
+config.resolver.platforms = ['ios', 'android', 'native', 'web'];
 
-module.exports = config;
+// Garantir que CSS seja processado corretamente em produção
+config.transformer.minifierConfig = {
+  keep_fnames: true,
+  mangle: {
+    keep_fnames: true,
+  },
+};
+
+// Configurações específicas para NativeWind em produção
+config.transformer.getTransformOptions = async () => ({
+  transform: {
+    experimentalImportSupport: false,
+    inlineRequires: true,
+  },
+});
+
+// Configurar assets para incluir CSS
+config.resolver.assetExts.push('css');
+
+module.exports = withNativeWind(config, { 
+  input: './global.css',
+  configPath: './tailwind.config.js',
+  inlineRem: 14
+});

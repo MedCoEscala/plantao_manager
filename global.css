@@ -1,0 +1,13 @@
+/* Global CSS for NativeWind v4.1 - Production Ready */
+/* This file is processed by Metro bundler for all build types */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Ensure styles are applied correctly in production builds */
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+} 

@@ -14,16 +14,14 @@ import { NotificationProvider } from './contexts/NotificationContext';
 import { ProfileProvider } from './contexts/ProfileContext';
 import { useNotifications } from './hooks/useNotifications';
 
-// Estratégia híbrida para NativeWind v2:
-// - Desenvolvimento: CSS dinâmico com hot reload
-// - Produção: CSS estático pré-compilado (compatível com Hermes)
-if (__DEV__) {
-  // Desenvolvimento: NativeWind dinâmico
-  require('./styles/global.css');
-} else {
-  // Produção: CSS estático pré-compilado
-  require('./styles/global.css.native.css');
-}
+// Importar CSS global para NativeWind v4
+import '../global.css';
+
+// Inicialização específica do NativeWind para produção
+import { initializeNativeWind } from './lib/nativewind-setup';
+
+// Inicializar NativeWind imediatamente
+initializeNativeWind();
 
 LogBox.ignoreLogs(['Constants.platform.ios.model has been deprecated in favor of expo-device']);
 

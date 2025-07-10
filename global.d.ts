@@ -1,42 +1,30 @@
-/// <reference types="nativewind/types" />
-
-import 'react-native';
-
-declare namespace JSX {
-  interface IntrinsicAttributes {
-    className?: string;
-  }
+// Tipos globais para o projeto MedEscala
+declare module '*.svg' {
+  const content: React.FunctionComponent<React.SVGAttributes<SVGElement>>;
+  export default content;
 }
 
-declare module 'react-native' {
-  export interface AppStateStatic {
-    currentState: string;
-    addEventListener(type: string, handler: (state: string) => void): { remove: () => void };
-  }
+declare module '*.png' {
+  const value: any;
+  export = value;
+}
 
-  interface TextProps {
-    className?: string;
-  }
-  interface ViewProps {
-    className?: string;
-  }
-  interface ImageProps {
-    className?: string;
-    resizeMode?: 'cover' | 'contain' | 'stretch' | 'repeat' | 'center';
-  }
-  interface TouchableOpacityProps {
-    className?: string;
-  }
-  interface TextInputProps {
-    className?: string;
-  }
-  interface ScrollViewProps {
-    className?: string;
-    contentContainerClassName?: string;
-    keyboardShouldPersistTaps?: 'always' | 'never' | 'handled';
-  }
+declare module '*.jpg' {
+  const value: any;
+  export = value;
+}
 
-  export const AppState: AppStateStatic;
+declare module '*.jpeg' {
+  const value: any;
+  export = value;
+}
 
-  export type AppStateStatus = 'active' | 'background' | 'inactive' | 'unknown' | 'extension';
+declare module '*.gif' {
+  const value: any;
+  export = value;
+}
+
+declare module '*.webp' {
+  const value: any;
+  export = value;
 }
