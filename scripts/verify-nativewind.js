@@ -3,17 +3,20 @@
 const fs = require('fs');
 const path = require('path');
 
-console.log('🔍 Verificando configuração do NativeWind para build de produção...\n');
+console.log('🔍 Verificando configuração do NativeWind...\n');
 
 const checks = [
   {
     name: 'Arquivo global.css existe',
-    test: () => fs.existsSync(path.join(__dirname, '..', 'app', 'styles', 'global.css')),
+    test: () => fs.existsSync(path.join(__dirname, '..', 'global.css')),
     required: true,
   },
   {
-    name: 'Arquivo global.css.native.css foi gerado',
-    test: () => fs.existsSync(path.join(__dirname, '..', 'app', 'styles', 'global.css.native.css')),
+    name: 'Metro config contém withNativeWind',
+    test: () => {
+      const metroConfig = fs.readFileSync(path.join(__dirname, '..', 'metro.config.js'), 'utf8');
+      return metroConfig.includes('withNativeWind');
+    },
     required: true,
   },
   {
@@ -33,14 +36,13 @@ const checks = [
     required: true,
   },
   {
-    name: 'App.json inclui arquivos CSS nos assets',
+    name: 'Tailwind config contém preset do NativeWind',
     test: () => {
-      const appConfig = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'app.json'), 'utf8'));
-      return (
-        appConfig.expo &&
-        appConfig.expo.assetBundlePatterns &&
-        appConfig.expo.assetBundlePatterns.some((pattern) => pattern.includes('*.css'))
+      const tailwindConfig = fs.readFileSync(
+        path.join(__dirname, '..', 'tailwind.config.js'),
+        'utf8'
       );
+      return tailwindConfig.includes('nativewind/preset');
     },
     required: true,
   },

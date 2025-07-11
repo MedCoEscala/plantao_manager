@@ -14,16 +14,16 @@ module.exports = {
     extend: {
       colors: {
         primary: {
-          DEFAULT: "#0061FF",
-          100: "#F3F8FF",
-          200: "#E6F1FF",
-          300: "#CCE1FF",
-          400: "#99C7FF",
-          500: "#66ADFF",
-          600: "#3393FF",
-          700: "#0061FF",
-          800: "#004DCC",
-          900: "#003A99",
+          DEFAULT: "#18cb96",
+          100: "#e6f9f4",
+          200: "#c2f2e6",
+          300: "#9aebd6",
+          400: "#70e4c5",
+          500: "#18cb96",
+          600: "#16a085",
+          700: "#138a6e",
+          800: "#107356",
+          900: "#0d5c3e",
         },
         secondary: {
           DEFAULT: "#F7F8FA",
@@ -101,8 +101,4 @@ module.exports = {
     },
   },
   plugins: [],
-  // Configurações específicas para produção
-  corePlugins: {
-    preflight: false, // Evita conflitos com React Native
-  },
 };

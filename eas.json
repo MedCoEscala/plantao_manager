@@ -1,6 +1,7 @@
 {
   "cli": {
-    "version": ">= 12.0.0"
+    "version": ">= 12.0.0",
+    "appVersionSource": "remote"
   },
   "build": {
     "development": {
@@ -17,23 +18,23 @@
       "env": {
         "NODE_ENV": "production",
         "EXPO_PUBLIC_API_URL": "https://www.medescalaapp.com.br",
-        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_live_Y2xlcmsubWVkZXNjYWxhYXBwLmNvbS5iciQ",
-        "NATIVEWIND_OUTPUT": "native",
-        "EXPO_UNSTABLE_CORE_AUTOLINKING": "1"
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_live_Y2xlcmsubWVkZXNjYWxhYXBwLmNvbS5iciQ"
       },
       "android": {
         "buildType": "app-bundle",
-        "gradleCommand": ":app:bundleRelease",
         "image": "latest"
+      }
+    },
+    "production-test": {
+      "channel": "production",
+      "env": {
+        "NODE_ENV": "production",
+        "EXPO_PUBLIC_API_URL": "https://www.medescalaapp.com.br",
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_live_Y2xlcmsubWVkZXNjYWxhYXBwLmNvbS5iciQ"
       },
-      "cache": {
-        "disabled": false,
-        "key": "nativewind-production-v1",
-        "paths": [
-          "node_modules",
-          ".expo",
-          "global.css"
-        ]
+      "android": {
+        "buildType": "apk",
+        "image": "latest"
       }
     }
   },

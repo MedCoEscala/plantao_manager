@@ -22,7 +22,7 @@ config.transformer.minifierConfig = {
 // Garantir que CSS seja processado corretamente em produção
 config.resolver.assetExts.push('css');
 
-module.exports = withNativeWind(config, { input: './app/styles/global.css' });`;
+module.exports = withNativeWind(config, { input: './global.css' });`;
 
 fs.writeFileSync('metro.config.js', metroConfig);
 console.log('✅ Metro config atualizado para produção NativeWind');
@@ -89,31 +89,30 @@ module.exports = {
 fs.writeFileSync('tailwind.config.js', tailwindConfig);
 console.log('✅ Tailwind config otimizado para produção');
 
-// 4. CORREÇÃO: Global CSS otimizado
+// 4. CORREÇÃO: global.css para produção
 const globalCSS = `@tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* Garantir compatibilidade de produção */
-* {
-  box-sizing: border-box;
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
 }
 
 /* Classes customizadas para produção */
-.shadow-sm {
-  elevation: 2;
-  shadow-color: #000;
-  shadow-offset: 0px 1px;
-  shadow-opacity: 0.05;
-  shadow-radius: 3px;
+@layer utilities {
+  .shadow-sm {
+    elevation: 2;
+    shadow-color: #000;
+    shadow-offset: 0px 1px;
+    shadow-opacity: 0.05;
+    shadow-radius: 3px;
+  }
 }`;
 
-// Criar diretório se não existir
-if (!fs.existsSync('app/styles')) {
-  fs.mkdirSync('app/styles', { recursive: true });
-}
-
-fs.writeFileSync('app/styles/global.css', globalCSS);
+fs.writeFileSync('global.css', globalCSS);
 console.log('✅ Global CSS criado/atualizado');
 
 // 5. CORREÇÃO: app.json para produção
@@ -173,7 +172,7 @@ console.log('   ✅ CSS global com compatibilidade produção');
 console.log('\n📱 PRÓXIMOS PASSOS:');
 console.log('1. Limpe cache: rm -rf node_modules/.cache .expo');
 console.log('2. Reinstale: npm install');
-console.log('3. Gere CSS: npx tailwindcss -i ./app/styles/global.css -o ./app/styles/global.css.native.css');
+console.log('3. Gere CSS: npx tailwindcss -i ./global.css -o ./global.css.native.css');
 console.log('4. Teste produção: eas build --platform android --profile preview');
 
 console.log('\n🔍 VERIFICAÇÃO FINAL:');

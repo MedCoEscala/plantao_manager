@@ -16,4 +16,14 @@ index.tsx
 test-nativewind.tsx
 
 # Ignorar arquivos TypeScript de definição
-*.d.ts 
+*.d.ts
+
+# Ignorar arquivos específicos que estão causando warnings
+components/auth/index.ts
+components/shifts/ShiftFormSections/index.ts
+contexts/ProfileContext.tsx
+hooks/useNotifications.ts
+hooks/useShiftForm.ts
+services/auth/passwordHelper.ts
+utils/cn.ts
+utils/nativewind-verify.ts 

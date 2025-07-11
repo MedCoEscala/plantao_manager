@@ -1,3 +1,4 @@
+import '../global.css';
 import 'react-native-get-random-values';
 import { ClerkProvider, useAuth } from '@clerk/clerk-expo';
 import { useFonts } from 'expo-font';
@@ -14,14 +15,9 @@ import { NotificationProvider } from './contexts/NotificationContext';
 import { ProfileProvider } from './contexts/ProfileContext';
 import { useNotifications } from './hooks/useNotifications';
 
-// Importar CSS global para NativeWind v4
-import '../global.css';
 
-// Inicialização específica do NativeWind para produção
-import { initializeNativeWind } from './lib/nativewind-setup';
 
-// Inicializar NativeWind imediatamente
-initializeNativeWind();
+
 
 LogBox.ignoreLogs(['Constants.platform.ios.model has been deprecated in favor of expo-device']);
 
@@ -162,5 +158,5 @@ export default function RootLayout() {
         <RootLayoutNav />
       </ClerkProvider>
     </GestureHandlerRootView>
-  );
-}
+      );
+  }
