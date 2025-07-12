@@ -11,5 +11,7 @@
       "src": "/(.*)",
       "dest": "/api/index.js"
     }
-  ]
+  ],
+  "installCommand": "npm install --include=dev",
+  "buildCommand": "npm run vercel-build"
 }

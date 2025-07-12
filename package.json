@@ -9,8 +9,7 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "lint": "eslint . --fix && prettier . --write",
-    "build": "eas build --platform android --profile production",
-    "vercel-build": "cd backend && npm install && npx prisma generate && npm run build"
+    "build": "eas build --platform android --profile production"
   },
   "dependencies": {
     "@clerk/clerk-expo": "~2.9.6",
