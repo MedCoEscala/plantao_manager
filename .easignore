@@ -1,8 +1,17 @@
+# Ignora dependências do Node
 node_modules/
+
+# Ignora a pasta de controle de versão do Git
 .git/
+
+# Ignora pastas de cache e configurações locais do Expo
 .expo/
+
+# Ignora as pastas de build nativo (elas são geradas pela EAS na nuvem)
 android/
 ios/
+
+# Ignora outras pastas e arquivos desnecessários para o build do app
 backend/
 medescala-privacy/
 docs/
@@ -13,16 +22,12 @@ scripts/
 .DS_Store
 __tests__/
 jest.config.js
-babel.config.js
-metro.config.js
-tailwind.config.js
 prettier.config.js
 .eslintrc.js
 .gitignore
 vercel.json
 .github/
-scripts/configure-network.js
 privacy-policy.html
 vercel-privacy.json
 deploy*.sh
-build-backend.js 
+build-backend.js
