@@ -1,31 +1,6 @@
-const { execSync } = require('child_process');
-const fs = require('fs');
-const path = require('path');
-
-function ensureBuild() {
-  const backendPath = path.join(__dirname, '..');
-  const distPath = path.join(backendPath, 'dist');
-
-  try {
-    if (!fs.existsSync(distPath) || fs.readdirSync(distPath).length === 0) {
-      console.log('🔨 Building NestJS application...');
-      process.chdir(backendPath);
-      execSync('npm run build', { stdio: 'inherit' });
-      console.log('✅ Build completed successfully');
-    } else {
-      console.log('✅ Build already exists, skipping...');
-    }
-  } catch (error) {
-    console.error('❌ Build failed:', error.message);
-    throw error;
-  }
-}
-
-// Garantir que o build foi feito
-ensureBuild();
-
 const { NestFactory } = require('@nestjs/core');
 const { ValidationPipe } = require('@nestjs/common');
+const path = require('path');
 
 let app;
 
@@ -35,14 +10,15 @@ async function bootstrap() {
   try {
     console.log('🚀 Initializing NestJS application...');
 
-    // Importar o AppModule compilado do dist apenas quando necessário
+    // Importar o AppModule compilado do dist
     let AppModule;
     try {
-      AppModule = require('../dist/app.module');
+      const modulePath = path.join(__dirname, '../dist/app.module');
+      AppModule = require(modulePath);
     } catch (error) {
       console.error('❌ Failed to import AppModule:', error.message);
       throw new Error(
-        'Could not load compiled application module: ' + error.message,
+        'Could not load compiled application module. Build may be missing.',
       );
     }
 
@@ -100,7 +76,7 @@ module.exports = async (req, res) => {
       error: 'Internal Server Error',
       details:
         process.env.NODE_ENV === 'production'
-          ? 'Something went wrong'
+          ? 'Application failed to initialize'
           : error.message,
       timestamp: new Date().toISOString(),
     });
