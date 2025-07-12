@@ -1,6 +1,6 @@
 {
   "name": "medescala",
-  "version": "1.1.32",
+  "version": "1.1.33",
   "main": "expo-router/entry",
   "private": true,
   "scripts": {
@@ -9,9 +9,7 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "lint": "eslint . --fix && prettier . --write",
-    "build:production": "eas build --platform android --profile production",
-    "build:development": "eas build --platform android --profile development",
-    "submit": "eas submit --platform android"
+    "build": "eas build --platform android --profile production"
   },
   "dependencies": {
     "@clerk/clerk-expo": "~2.9.6",
@@ -26,6 +24,7 @@
     "ajv": "~8.17.1",
     "autoprefixer": "^10.4.17",
     "axios": "^1.10.0",
+    "babel-plugin-module-resolver": "~5.0.2",
     "date-fns": "~4.1.0",
     "expo": "~53.0.0",
     "expo-auth-session": "~6.2.1",
@@ -68,7 +67,6 @@
     "@babel/core": "^7.25.0",
     "@typescript-eslint/eslint-plugin": "~7.7.0",
     "@typescript-eslint/parser": "~7.7.0",
-    "babel-plugin-module-resolver": "~5.0.2",
     "eas-cli": "^16.15.0",
     "eslint": "~8.57.0",
     "eslint-config-universe": "~12.0.1",

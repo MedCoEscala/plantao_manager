@@ -1,17 +1,12 @@
-# Ignora dependências do Node
 node_modules/
 
-# Ignora a pasta de controle de versão do Git
 .git/
 
-# Ignora pastas de cache e configurações locais do Expo
 .expo/
 
-# Ignora as pastas de build nativo (elas são geradas pela EAS na nuvem)
 android/
 ios/
 
-# Ignora outras pastas e arquivos desnecessários para o build do app
 backend/
 medescala-privacy/
 docs/
