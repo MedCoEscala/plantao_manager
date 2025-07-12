@@ -1,6 +1,3 @@
-/* Global CSS for NativeWind v4.1 - Production Ready */
-/* This file is processed by Metro bundler for all build types */
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -21,4 +18,4 @@
     shadow-opacity: 0.05;
     shadow-radius: 3px;
   }
-} 
+}

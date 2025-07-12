@@ -1,4 +1,5 @@
 import '../global.css';
+
 import 'react-native-get-random-values';
 import { ClerkProvider, useAuth } from '@clerk/clerk-expo';
 import { useFonts } from 'expo-font';

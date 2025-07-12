@@ -100,11 +100,20 @@ try {
     allChecksPass = false;
   }
   
-  if (packageJson.dependencies.tailwindcss) {
-    console.log(`✅ TailwindCSS instalado: ${packageJson.dependencies.tailwindcss}`);
+  // Verificar TailwindCSS em dependencies ou devDependencies
+  const tailwindVersion = packageJson.dependencies?.tailwindcss || packageJson.devDependencies?.tailwindcss;
+  if (tailwindVersion) {
+    console.log(`✅ TailwindCSS instalado: ${tailwindVersion}`);
   } else {
     console.log(`❌ TailwindCSS não encontrado nas dependências!`);
     allChecksPass = false;
+  }
+  
+  // Verificar autoprefixer em devDependencies
+  if (packageJson.devDependencies?.autoprefixer) {
+    console.log(`✅ Autoprefixer instalado: ${packageJson.devDependencies.autoprefixer}`);
+  } else {
+    console.log(`⚠️  Autoprefixer não encontrado em devDependencies`);
   }
 } catch (error) {
   console.log(`❌ Erro ao verificar package.json: ${error.message}`);

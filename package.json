@@ -1,52 +1,31 @@
 {
   "name": "medescala",
-  "version": "1.1.31",
+  "version": "1.1.32",
+  "main": "expo-router/entry",
+  "private": true,
   "scripts": {
+    "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "start": "expo start",
-    "dev": "expo start --dev-client",
-    "prod-test": "NODE_ENV=production EXPO_PUBLIC_API_URL=https://www.medescalaapp.com.br EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_live_Y2xlcmsubWVkZXNjYWxhYXBwLmNvbS5iciQ expo start --no-dev",
-    "prod-test-clean": "expo start --clear --no-dev",
-    "prebuild": "expo prebuild",
-    "lint": "eslint \"**/*.{js,jsx,ts,tsx}\" && prettier -c \"**/*.{js,jsx,ts,tsx,json}\"",
-    "format": "eslint \"**/*.{js,jsx,ts,tsx}\" --fix && prettier \"**/*.{js,jsx,ts,tsx,json}\" --write",
     "web": "expo start --web",
-    "build:dev": "eas build --profile development",
-    "build:prod": "eas build --profile production --clear-cache",
-    "build:debug": "DEBUG=nativewind eas build --profile production --clear-cache",
-    "build:test": "eas build --profile production --clear-cache --non-interactive",
-    "build:final": "eas build --platform android --profile production",
-    "vercel-build": "cd backend && npm install && npx prisma generate && npm run build",
-    "test-production": "node scripts/test-production-build.js",
-    "quick-test": "node scripts/quick-playstore-test.js",
-    "verify:nativewind": "node scripts/verify-nativewind.js",
-    "test:path-aliases": "node scripts/test-path-aliases.js",
-    "fix:nativewind": "node scripts/fix-nativewind-production.js",
-    "upgrade:nativewind": "node scripts/upgrade-nativewind-v4.js",
-    "fix:versions": "node scripts/fix-version-conflicts.js",
-    "build:production": "npx expo export --platform android --output-dir ./dist-android",
-    "test:production": "npx expo export --platform all --clear && npx expo serve",
-    "build:android": "npx eas build --platform android --profile production",
-    "build:android-local": "npx eas build --platform android --profile production --local",
-    "build:apk-test": "npx eas build --platform android --profile production-test --local",
-    "submit:android": "npx eas submit --platform android --profile production",
-    "build:submit": "npx eas build --platform android --profile production --auto-submit",
-    "eas:login": "npx eas login",
-    "check:production": "node scripts/production-build-check.js",
-    "diagnose:nativewind": "node scripts/test-nativewind-production.js"
+    "lint": "eslint . --fix && prettier . --write",
+    "build:production": "eas build --platform android --profile production",
+    "build:development": "eas build --platform android --profile development",
+    "submit": "eas submit --platform android"
   },
   "dependencies": {
     "@clerk/clerk-expo": "~2.9.6",
     "@clerk/types": "~4.47.0",
     "@gorhom/bottom-sheet": "~5.1.2",
     "@react-native-async-storage/async-storage": "~2.1.2",
-    "@react-native-community/datetimepicker": "^8.4.1",
+    "@react-native-community/datetimepicker": "8.4.1",
     "@react-native-community/netinfo": "~11.4.1",
     "@react-native-picker/picker": "~2.11.0",
     "@shopify/flash-list": "1.7.6",
+    "@types/react": "~19.0.10",
     "ajv": "~8.17.1",
-    "axios": "~1.7.7",
+    "autoprefixer": "^10.4.17",
+    "axios": "^1.10.0",
     "date-fns": "~4.1.0",
     "expo": "~53.0.0",
     "expo-auth-session": "~6.2.1",
@@ -81,26 +60,34 @@
     "react-native-screens": "~4.11.1",
     "react-native-web": "~0.20.0",
     "tailwindcss": "^3.4.17",
+    "typescript": "~5.8.3",
     "zod": "~3.24.2",
     "zustand": "~5.0.3"
   },
   "devDependencies": {
     "@babel/core": "^7.25.0",
-    "@types/react": "~19.0.10",
     "@typescript-eslint/eslint-plugin": "~7.7.0",
     "@typescript-eslint/parser": "~7.7.0",
     "babel-plugin-module-resolver": "~5.0.2",
-    "eas-cli": "^16.14.0",
+    "eas-cli": "^16.15.0",
     "eslint": "~8.57.0",
     "eslint-config-universe": "~12.0.1",
-    "glob": "^11.0.3",
-    "prettier": "~3.2.5",
-    "typescript": "~5.8.3"
+    "glob": "^10.4.5",
+    "prettier": "~3.2.5"
+  },
+  "overrides": {
+    "@expo/config-plugins": "~10.1.1",
+    "@expo/prebuild-config": "~9.0.0"
+  },
+  "expo": {
+    "doctor": {
+      "reactNativeDirectoryCheck": {
+        "listUnknownPackages": false
+      }
+    }
   },
   "eslintConfig": {
     "extends": "universe/native",
     "root": true
-  },
-  "main": "expo-router/entry",
-  "private": true
+  }
 }
