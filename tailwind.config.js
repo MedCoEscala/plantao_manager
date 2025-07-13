@@ -1,13 +1,13 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [
-    "./app/**/*.{js,jsx,ts,tsx}",
-    "./app/(tabs)/**/*.{js,jsx,ts,tsx}",
-    "./app/(auth)/**/*.{js,jsx,ts,tsx}",
-    "./app/(root)/**/*.{js,jsx,ts,tsx}",
-    "./app/components/**/*.{js,jsx,ts,tsx}",
+    './app/**/*.{js,jsx,ts,tsx}',
+    './app/(tabs)/**/*.{js,jsx,ts,tsx}',
+    './app/(auth)/**/*.{js,jsx,ts,tsx}',
+    './app/(root)/**/*.{js,jsx,ts,tsx}',
+    './app/components/**/*.{js,jsx,ts,tsx}',
   ],
-  presets: [require("nativewind/preset")],
+  presets: [require('nativewind/preset')],
   theme: {
     extend: {
       colors: {
@@ -23,7 +23,7 @@ module.exports = {
         warning: '#f59e0b',
       },
       fontFamily: {
-        'jakarta': ['Jakarta-Regular'],
+        jakarta: ['Jakarta-Regular'],
         'jakarta-bold': ['Jakarta-Bold'],
         'jakarta-medium': ['Jakarta-Medium'],
         'jakarta-semibold': ['Jakarta-SemiBold'],

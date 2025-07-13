@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
 const fs = require('fs');
-const path = require('path');
 const glob = require('glob');
+const path = require('path');
 
 console.log('🧹 Iniciando limpeza completa do NativeWind...\n');
 
@@ -11,11 +11,11 @@ const filesWithClassNames = [
   'app/components/shifts/ShiftForm.tsx',
   'app/components/shifts/ShiftFormSections/*.tsx',
   'app/components/form/ColorSelector.tsx',
-  'app/(root)/(tabs)/profile.tsx'
+  'app/(root)/(tabs)/profile.tsx',
 ];
 
 console.log('📋 Arquivos identificados com className:');
-filesWithClassNames.forEach(file => {
+filesWithClassNames.forEach((file) => {
   console.log(`   - ${file}`);
 });
 
@@ -33,28 +33,23 @@ console.log('   - Componentes ficarão sem estilo até serem reestilizados');
 console.log('');
 
 // Verificar se ainda existem referências ao NativeWind
-const checkFiles = [
-  'package.json',
-  'global.d.ts',
-  'babel.config.js',
-  'metro.config.js'
-];
+const checkFiles = ['package.json', 'global.d.ts', 'babel.config.js', 'metro.config.js'];
 
 console.log('✅ VERIFICAÇÃO DE LIMPEZA:');
-checkFiles.forEach(file => {
+checkFiles.forEach((file) => {
   if (fs.existsSync(file)) {
     const content = fs.readFileSync(file, 'utf8');
-    
+
     // Verificações específicas
     const checks = {
       'package.json': ['nativewind', 'tailwindcss', 'autoprefixer'],
       'global.d.ts': ['nativewind', 'className'],
       'babel.config.js': ['nativewind'],
-      'metro.config.js': ['nativewind', 'tailwind']
+      'metro.config.js': ['nativewind', 'tailwind'],
     };
-    
-    const issues = checks[file]?.filter(term => content.includes(term)) || [];
-    
+
+    const issues = checks[file]?.filter((term) => content.includes(term)) || [];
+
     if (issues.length === 0) {
       console.log(`   ✅ ${file} - Limpo`);
     } else {
@@ -84,4 +79,4 @@ console.log('   - Metro: Configuração padrão Expo');
 console.log('   - Dependencies: Versões estáveis sem conflitos CSS');
 console.log('');
 
-console.log('🎉 Limpeza do NativeWind concluída com sucesso!'); 
+console.log('🎉 Limpeza do NativeWind concluída com sucesso!');

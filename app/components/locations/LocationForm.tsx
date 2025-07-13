@@ -2,13 +2,13 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { useNotification } from '../../contexts/NotificationContext';
+import { useLocationsApi } from '../../services/locations-api';
 import ColorField from '../form/ColorField';
 import Button from '../ui/Button';
 import Card from '../ui/Card';
 import Input from '../ui/Input';
 import SectionHeader from '../ui/SectionHeader';
-import { useNotification } from '../../contexts/NotificationContext';
-import { useLocationsApi } from '../../services/locations-api';
 
 const COLOR_PALETTE = [
   { color: '#0077B6', name: 'Azul' },
@@ -366,7 +366,7 @@ export default function LocationForm({
             label="Telefone (opcional)"
             value={formData.phone}
             onChangeText={handlePhoneChange}
-            placeholder="(00) 00000-0000"
+            placeholder="00 0000-0000"
             keyboardType="phone-pad"
             helperText="Número para contato do local"
             error={errors.phone}

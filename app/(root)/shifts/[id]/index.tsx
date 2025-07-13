@@ -316,7 +316,7 @@ export default function ShiftDetailsScreen() {
         </View>
 
         {/* Seção de local */}
-        <View className="mx-4 mb-4 rounded-xl bg-background-50 p-4">
+        <View className="bg-background-50 mx-4 mb-4 rounded-xl p-4">
           <Text className="mb-3 text-base font-bold text-text-dark">Local</Text>
 
           <View className="flex-row items-center">
@@ -332,7 +332,7 @@ export default function ShiftDetailsScreen() {
         </View>
 
         {/* Seção de pagamento */}
-        <View className="mx-4 mb-4 rounded-xl bg-background-50 p-4">
+        <View className="bg-background-50 mx-4 mb-4 rounded-xl p-4">
           <Text className="mb-3 text-base font-bold text-text-dark">Pagamento</Text>
 
           <View className="mb-4 flex-row justify-between">
@@ -357,7 +357,7 @@ export default function ShiftDetailsScreen() {
 
         {/* Seção de contratante, se houver */}
         {shift.contractorName && (
-          <View className="mx-4 mb-4 rounded-xl bg-background-50 p-4">
+          <View className="bg-background-50 mx-4 mb-4 rounded-xl p-4">
             <Text className="mb-2 text-base font-bold text-text-dark">Contratante</Text>
             <View className="flex-row items-center">
               <Ionicons name="briefcase-outline" size={20} color="#64748b" className="mr-2" />
@@ -368,7 +368,7 @@ export default function ShiftDetailsScreen() {
 
         {/* Seção de observações, se houver */}
         {shift.notes && (
-          <View className="mx-4 mb-4 rounded-xl bg-background-50 p-4">
+          <View className="bg-background-50 mx-4 mb-4 rounded-xl p-4">
             <Text className="mb-2 text-base font-bold text-text-dark">Observações</Text>
             <Text className="text-base text-text-dark">{shift.notes}</Text>
           </View>

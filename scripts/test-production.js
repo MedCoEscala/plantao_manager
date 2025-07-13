@@ -49,4 +49,4 @@ console.log('   - Metro não processando CSS corretamente (CORRIGIDO)');
 console.log('   - Build vs Development diferenças (CORRIGIDO)');
 
 console.log('\n📊 ESTA CORREÇÃO RESOLVE 95% DOS CASOS!');
-console.log('Baseado nos issues mais comuns do NativeWind em produção.'); 
+console.log('Baseado nos issues mais comuns do NativeWind em produção.');

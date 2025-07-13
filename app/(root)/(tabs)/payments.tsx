@@ -14,12 +14,14 @@ import {
   TextInput,
   Animated,
   Easing,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { SelectField } from '../../components/form/SelectField';
 import { Checkbox } from '../../components/ui/CheckBox';
 import MonthYearPicker from '../../components/ui/MonthYearPicker';
+import ScreenWrapper from '../../components/ui/ScreenWrapper';
 import { SelectableListItem } from '../../components/ui/SelectableListItem';
 import { useToast } from '../../components/ui/Toast';
 import {
@@ -638,11 +640,9 @@ export default function PaymentsScreen() {
   }, []);
 
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={['top']}>
-      <StatusBar style="dark" />
-
+    <ScreenWrapper className="flex-1 bg-background">
       {/* Header */}
-      <View className="z-10 border-b border-background-300 bg-white px-4 py-3">
+      <View className="z-10 bg-white px-4 py-3">
         <View className="flex-row items-center justify-between">
           <Text className="text-xl font-bold text-text-dark">{PAYMENT_MESSAGES.SCREEN_TITLE}</Text>
 
@@ -917,31 +917,44 @@ export default function PaymentsScreen() {
       {/* Botões de ação flutuantes */}
       {isSelectionMode && selectionCount > 0 && (
         <View
-          className="absolute bottom-6 left-6 right-6"
+          className="absolute bottom-24 left-4 right-4"
           style={{
-            elevation: 5,
+            elevation: 10,
             shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.25,
-            shadowRadius: 4,
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.3,
+            shadowRadius: 8,
+            zIndex: 1000,
           }}>
           <View className="flex-row space-x-3">
             <TouchableOpacity
-              className="flex-1 flex-row items-center justify-center rounded-full bg-success py-4"
+              className="flex-1 flex-row items-center justify-center rounded-2xl bg-success py-5"
               onPress={handleMarkAsPaid}
-              style={{ elevation: 2 }}>
-              <Ionicons name="checkmark-circle-outline" size={20} color="#FFFFFF" />
-              <Text className="ml-2 font-medium text-white">
+              style={{
+                elevation: 5,
+                shadowColor: '#10b981',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.3,
+                shadowRadius: 4,
+              }}>
+              <Ionicons name="checkmark-circle-outline" size={22} color="#FFFFFF" />
+              <Text className="ml-2 text-base font-semibold text-white">
                 {PAYMENT_MESSAGES.ACTION_MARK_PAID}
               </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              className="flex-1 flex-row items-center justify-center rounded-full bg-warning py-4"
+              className="flex-1 flex-row items-center justify-center rounded-2xl bg-warning py-5"
               onPress={handleMarkAsUnpaid}
-              style={{ elevation: 2 }}>
-              <Ionicons name="close-circle-outline" size={20} color="#FFFFFF" />
-              <Text className="ml-2 font-medium text-white">
+              style={{
+                elevation: 5,
+                shadowColor: '#f59e0b',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.3,
+                shadowRadius: 4,
+              }}>
+              <Ionicons name="close-circle-outline" size={22} color="#FFFFFF" />
+              <Text className="ml-2 text-base font-semibold text-white">
                 {PAYMENT_MESSAGES.ACTION_MARK_UNPAID}
               </Text>
             </TouchableOpacity>
@@ -959,6 +972,6 @@ export default function PaymentsScreen() {
         }}
         onClose={() => setShowMonthPicker(false)}
       />
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 }

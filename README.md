@@ -199,5 +199,7 @@ import { Card } from '@app/components/ui';
 ```
 
 Para mais informações sobre componentes de UI, consulte a documentação em `app/styles/README.md`.
+
 # Deploy trigger Wed Jun 25 08:57:12 PM -03 2025
+
 # Deploy Test Wed Jun 25 10:01:11 PM -03 2025

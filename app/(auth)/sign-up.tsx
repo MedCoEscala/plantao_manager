@@ -1,29 +1,17 @@
 import { useSignUp, useAuth } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, Link } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
 import React, { useState, useRef, useEffect } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  Platform,
-  KeyboardAvoidingView,
-  Animated,
-  TouchableOpacity,
-  Dimensions,
-} from 'react-native';
+import { View, Text, Animated, TouchableOpacity, Dimensions } from 'react-native';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
-import { SafeAreaView } from 'react-native-safe-area-context';
-
-import Logo from '../components/auth/Logo';
 
 import { useNotification } from '../components';
 import AuthButton from '../components/auth/AuthButton';
-import AuthInput from '../components/auth/AuthInput';
 import AuthDateInput from '../components/auth/AuthDateInput';
+import AuthInput from '../components/auth/AuthInput';
+import Logo from '../components/auth/Logo';
+import AuthScreenWrapper from '../components/ui/AuthScreenWrapper';
 import { validatePassword } from '../services/auth/utils';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -155,7 +143,6 @@ export default function SignUpScreen() {
         handleSubmit();
       } else {
         showError('Por favor, corrija os erros antes de continuar');
-        return;
       }
     }
   };
@@ -175,43 +162,36 @@ export default function SignUpScreen() {
 
     try {
       if (currentStep === 1) {
-        // Validar e avançar para step 2
         const isValid = validateStep1();
         if (isValid) {
           setCurrentStep(2);
         }
       } else if (currentStep === 2) {
-        // Validar step 2 e criar conta
         const isValid = validateStep2();
         if (!isValid) {
           showError('Por favor, corrija os erros antes de continuar');
           return;
         }
 
-        // Criar conta no Clerk
         await signUp?.create({
           emailAddress: formData.email.trim(),
           password: formData.password.trim(),
         });
 
-        // Preparar verificação
         await signUp?.prepareEmailAddressVerification({
           strategy: 'email_code',
         });
 
-        // Preparar dados para navegação
         const dataToSend: any = {
           email: formData.email.trim(),
         };
 
-        // Adicionar dados opcionais apenas se preenchidos
         if (formData.firstName.trim()) dataToSend.firstName = formData.firstName.trim();
         if (formData.lastName.trim()) dataToSend.lastName = formData.lastName.trim();
         if (formData.birthDate) dataToSend.birthDate = format(formData.birthDate, 'yyyy-MM-dd');
         if (formData.gender) dataToSend.gender = formData.gender;
         if (formData.phoneNumber.trim()) dataToSend.phoneNumber = formData.phoneNumber.trim();
 
-        // Navegar para verificação
         router.push({
           pathname: '/verify-code',
           params: dataToSend,
@@ -238,7 +218,7 @@ export default function SignUpScreen() {
   );
 
   const renderStep1 = () => (
-    <View style={{ gap: 20 }}>
+    <View style={{ gap: 16 }}>
       <AuthInput
         label="Nome"
         placeholder="Seu primeiro nome"
@@ -272,7 +252,7 @@ export default function SignUpScreen() {
   );
 
   const renderStep2 = () => (
-    <View style={{ gap: 20 }}>
+    <View style={{ gap: 16 }}>
       <AuthInput
         label="Senha"
         placeholder="Crie uma senha segura"
@@ -329,8 +309,7 @@ export default function SignUpScreen() {
                   ? 'border-primary bg-primary/5'
                   : 'border-gray-300 bg-gray-50'
               }`}
-              style={{ minWidth: '45%' }}
-            >
+              style={{ minWidth: '45%' }}>
               <Ionicons
                 name={option.icon as any}
                 size={18}
@@ -340,8 +319,7 @@ export default function SignUpScreen() {
               <Text
                 className={`text-sm font-medium ${
                   formData.gender === option.value ? 'text-primary' : 'text-gray-600'
-                }`}
-              >
+                }`}>
                 {option.label}
               </Text>
             </TouchableOpacity>
@@ -363,35 +341,22 @@ export default function SignUpScreen() {
 
   if (!isLoaded) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-50">
+      <AuthScreenWrapper showGradient={false}>
         <View className="flex-1 items-center justify-center">
           <Logo size="lg" />
           <Text className="mt-4 text-gray-900">Carregando...</Text>
         </View>
-      </SafeAreaView>
+      </AuthScreenWrapper>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1" edges={Platform.OS === 'ios' ? ['top'] : []}>
-      <StatusBar style="dark" translucent={Platform.OS === 'android'} />
-
-      <LinearGradient
-        colors={['#f8f9fb', '#e8eef7', '#f1f5f9']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        className="absolute inset-0"
-      />
-
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
-        enabled
-        className="flex-1">
-        <View className="flex-row items-center justify-between px-5 pt-4">
+    <AuthScreenWrapper>
+      <View className="flex-1 px-5 pt-4">
+        <View className="flex-row items-center justify-between">
           <TouchableOpacity
             onPress={handleBack}
-            className="h-12 w-12 items-center justify-center rounded-full bg-white/80 border border-gray-200"
+            className="h-12 w-12 items-center justify-center rounded-full border border-gray-200 bg-white/80"
             style={{
               shadowColor: '#000',
               shadowOffset: { width: 0, height: 2 },
@@ -408,96 +373,89 @@ export default function SignUpScreen() {
 
           <View className="h-11 w-11" />
         </View>
+        <View className="flex-1 items-center justify-center px-6 pt-5">
+          <Animated.View className="items-center" style={{ opacity: fadeAnim }}>
+            <Text className="text-center text-3xl font-bold tracking-tight text-gray-900">
+              Criar Conta
+            </Text>
+            <Text className="mt-2 text-center text-base font-normal text-gray-600">
+              {currentStep === 1
+                ? 'Vamos começar com suas informações básicas'
+                : 'Complete seu cadastro com segurança'}
+            </Text>
+          </Animated.View>
+        </View>
+      </View>
 
-        <ScrollView
-          className="flex-1"
-          contentContainerStyle={{ flexGrow: 1 }}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
-          keyboardDismissMode="interactive">
-          <View className="flex-1 items-center justify-center px-6 pt-5">
-            <Animated.View className="items-center" style={{ opacity: fadeAnim }}>
-              <Text className="text-center text-3xl font-bold tracking-tight text-gray-900">
-                Criar Conta
-              </Text>
-              <Text className="mt-2 text-center text-base font-normal text-gray-600">
-                {currentStep === 1
-                  ? 'Vamos começar com suas informações básicas'
-                  : 'Complete seu cadastro com segurança'}
-              </Text>
-            </Animated.View>
+      <View className="px-5 pb-5">
+        <Animated.View
+          className="rounded-3xl border border-white/20 bg-white/95 p-6 shadow-xl"
+          style={{
+            opacity: fadeAnim,
+            transform: [{ translateY: slideAnim }],
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 8 },
+            shadowOpacity: 0.15,
+            shadowRadius: 16,
+            elevation: 12,
+          }}>
+          {renderStepIndicator()}
+          <View className="mb-6 items-center">
+            <Text className="text-center text-2xl font-bold tracking-tight text-gray-900">
+              {currentStep === 1 ? 'Informações Pessoais' : 'Dados de Acesso'}
+            </Text>
+            <Text className="mt-1.5 text-center text-base font-normal text-gray-700">
+              {currentStep === 1 ? 'Como podemos te chamar?' : 'Crie suas credenciais de acesso'}
+            </Text>
           </View>
-
           <Animated.View
-            className="mx-5 mb-8 rounded-3xl border border-white/20 bg-white/95 p-6 shadow-xl"
             style={{
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }],
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 8 },
-              shadowOpacity: 0.15,
-              shadowRadius: 16,
-              elevation: 12,
+              transform: [
+                {
+                  translateX: stepAnim.interpolate({
+                    inputRange: [1, 2],
+                    outputRange: [0, -20],
+                  }),
+                },
+              ],
             }}>
-            {renderStepIndicator()}
-            <View className="mb-6 items-center">
-              <Text className="text-center text-2xl font-bold tracking-tight text-gray-900">
-                {currentStep === 1 ? 'Informações Pessoais' : 'Dados de Acesso'}
-              </Text>
-              <Text className="mt-1.5 text-center text-base font-normal text-gray-700">
-                {currentStep === 1 ? 'Como podemos te chamar?' : 'Crie suas credenciais de acesso'}
+            {currentStep === 1 ? renderStep1() : renderStep2()}
+          </Animated.View>
+          <View className="mt-7 space-y-4">
+            <AuthButton
+              title={currentStep === 1 ? 'Continuar' : 'Criar Conta'}
+              onPress={currentStep === 1 ? handleNext : handleSubmit}
+              loading={isLoading}
+              leftIcon={currentStep === 1 ? 'arrow-forward' : 'person-add-outline'}
+            />
+            <View className="items-center">
+              <Text className="text-base text-gray-600">
+                Já tem uma conta?{' '}
+                <Link href="/(auth)/sign-in" asChild>
+                  <Text className="text-base font-semibold text-primary underline">
+                    Fazer login
+                  </Text>
+                </Link>
               </Text>
             </View>
-            <Animated.View
-              style={{
-                transform: [
-                  {
-                    translateX: stepAnim.interpolate({
-                      inputRange: [1, 2],
-                      outputRange: [0, -20],
-                    }),
-                  },
-                ],
-              }}>
-              {currentStep === 1 ? renderStep1() : renderStep2()}
-            </Animated.View>
-            <View className="mt-7 space-y-4">
-              <AuthButton
-                title={currentStep === 1 ? 'Continuar' : 'Criar Conta'}
-                onPress={currentStep === 1 ? handleNext : handleSubmit}
-                loading={isLoading}
-                leftIcon={currentStep === 1 ? 'arrow-forward' : 'person-add-outline'}
-              />
-              <View className="items-center">
-                <Text className="text-base text-gray-600">
-                  Já tem uma conta?{' '}
-                  <Link href="/(auth)/sign-in" asChild>
-                    <Text className="text-base font-semibold text-primary underline">
-                      Fazer login
-                    </Text>
-                  </Link>
-                </Text>
-              </View>
-            </View>
-            {currentStep === 2 && (
-              <View className="mt-6 rounded-2xl border border-gray-100 bg-gray-50/80 p-4">
-                <View className="flex-row items-center">
-                  <View className="mr-3 h-8 w-8 items-center justify-center rounded-2xl bg-green-100">
-                    <Ionicons name="shield-checkmark" size={16} color="#34C759" />
-                  </View>
-                  <View className="flex-1">
-                    <Text className="text-sm font-semibold text-gray-900">Dados Protegidos</Text>
-                    <Text className="mt-0.5 text-xs text-gray-700">
-                      Suas informações são criptografadas e mantidas em segurança
-                    </Text>
-                  </View>
+          </View>
+          {currentStep === 2 && (
+            <View className="mt-6 rounded-2xl border border-gray-100 bg-gray-50/80 p-4">
+              <View className="flex-row items-center">
+                <View className="mr-3 h-8 w-8 items-center justify-center rounded-2xl bg-green-100">
+                  <Ionicons name="shield-checkmark" size={16} color="#34C759" />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-sm font-semibold text-gray-900">Dados Protegidos</Text>
+                  <Text className="mt-0.5 text-xs text-gray-700">
+                    Suas informações são criptografadas e mantidas em segurança
+                  </Text>
                 </View>
               </View>
-            )}
-          </Animated.View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+            </View>
+          )}
+        </Animated.View>
+      </View>
+    </AuthScreenWrapper>
   );
 }

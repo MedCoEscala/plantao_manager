@@ -1,11 +1,3 @@
-import Button from '../../components/ui/Button';
-import DatePicker from '../../components/ui/DatePicker';
-import Input from '../../components/ui/Input';
-import Select from '../../components/ui/Select';
-import { useToast } from '../../components/ui/Toast';
-import { useDialog } from '../../contexts/DialogContext';
-import { fetchWithAuth } from '../../utils/api-client';
-import { getInitials } from '../../utils/userNameHelper';
 import { useUser, useAuth } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
@@ -14,6 +6,15 @@ import { StatusBar } from 'expo-status-bar';
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+import Button from '../../components/ui/Button';
+import DatePicker from '../../components/ui/DatePicker';
+import Input from '../../components/ui/Input';
+import Select from '../../components/ui/Select';
+import { useToast } from '../../components/ui/Toast';
+import { useDialog } from '../../contexts/DialogContext';
+import { fetchWithAuth } from '../../utils/api-client';
+import { getInitials } from '../../utils/userNameHelper';
 
 interface UserData {
   id: string;
@@ -272,7 +273,7 @@ export default function EditProfileScreen() {
       <StatusBar style="dark" />
 
       {/* Header */}
-      <View className="border-b border-gray-200 bg-white px-4 py-3">
+      <View className="bg-white px-4 py-3">
         <View className="flex-row items-center">
           <TouchableOpacity onPress={() => router.back()} className="-ml-2 mr-4 p-2">
             <Ionicons name="arrow-back" size={24} color="#1e293b" />

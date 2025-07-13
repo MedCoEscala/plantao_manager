@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
+const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
 
 console.log('🔍 Verificando configurações para build de produção...\n');
 
@@ -84,11 +84,11 @@ allChecksPass &= checkFileContent(
 console.log('\n📦 Verificando dependências:');
 try {
   const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-  
+
   if (packageJson.dependencies.nativewind) {
     const version = packageJson.dependencies.nativewind;
     console.log(`✅ NativeWind instalado: ${version}`);
-    
+
     if (version.includes('4.') || version === 'latest') {
       console.log(`✅ Versão compatível do NativeWind (v4+)`);
     } else {
@@ -99,16 +99,17 @@ try {
     console.log(`❌ NativeWind não encontrado nas dependências!`);
     allChecksPass = false;
   }
-  
+
   // Verificar TailwindCSS em dependencies ou devDependencies
-  const tailwindVersion = packageJson.dependencies?.tailwindcss || packageJson.devDependencies?.tailwindcss;
+  const tailwindVersion =
+    packageJson.dependencies?.tailwindcss || packageJson.devDependencies?.tailwindcss;
   if (tailwindVersion) {
     console.log(`✅ TailwindCSS instalado: ${tailwindVersion}`);
   } else {
     console.log(`❌ TailwindCSS não encontrado nas dependências!`);
     allChecksPass = false;
   }
-  
+
   // Verificar autoprefixer em devDependencies
   if (packageJson.devDependencies?.autoprefixer) {
     console.log(`✅ Autoprefixer instalado: ${packageJson.devDependencies.autoprefixer}`);
@@ -124,10 +125,10 @@ console.log('\n🧹 Limpando cache antes do build...');
 try {
   console.log('Removendo .expo/...');
   execSync('rm -rf .expo', { stdio: 'inherit' });
-  
+
   console.log('Removendo node_modules/.cache...');
   execSync('rm -rf node_modules/.cache', { stdio: 'inherit' });
-  
+
   console.log('✅ Cache limpo com sucesso');
 } catch (error) {
   console.log(`⚠️  Aviso: Erro ao limpar cache: ${error.message}`);
@@ -147,4 +148,4 @@ if (allChecksPass) {
   process.exit(1);
 }
 
-console.log('='.repeat(50)); 
+console.log('='.repeat(50));

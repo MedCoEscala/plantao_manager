@@ -4,18 +4,18 @@ import { Platform } from 'react-native';
 export function verifyNativeWind() {
   const isProduction = process.env.NODE_ENV === 'production';
   const isDev = __DEV__;
-  
+
   const info = {
     platform: Platform.OS,
     isProduction,
     isDev,
     timestamp: new Date().toISOString(),
   };
-  
+
   if (isDev) {
     console.log('🔍 NativeWind Verification:', info);
   }
-  
+
   return info;
 }
 
@@ -28,9 +28,9 @@ export function logCriticalStyles() {
       'text-black',
       'p-4',
       'rounded-lg',
-      'bg-primary-500'
+      'bg-primary-500',
     ];
-    
+
     console.log('🎨 Testando classes críticas:', criticalClasses);
   }
-} 
+}

@@ -10,4 +10,4 @@ console.log('\n🎉 Pronto para build de produção!');
 console.log('\n📋 Comandos para build:');
 console.log('   Android: eas build --platform android --profile production');
 console.log('   iOS: eas build --platform ios --profile production');
-console.log('\n💡 Estilos aplicados via StyleSheet nativo - 100% estável.'); 
+console.log('\n💡 Estilos aplicados via StyleSheet nativo - 100% estável.');

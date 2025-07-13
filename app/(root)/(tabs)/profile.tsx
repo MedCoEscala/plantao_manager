@@ -1,12 +1,13 @@
 import { useRouter, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useRef, memo } from 'react';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import ContractorsList from '../../components/profile/ContractorsList';
 import ProfileActions from '../../components/profile/ProfileActions';
 import ProfileHeader from '../../components/profile/ProfileHeader';
+import ScreenWrapper from '../../components/ui/ScreenWrapper';
 import { useProfile } from '../../hooks/useProfile';
 
 const ProfileScreen = memo(() => {
@@ -27,8 +28,7 @@ const ProfileScreen = memo(() => {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={['top']}>
-      <StatusBar style="dark" />
+    <ScreenWrapper className="flex-1 bg-background">
       <View className="flex-1">
         <ProfileHeader profile={profile} isLoading={loading} onEditPress={handleEditProfile} />
 
@@ -40,7 +40,7 @@ const ProfileScreen = memo(() => {
           </View>
         </View>
       </View>
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 });
 

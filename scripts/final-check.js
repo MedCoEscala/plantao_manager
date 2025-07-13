@@ -27,7 +27,7 @@ const checks = [
   { file: 'app/styles/global.css.native.css', desc: 'CSS nativo gerado' },
 ];
 
-checks.forEach(check => {
+checks.forEach((check) => {
   if (fs.existsSync(check.file)) {
     console.log(`   ✅ ${check.desc}: OK`);
   } else {
@@ -67,4 +67,4 @@ console.log('   - CSS pré-compilado para produção');
 console.log('   - Metro config otimizado para minificação');
 
 console.log('\n🚀 TUDO PRONTO PARA PRODUÇÃO!');
-console.log('Agora suas estilizações funcionarão tanto no Expo Go quanto na Play Store!'); 
+console.log('Agora suas estilizações funcionarão tanto no Expo Go quanto na Play Store!');

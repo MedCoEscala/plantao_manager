@@ -1,14 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React, { useState, useEffect } from 'react';
-import { Platform, View, Dimensions } from 'react-native';
+import { Platform, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
   const [isReady, setIsReady] = useState(false);
 
-  // Ensure proper initialization on Android
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsReady(true);
@@ -16,24 +15,23 @@ export default function TabsLayout() {
     return () => clearTimeout(timer);
   }, []);
 
-  // Android-specific calculations for navigation bar
-  const getBottomInset = () => {
+  const getBottomPadding = () => {
     if (Platform.OS === 'android') {
-      // More aggressive minimum padding for Android navigation buttons
-      const minPadding = insets.bottom > 0 ? insets.bottom : 20;
-      return Math.max(minPadding, 16);
+      return Math.max(insets.bottom, 10);
     }
     return insets.bottom;
   };
 
   const getTabBarHeight = () => {
     if (Platform.OS === 'android') {
-      return 60 + getBottomInset();
+      const baseHeight = 60;
+      const bottomInset = Math.max(insets.bottom, 10);
+      return baseHeight + bottomInset;
+    } else {
+      return 50 + (insets.bottom || 0);
     }
-    return 50 + getBottomInset();
   };
 
-  // Don't render until properly initialized on Android
   if (Platform.OS === 'android' && !isReady) {
     return null;
   }
@@ -46,36 +44,41 @@ export default function TabsLayout() {
         tabBarStyle: {
           backgroundColor: '#ffffff',
           borderTopColor: '#e2e8f0',
-          height: getTabBarHeight(),
-          paddingBottom: getBottomInset(),
-          paddingTop: 8,
-          elevation: 5,
-          shadowColor: '#94a3b8',
-          shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.1,
-          shadowRadius: 3,
           borderTopWidth: 1,
-          // Force proper positioning on Android
+          height: getTabBarHeight(),
+          paddingBottom: getBottomPadding(),
+          paddingTop: 8,
           ...(Platform.OS === 'android' && {
+            elevation: 8,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: -2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 3,
             position: 'absolute',
             bottom: 0,
             left: 0,
             right: 0,
           }),
+          ...(Platform.OS === 'ios' && {
+            shadowColor: '#94a3b8',
+            shadowOffset: { width: 0, height: -2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 3,
+          }),
         },
-        // Ensure content doesn't overlap with tab bar
-        ...(Platform.OS === 'android' && {
-          tabBarHideOnKeyboard: true,
-        }),
+        tabBarHideOnKeyboard: Platform.OS === 'android',
         headerStyle: {
           backgroundColor: '#ffffff',
-          elevation: 2,
-          shadowColor: '#94a3b8',
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.1,
-          shadowRadius: 3,
-          borderBottomWidth: 1,
-          borderBottomColor: '#e2e8f0',
+          ...(Platform.OS === 'android' && {
+            elevation: 4,
+          }),
+          ...(Platform.OS === 'ios' && {
+            shadowColor: '#94a3b8',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 3,
+          }),
+          borderBottomWidth: 0,
           height: Platform.OS === 'ios' ? 44 + insets.top : 60,
         },
         headerTitleStyle: {
@@ -93,12 +96,6 @@ export default function TabsLayout() {
         },
         tabBarIconStyle: {
           marginTop: Platform.OS === 'ios' ? 4 : 0,
-        },
-        headerRightContainerStyle: {
-          paddingRight: 16,
-        },
-        headerLeftContainerStyle: {
-          paddingLeft: 16,
         },
       }}>
       <Tabs.Screen

@@ -7,9 +7,8 @@ import {
 } from '@nestjs/common';
 import { User, Prisma } from '@prisma/client';
 
-import { clerkClient } from '../config/clerk.config';
-
 import { UpdateProfileDto } from './users.controller';
+import { clerkClient } from '../config/clerk.config';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()

@@ -309,7 +309,7 @@ const ProfileSettingsScreen = () => {
       <StatusBar style="dark" />
 
       {/* Header */}
-      <View className="border-b border-gray-200 bg-white px-4 py-3">
+      <View className="bg-white px-4 py-3">
         <View className="flex-row items-center">
           <TouchableOpacity onPress={() => router.back()} className="-ml-2 mr-4 p-2">
             <Ionicons name="arrow-back" size={24} color="#1e293b" />

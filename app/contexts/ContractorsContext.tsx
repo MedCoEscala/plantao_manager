@@ -178,7 +178,7 @@ export function ContractorsProvider({ children }: { children: React.ReactNode })
       hasInitialized.current = true;
       fetchContractors();
     }
-  }, [isProfileInitialized, fetchContractors]);
+  }, [isProfileInitialized]); // Remove fetchContractors das dependências
 
   // Reset quando usuário desloga
   useEffect(() => {

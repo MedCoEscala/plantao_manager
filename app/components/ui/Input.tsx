@@ -44,10 +44,7 @@ export const Input: React.FC<InputProps> = ({
 
   const inputContent = (
     <View
-      className={`flex-row items-center overflow-hidden rounded-lg border
-      ${error ? 'border-error' : isFocused ? 'border-primary' : 'border-gray-300'}
-      ${props.multiline ? 'min-h-[100px]' : 'h-12'}
-      ${disabled ? 'bg-gray-100 opacity-70' : 'bg-white'}`}>
+      className={`flex-row items-center overflow-hidden rounded-lg border ${error ? 'border-error' : isFocused ? 'border-primary' : 'border-gray-300'} ${props.multiline ? 'min-h-[100px]' : 'h-12'} ${disabled ? 'bg-gray-100 opacity-70' : 'bg-white'}`}>
       {leftIcon && (
         <View className="pl-3">
           <Ionicons name={leftIcon as any} size={20} color={disabled ? '#a0aec0' : '#64748b'} />

@@ -5,7 +5,6 @@ import { View, Text } from 'react-native';
 
 import SelectField from './SelectField';
 import SwitchField from './SwitchField';
-
 import Input from '../ui/Input';
 
 const RECURRENCE_OPTIONS = [

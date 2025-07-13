@@ -57,8 +57,7 @@ const WEEK_ITEM_WIDTH = Math.floor((SCREEN_WIDTH - 64) / 5);
 // Convertendo para StyleSheet para melhor performance
 const styles = StyleSheet.create({
   container: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
+    borderBottomWidth: 0,
     backgroundColor: 'white',
   },
   headerContainer: {
@@ -67,8 +66,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
+    borderBottomWidth: 0,
   },
   headerTitle: {
     fontSize: 16,

@@ -1,11 +1,19 @@
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import React, { useState, useCallback, useMemo } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ScrollView,
+  ActivityIndicator,
+  Platform,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import CNPJForm from '../../components/cnpj/CNPJForm';
 import Card from '../../components/ui/Card';
+import ScreenWrapper from '../../components/ui/ScreenWrapper';
 import SectionHeader from '../../components/ui/SectionHeader';
 import { useDialog } from '../../contexts/DialogContext';
 import { useCNPJData } from '../../hooks/useCNPJData';
@@ -53,7 +61,7 @@ const CNPJScreen = React.memo(() => {
   // Memoizar seções que não dependem de estado frequente
   const headerSection = useMemo(
     () => (
-      <View className="border-b border-gray-200 bg-white">
+      <View className="bg-white">
         <View className="flex-row items-center justify-between px-6 py-4">
           <View>
             <Text className="text-2xl font-bold text-gray-900">Meu CNPJ</Text>
@@ -75,9 +83,7 @@ const CNPJScreen = React.memo(() => {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
-      <StatusBar style="dark" />
-
+    <ScreenWrapper className="flex-1 bg-gray-50" backgroundColor="#f9fafb">
       {headerSection}
 
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
@@ -160,7 +166,7 @@ const CNPJScreen = React.memo(() => {
           )}
         </Card>
       </ScrollView>
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 });
 

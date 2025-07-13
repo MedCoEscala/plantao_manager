@@ -37,12 +37,7 @@ const InfoCard: React.FC<InfoCardProps> = ({
   const styles = getVariantStyles();
 
   return (
-    <View
-      className={`
-        ${styles.containerClass}
-        rounded-2xl p-5 shadow-sm
-        ${className}
-      `.trim()}>
+    <View className={` ${styles.containerClass} rounded-2xl p-5 shadow-sm ${className} `.trim()}>
       <View className="mb-2 flex-row items-center">
         {icon && (
           <View className="mr-2 h-6 w-6 items-center justify-center rounded-full bg-primary/10">

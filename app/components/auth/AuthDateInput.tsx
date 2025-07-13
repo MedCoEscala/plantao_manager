@@ -102,15 +102,16 @@ export default function AuthDateInput({
         </Text>
       )}
       <TouchableOpacity
-        style={[
-          styles.inputWrapper,
-          error && styles.inputError,
-        ]}
+        style={[styles.inputWrapper, error && styles.inputError]}
         onPress={onPress}
         activeOpacity={0.7}
-        disabled={disabled}
-      >
-        <Ionicons name="calendar-outline" size={20} color={error ? '#FF3B30' : '#18cb96'} style={styles.leftIcon} />
+        disabled={disabled}>
+        <Ionicons
+          name="calendar-outline"
+          size={20}
+          color={error ? '#FF3B30' : '#18cb96'}
+          style={styles.leftIcon}
+        />
         <Text style={value ? styles.valueText : styles.placeholderText}>
           {value || placeholder}
         </Text>
@@ -123,4 +124,4 @@ export default function AuthDateInput({
       ) : null}
     </View>
   );
-} 
+}

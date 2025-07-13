@@ -53,9 +53,7 @@ export function TextField({
       </View>
 
       <View
-        className={`flex-row items-center overflow-hidden rounded-lg border border-gray-300 bg-white
-        ${error ? 'border-error' : 'border-gray-300'}
-        ${multiline ? 'h-32 py-2' : 'h-12'}`}>
+        className={`flex-row items-center overflow-hidden rounded-lg border border-gray-300 bg-white ${error ? 'border-error' : 'border-gray-300'} ${multiline ? 'h-32 py-2' : 'h-12'}`}>
         {leftIcon && (
           <View className="pl-3">
             <Ionicons name={leftIcon as any} size={20} color="#64748b" />
@@ -142,9 +140,7 @@ export function DateField({
       </View>
 
       <TouchableOpacity
-        className={`h-12 flex-row items-center justify-between rounded-lg border px-3
-          ${error ? 'border-error' : 'border-gray-300'}
-        `}
+        className={`h-12 flex-row items-center justify-between rounded-lg border px-3 ${error ? 'border-error' : 'border-gray-300'} `}
         onPress={() => setPickerVisible(true)}>
         <Text className={value ? 'text-text-dark' : 'text-gray-400'}>
           {value ? formatDisplayValue() : placeholder}
@@ -208,9 +204,7 @@ export function SelectField({
       </View>
 
       <TouchableOpacity
-        className={`h-12 flex-row items-center justify-between rounded-lg border px-3
-          ${error ? 'border-error' : 'border-gray-300'}
-        `}
+        className={`h-12 flex-row items-center justify-between rounded-lg border px-3 ${error ? 'border-error' : 'border-gray-300'} `}
         onPress={() => setIsOpen(!isOpen)}>
         <View className="flex-row items-center">
           {selectedOption?.icon && (

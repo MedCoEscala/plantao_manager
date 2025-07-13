@@ -13,9 +13,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import DateField from '../form/DateField';
-import Card from '../ui/Card';
-import SectionHeader from '../ui/SectionHeader';
 import {
   RecurrenceConfig,
   RecurrenceType,
@@ -26,6 +23,9 @@ import {
 import { cn } from '../../utils/cn';
 import { formatShiftDate, dateToLocalDateString } from '../../utils/formatters';
 import { RecurrenceCalculator } from '../../utils/recurrence';
+import DateField from '../form/DateField';
+import Card from '../ui/Card';
+import SectionHeader from '../ui/SectionHeader';
 
 interface RecurrenceSelectorProps {
   startDate: Date;

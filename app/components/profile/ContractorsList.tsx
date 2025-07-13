@@ -1,18 +1,23 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import React, { useState, useCallback, memo } from 'react';
 import { View, Text, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
 
+import { useDialog } from '../../contexts/DialogContext';
+import { useContractorsApi, Contractor } from '../../services/contractors-api';
 import { ContractorFormModal } from '../contractors/ContractorFormModal';
 import { useToast } from '../ui/Toast';
-import { useDialog } from '../../contexts/DialogContext';
-import { useContractorsSelector } from '../../hooks/useContractorsSelector';
-import { useContractorsApi, Contractor } from '../../services/contractors-api';
 
 interface ContractorsListProps {
   title?: string;
 }
 
 const ContractorsList: React.FC<ContractorsListProps> = memo(({ title = 'Contratantes' }) => {
+  // Estado local para contratantes e carregamento
+  const [contractors, setContractors] = useState<Contractor[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Modal e hooks de UI
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [selectedContractor, setSelectedContractor] = useState<Contractor | null>(null);
 
@@ -20,12 +25,26 @@ const ContractorsList: React.FC<ContractorsListProps> = memo(({ title = 'Contrat
   const { showToast } = useToast();
   const contractorsApi = useContractorsApi();
 
-  // Usando o hook de contratantes refatorado
-  const { contractors, isLoading, loadContractors } = useContractorsSelector();
+  // Função para carregar os contratantes
+  const loadContractors = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const data = await contractorsApi.getContractors();
+      setContractors(data);
+    } catch (error: any) {
+      console.error('Erro ao carregar contratantes:', error);
+      showToast('Não foi possível carregar os contratantes.', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []); // Remove contractorsApi e showToast das dependências
 
-  const handleRefresh = useCallback(() => {
-    loadContractors();
-  }, [loadContractors]);
+  // useFocusEffect para recarregar os dados quando a tela ganha foco
+  useFocusEffect(
+    useCallback(() => {
+      loadContractors();
+    }, [loadContractors])
+  );
 
   const handleAddContractor = useCallback(() => {
     setSelectedContractor(null);
@@ -47,7 +66,8 @@ const ContractorsList: React.FC<ContractorsListProps> = memo(({ title = 'Contrat
         onConfirm: async () => {
           try {
             await contractorsApi.deleteContractor(contractor.id);
-            handleRefresh();
+            // Atualiza a lista localmente para resposta imediata
+            setContractors((prev) => prev.filter((c) => c.id !== contractor.id));
             showToast('Contratante excluído com sucesso', 'success');
           } catch (error: any) {
             console.error('Erro ao excluir contratante:', error);
@@ -59,7 +79,7 @@ const ContractorsList: React.FC<ContractorsListProps> = memo(({ title = 'Contrat
         },
       });
     },
-    [contractorsApi, handleRefresh, showDialog, showToast]
+    [contractorsApi, showDialog, showToast]
   );
 
   const handleModalClose = useCallback(() => {
@@ -67,11 +87,12 @@ const ContractorsList: React.FC<ContractorsListProps> = memo(({ title = 'Contrat
     setSelectedContractor(null);
   }, []);
 
+  // Após sucesso no modal, recarrega a lista
   const handleModalSuccess = useCallback(() => {
     setIsModalVisible(false);
     setSelectedContractor(null);
-    handleRefresh();
-  }, [handleRefresh]);
+    loadContractors();
+  }, [loadContractors]);
 
   const renderContractorItem = useCallback(
     ({ item }: { item: Contractor }) => (
@@ -134,14 +155,14 @@ const ContractorsList: React.FC<ContractorsListProps> = memo(({ title = 'Contrat
   );
 
   return (
-    <View className="flex-1 rounded-lg bg-background-50 p-4">
+    <View className="bg-background-50 flex-1 rounded-lg p-4">
       <View className="mb-4 flex-row items-center justify-between">
         <Text className="text-lg font-bold text-text-dark">{title}</Text>
 
         <View className="flex-row">
           <TouchableOpacity
             className="mr-2 h-8 w-8 items-center justify-center rounded-full bg-background-100"
-            onPress={handleRefresh}
+            onPress={loadContractors}
             disabled={isLoading}>
             {isLoading ? (
               <ActivityIndicator size="small" color="#18cb96" />

@@ -114,7 +114,9 @@ export default function Logo({ size = 'md', animated = true, showText = true }: 
               },
             ],
           }}>
-          <Text className={`font-bold text-primary ${getTextClasses()} text-center`}>MEDScala</Text>
+          <Text className={`font-bold text-primary ${getTextClasses()} text-center`}>
+            MedEscala
+          </Text>
           <Text className="mt-1 text-center text-sm text-gray-600">
             {size === 'lg' ? 'Gerencie seus plantões com facilidade' : 'Gestão de plantões'}
           </Text>

@@ -2,9 +2,8 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 
 import LocationForm from './LocationForm';
-import FormModal from '../form/FormModal';
-
 import { useLocationsApi } from '../../services/locations-api';
+import FormModal from '../form/FormModal';
 
 interface LocationFormModalProps {
   visible: boolean;

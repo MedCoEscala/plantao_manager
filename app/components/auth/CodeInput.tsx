@@ -1,6 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { View, TextInput, Text, Animated, TouchableOpacity, StyleProp, ViewStyle, TextStyle } from 'react-native';
+import {
+  View,
+  TextInput,
+  Text,
+  Animated,
+  TouchableOpacity,
+  StyleProp,
+  ViewStyle,
+  TextStyle,
+} from 'react-native';
 
 interface CodeInputProps {
   length?: number;
@@ -150,8 +159,7 @@ export default function CodeInput({
     <View className="w-full" style={containerStyle}>
       <Animated.View
         className="flex-row justify-center gap-3"
-        style={{ transform: [{ translateX: shakeAnim }] }}
-      >
+        style={{ transform: [{ translateX: shakeAnim }] }}>
         {Array.from({ length }).map((_, index) => {
           const isFocused = focusedIndex === index;
           const hasValue = !!value[index];
@@ -168,8 +176,7 @@ export default function CodeInput({
                       ? 'border-green-500 bg-green-50'
                       : 'border-gray-300 bg-gray-50'
               }`}
-              style={[inputStyle, isFocused && focusedInputStyle]}
-            >
+              style={[inputStyle, isFocused && focusedInputStyle]}>
               <TextInput
                 ref={(ref) => {
                   inputRefs.current[index] = ref;
@@ -204,11 +211,8 @@ export default function CodeInput({
         <TouchableOpacity
           onPress={clearCode}
           className="mt-4 self-center rounded-xl bg-gray-100 px-4 py-2"
-          activeOpacity={0.7}
-        >
-          <Text className="text-sm font-medium text-gray-600">
-            Limpar código
-          </Text>
+          activeOpacity={0.7}>
+          <Text className="text-sm font-medium text-gray-600">Limpar código</Text>
         </TouchableOpacity>
       )}
     </View>

@@ -7,10 +7,9 @@ import LocationContractorSection from './ShiftFormSections/LocationContractorSec
 import NotesSection from './ShiftFormSections/NotesSection';
 import PaymentSection from './ShiftFormSections/PaymentSection';
 import ShiftSummary from './ShiftFormSections/ShiftSummary';
-
-import Button from '../ui/Button';
 import { useShiftForm } from '../../hooks/useShiftForm';
 import { Shift } from '../../services/shifts-api';
+import Button from '../ui/Button';
 
 interface ShiftFormProps {
   shiftId?: string;

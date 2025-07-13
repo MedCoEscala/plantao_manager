@@ -66,7 +66,7 @@ const calculatePasswordStrength = (password: string) => {
 const styles = StyleSheet.create({
   container: {
     width: '100%',
-    marginBottom: 20,
+    marginBottom: 16,
   },
   label: {
     fontSize: 15,
@@ -99,11 +99,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     color: '#1a1a1a',
-    paddingVertical: Platform.OS === 'android' ? 0 : 0,
+    paddingVertical: 0,
     minHeight: Platform.OS === 'android' ? 52 : 48,
-    textAlignVertical: Platform.OS === 'android' ? 'center' : 'center',
+    textAlignVertical: 'center',
     includeFontPadding: Platform.OS === 'android' ? false : undefined,
-    lineHeight: Platform.OS === 'android' ? 20 : 20,
+    lineHeight: 20,
     marginRight: 8,
   },
   rightIconTouchable: {
@@ -246,13 +246,18 @@ export default function AuthInput({
       )}
       <View style={inputStyles}>
         {leftIcon && (
-          <Ionicons name={leftIcon as any} size={20} color={error ? '#FF3B30' : isFocused ? '#18cb96' : '#6B7280'} style={styles.leftIcon} />
+          <Ionicons
+            name={leftIcon as any}
+            size={20}
+            color={error ? '#FF3B30' : isFocused ? '#18cb96' : '#6B7280'}
+            style={styles.leftIcon}
+          />
         )}
         <TextInput
           ref={inputRef}
           style={styles.textInput}
           placeholder={placeholder}
-          placeholderTextColor={'#9CA3AF'}
+          placeholderTextColor="#9CA3AF"
           value={value}
           onChangeText={onChangeText}
           onFocus={() => setIsFocused(true)}
@@ -269,7 +274,11 @@ export default function AuthInput({
             onPress={finalRightIconPress}
             disabled={!finalRightIconPress || disabled}
             activeOpacity={0.7}>
-            <Ionicons name={finalRightIcon as any} size={20} color={error ? '#FF3B30' : isFocused ? '#18cb96' : '#6B7280'} />
+            <Ionicons
+              name={finalRightIcon as any}
+              size={20}
+              color={error ? '#FF3B30' : isFocused ? '#18cb96' : '#6B7280'}
+            />
           </TouchableOpacity>
         )}
       </View>

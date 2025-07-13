@@ -1,9 +1,9 @@
 import React, { memo } from 'react';
 import { View, Text } from 'react-native';
 
+import { formatCurrency, formatShiftDate, dateToLocalTimeString } from '../../../utils/formatters';
 import Card from '../../ui/Card';
 import SectionHeader from '../../ui/SectionHeader';
-import { formatCurrency, formatShiftDate, dateToLocalTimeString } from '../../../utils/formatters';
 
 interface ShiftSummaryProps {
   date: Date;

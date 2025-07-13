@@ -119,7 +119,7 @@ console.log('✅ Global CSS criado/atualizado');
 const appJsonPath = 'app.json';
 if (fs.existsSync(appJsonPath)) {
   const appJson = JSON.parse(fs.readFileSync(appJsonPath, 'utf8'));
-  
+
   // Adicionar configurações específicas para NativeWind em produção
   if (!appJson.expo.experiments) {
     appJson.expo.experiments = {};
@@ -132,7 +132,7 @@ if (fs.existsSync(appJsonPath)) {
   }
 
   // Remover plugin NativeWind se existir (pode causar conflitos)
-  appJson.expo.plugins = appJson.expo.plugins.filter(plugin => {
+  appJson.expo.plugins = appJson.expo.plugins.filter((plugin) => {
     if (typeof plugin === 'string') {
       return plugin !== 'nativewind/expo';
     }
@@ -150,10 +150,10 @@ if (fs.existsSync(appJsonPath)) {
 const packageJsonPath = 'package.json';
 if (fs.existsSync(packageJsonPath)) {
   const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
-  
+
   console.log('\n📦 DEPENDÊNCIAS VERIFICADAS:');
   const requiredDeps = ['nativewind', 'tailwindcss'];
-  requiredDeps.forEach(dep => {
+  requiredDeps.forEach((dep) => {
     if (packageJson.dependencies && packageJson.dependencies[dep]) {
       console.log(`   ✅ ${dep}: ${packageJson.dependencies[dep]}`);
     } else {
@@ -181,4 +181,4 @@ console.log('- Estilos não aplicados em APK/AAB');
 console.log('- Classes CSS não carregadas em produção');
 console.log('- Diferenças entre Expo Go vs standalone builds');
 
-console.log('\n🎉 Correção para produção Play Store concluída!'); 
+console.log('\n🎉 Correção para produção Play Store concluída!');

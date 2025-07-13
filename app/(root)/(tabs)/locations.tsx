@@ -10,10 +10,13 @@ import {
   ActivityIndicator,
   TextInput,
   Animated,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { LocationFormModal } from '../../components/ui';
+import FloatingButton from '../../components/ui/FloatingButton';
+import ScreenWrapper from '../../components/ui/ScreenWrapper';
 import { useToast } from '../../components/ui/Toast';
 import { useDialog } from '../../contexts/DialogContext';
 import { useLocationsApi, Location, LocationsFilters } from '../../services/locations-api';
@@ -263,11 +266,9 @@ const LocationsScreen = () => {
   );
 
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={['top']}>
-      <StatusBar style="dark" />
-
+    <ScreenWrapper className="flex-1 bg-background">
       {/* Header */}
-      <View className="z-10 border-b border-background-300 bg-white px-4 py-3">
+      <View className="z-10 bg-white px-4 py-3">
         <View className="flex-row items-center justify-between">
           <Text className="text-xl font-bold text-text-dark">Meus Locais</Text>
 
@@ -376,13 +377,7 @@ const LocationsScreen = () => {
         </View>
       )}
 
-      <TouchableOpacity
-        className="absolute bottom-6 right-6 h-14 w-14 items-center justify-center rounded-full bg-primary shadow-lg"
-        style={{ elevation: 4 }}
-        activeOpacity={0.9}
-        onPress={handleAddLocation}>
-        <Ionicons name="add" size={28} color="#FFFFFF" />
-      </TouchableOpacity>
+      <FloatingButton onPress={handleAddLocation} />
 
       <LocationFormModal
         visible={isAddModalVisible}
@@ -390,7 +385,7 @@ const LocationsScreen = () => {
         locationId={selectedLocation?.id}
         onSuccess={handleModalSuccess}
       />
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 };
 

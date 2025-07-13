@@ -1,6 +1,7 @@
+import { Alert } from 'react-native';
+
 import database from '../database';
 import { Tables } from '../database/schema';
-import { Alert } from 'react-native';
 
 // Função para exibir alertas com os dados do banco de dados
 // Útil para debugging e suporte

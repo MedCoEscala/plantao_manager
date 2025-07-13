@@ -1,10 +1,10 @@
 import React, { memo } from 'react';
 
+import { useContractors } from '../../../contexts/ContractorsContext';
+import { useLocations } from '../../../contexts/LocationsContext';
 import SelectField from '../../form/SelectField';
 import Card from '../../ui/Card';
 import SectionHeader from '../../ui/SectionHeader';
-import { useContractors } from '../../../contexts/ContractorsContext';
-import { useLocations } from '../../../contexts/LocationsContext';
 
 interface LocationContractorSectionProps {
   locationId: string;

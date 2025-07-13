@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
+const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
 
 console.log('🚀 Migrando para NativeWind v4 (solução definitiva para builds de produção)...\n');
 
@@ -13,12 +13,7 @@ if (!fs.existsSync(backupDir)) {
   fs.mkdirSync(backupDir);
 }
 
-const filesToBackup = [
-  'tailwind.config.js',
-  'metro.config.js',
-  'babel.config.js',
-  'app.json',
-];
+const filesToBackup = ['tailwind.config.js', 'metro.config.js', 'babel.config.js', 'app.json'];
 
 filesToBackup.forEach((file) => {
   const sourcePath = path.join(__dirname, '..', file);
@@ -34,13 +29,13 @@ console.log('\n📦 Atualizando dependências...');
 try {
   console.log('🔄 Removendo NativeWind v2...');
   execSync('npm uninstall nativewind', { stdio: 'inherit' });
-  
+
   console.log('🔄 Instalando NativeWind v4...');
   execSync('npm install nativewind@^4.0.1', { stdio: 'inherit' });
-  
+
   console.log('🔄 Atualizando TailwindCSS...');
   execSync('npm install --save-dev tailwindcss@^3.4.0', { stdio: 'inherit' });
-  
+
   console.log('✅ Dependências atualizadas');
 } catch (error) {
   console.error('❌ Erro ao atualizar dependências:', error.message);
@@ -171,23 +166,26 @@ console.log('\n⚙️  Atualizando app/_layout.tsx para v4...');
 const layoutPath = path.join(__dirname, '..', 'app', '_layout.tsx');
 if (fs.existsSync(layoutPath)) {
   let layoutContent = fs.readFileSync(layoutPath, 'utf8');
-  
+
   // Remover import do CSS nativo (v4 não precisa)
-  layoutContent = layoutContent.replace(/import ['"]\.\/styles\/global\.css\.native\.css['"];?\n?/g, '');
-  
+  layoutContent = layoutContent.replace(
+    /import ['"]\.\/styles\/global\.css\.native\.css['"];?\n?/g,
+    ''
+  );
+
   // Adicionar import do CSS original (v4 processa automaticamente)
   if (!layoutContent.includes("import './styles/global.css'")) {
     // Adicionar após os imports existentes
     const importIndex = layoutContent.lastIndexOf('import ');
     if (importIndex !== -1) {
       const endOfImport = layoutContent.indexOf('\n', importIndex);
-      layoutContent = 
-        layoutContent.slice(0, endOfImport + 1) + 
-        "import './styles/global.css';\n" + 
+      layoutContent =
+        layoutContent.slice(0, endOfImport + 1) +
+        "import './styles/global.css';\n" +
         layoutContent.slice(endOfImport + 1);
     }
   }
-  
+
   fs.writeFileSync(layoutPath, layoutContent);
   console.log('✅ app/_layout.tsx atualizado para v4');
 }
@@ -208,4 +206,4 @@ console.log('4. NativeWind v4 é MUITO mais estável para produção!');
 console.log('\n💾 Backup das configurações v2 salvo em: ./backup-nativewind-v2/');
 console.log('⚠️  Se algo der errado, você pode restaurar de lá.');
 
-console.log('\n✨ NativeWind v4 resolve definitivamente os problemas de CSS em produção!'); 
+console.log('\n✨ NativeWind v4 resolve definitivamente os problemas de CSS em produção!');

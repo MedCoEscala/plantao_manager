@@ -1,9 +1,10 @@
-import { ConflictData } from '../services/sync/syncManager';
 import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import React, { useState } from 'react';
 import { Modal, View, Text, TouchableOpacity, ScrollView } from 'react-native';
+
+import { ConflictData } from '../services/sync/syncManager';
 
 interface SyncConflictModalProps {
   visible: boolean;
@@ -147,7 +148,7 @@ const SyncConflictModal: React.FC<SyncConflictModalProps> = ({
         <View className="flex-row justify-between">
           <View className="mr-2 flex-1">
             <Text className="mb-1 text-xs text-gray-500">Versão Local</Text>
-            <View className="rounded-md bg-primary-50 p-2">
+            <View className="bg-primary-50 rounded-md p-2">
               <Text className="text-sm text-text-dark">{formatValue(localValue)}</Text>
             </View>
           </View>

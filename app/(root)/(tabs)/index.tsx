@@ -20,6 +20,8 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Button, useNotification } from '../../components';
 import CalendarComponent from '../../components/CalendarComponent';
 import ShiftFormModal from '../../components/shifts/ShiftFormModal';
+import FloatingButton from '../../components/ui/FloatingButton';
+import ScreenWrapper from '../../components/ui/ScreenWrapper';
 import { useDialog } from '../../contexts/DialogContext';
 import { useProfile } from '../../hooks/useProfile';
 import { useShiftsApi, Shift } from '../../services/shifts-api';
@@ -86,8 +88,6 @@ export default function ShiftsScreen() {
 
         const formattedStartDate = format(firstDay, 'yyyy-MM-dd');
         const formattedEndDate = format(lastDay, 'yyyy-MM-dd');
-
-        console.log(`Buscando plantões de ${formattedStartDate} até ${formattedEndDate}`);
 
         const data = await shiftsApi.getShifts({
           startDate: formattedStartDate,
@@ -380,34 +380,40 @@ export default function ShiftsScreen() {
 
   const getFloatingButtonPosition = () => {
     if (Platform.OS === 'android') {
+      const tabBarHeight = 60;
+      const navigationBarHeight = Math.max(insets.bottom, 10);
+      const spacing = 20;
+
       return {
-        bottom: Math.max(insets.bottom + 20, 36), // 20px acima da navigation bar
+        bottom: tabBarHeight + navigationBarHeight + spacing,
+        right: 24,
+        elevation: 8,
+        zIndex: 1000,
       };
     }
-    return { bottom: 24 }; // iOS padrão
+    return {
+      bottom: 60 + insets.bottom + 24,
+      right: 24,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
+    };
   };
 
   const getContentPadding = () => {
     if (Platform.OS === 'android') {
-      // Padding para compensar tab bar + navigation bar
-      return Math.max(insets.bottom + 80, 100);
+      const tabBarHeight = 60;
+      const navigationBarHeight = Math.max(insets.bottom, 10);
+      const fabSpace = 80;
+      return tabBarHeight + navigationBarHeight + fabSpace;
     }
-    return 80; // iOS padrão
+    return 80 + insets.bottom;
   };
 
-  if (isProfileLoading) {
-    return (
-      <View className="flex-1 items-center justify-center bg-background">
-        <ActivityIndicator size="large" color="#18cb96" />
-      </View>
-    );
-  }
-
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={Platform.OS === 'ios' ? ['top'] : []}>
-      <StatusBar style="dark" />
-
-      <View className="border-b border-background-300 bg-white">
+    <ScreenWrapper className="flex-1 bg-background">
+      <View className="bg-white">
         <View className="flex-row items-center justify-between px-4 py-2">
           <View>
             <Text className="text-xl font-bold text-text-dark">{userName}</Text>
@@ -474,16 +480,7 @@ export default function ShiftsScreen() {
         />
       )}
 
-      <TouchableOpacity
-        className="absolute right-6 h-14 w-14 items-center justify-center rounded-full bg-primary shadow-lg"
-        style={{
-          elevation: 4,
-          ...getFloatingButtonPosition(),
-        }}
-        activeOpacity={0.9}
-        onPress={navigateToAddShift}>
-        <Ionicons name="add" size={28} color="#FFFFFF" />
-      </TouchableOpacity>
+      <FloatingButton onPress={navigateToAddShift} />
       {/* Logout Button */}
 
       <ShiftFormModal
@@ -492,6 +489,6 @@ export default function ShiftsScreen() {
         initialDate={modalInitialDate}
         onSuccess={handleAddSuccess}
       />
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 }

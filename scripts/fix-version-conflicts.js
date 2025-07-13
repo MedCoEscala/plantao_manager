@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
+const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
 
 console.log('🔧 Corrigindo conflitos de versão que causam problemas de styling...\n');
 
@@ -25,16 +25,16 @@ console.log(`   - PostCSS: ${pkg.dependencies.postcss} (OUTDATED)`);
 // 3. Versões estáveis testadas
 const stableVersions = {
   dependencies: {
-    'react': '18.2.0',
+    react: '18.2.0',
     'react-dom': '18.2.0',
     'react-native': '^0.79.5', // Manter compatível com Expo SDK 53
-    'postcss': '^8.4.31',
-    'autoprefixer': '^10.4.16',
+    postcss: '^8.4.31',
+    autoprefixer: '^10.4.16',
   },
   devDependencies: {
-    'tailwindcss': '^3.4.0',
+    tailwindcss: '^3.4.0',
     '@types/react': '~18.2.79',
-  }
+  },
 };
 
 console.log('\n✅ Atualizando para versões estáveis:');
@@ -67,14 +67,14 @@ try {
 // 6. Reinstalar dependências
 console.log('\n📦 Reinstalando dependências com versões estáveis...');
 try {
-  execSync('npm install', { 
+  execSync('npm install', {
     cwd: path.join(__dirname, '..'),
-    stdio: 'inherit' 
+    stdio: 'inherit',
   });
   console.log('✅ Dependências reinstaladas');
 } catch (error) {
   console.error('❌ Erro ao reinstalar dependências:', error.message);
-  
+
   // Restaurar backup
   console.log('🔄 Restaurando package.json original...');
   fs.copyFileSync(backupPath, packageJsonPath);
@@ -107,4 +107,4 @@ console.log('   ✅ TailwindCSS 3.4.0 resolve problemas de PostCSS');
 console.log('   ✅ Esta combinação é testada e estável');
 
 console.log('\n🔄 Se algo der errado:');
-console.log('   cp package.json.backup package.json && npm install'); 
+console.log('   cp package.json.backup package.json && npm install');

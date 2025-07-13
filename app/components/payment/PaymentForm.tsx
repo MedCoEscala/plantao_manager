@@ -2,14 +2,14 @@ import { format } from 'date-fns';
 import React, { useState, useEffect, useCallback } from 'react';
 import { View } from 'react-native';
 
+import { usePaymentsApi } from '../../services/payments-api';
+import { useShiftsApi } from '../../services/shifts-api';
 import DateField from '../form/DateField';
 import SelectField from '../form/SelectField';
 import SwitchField from '../form/SwitchField';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import { useToast } from '../ui/Toast';
-import { usePaymentsApi } from '../../services/payments-api';
-import { useShiftsApi } from '../../services/shifts-api';
 
 const PAYMENT_METHODS = [
   { value: 'pix', label: 'PIX', icon: 'cash-outline' },

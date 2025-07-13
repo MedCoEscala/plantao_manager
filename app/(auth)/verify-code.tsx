@@ -16,10 +16,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import Logo from '../components/auth/Logo';
-
 import AuthButton from '../components/auth/AuthButton';
 import CodeInput from '../components/auth/CodeInput';
+import Logo from '../components/auth/Logo';
 import { useToast } from '../components/ui/Toast';
 import { useProfileContext } from '../contexts/ProfileContext';
 import apiClient from '../lib/axios';
@@ -362,14 +361,21 @@ export default function VerifyCodeScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1" edges={Platform.OS === 'ios' ? ['top'] : []}>
-      <StatusBar style="dark" translucent={Platform.OS === 'android'} />
+    <SafeAreaView className="flex-1" edges={Platform.OS === 'ios' ? ['top'] : ['top', 'bottom']}>
+      <StatusBar
+        style="dark"
+        backgroundColor={Platform.OS === 'android' ? '#f8f9fb' : 'transparent'}
+        translucent={Platform.OS === 'android'}
+      />
 
       <LinearGradient
         colors={['#f8f9fb', '#e8eef7', '#f1f5f9']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         className="absolute inset-0"
+        style={{
+          top: 0,
+        }}
       />
 
       <KeyboardAvoidingView
@@ -380,7 +386,7 @@ export default function VerifyCodeScreen() {
         <View className="flex-row items-center justify-between px-5 pt-4">
           <TouchableOpacity
             onPress={() => router.back()}
-            className="h-12 w-12 items-center justify-center rounded-full bg-white/80 border border-gray-200"
+            className="h-12 w-12 items-center justify-center rounded-full border border-gray-200 bg-white/80"
             style={{
               shadowColor: '#000',
               shadowOffset: { width: 0, height: 2 },
@@ -434,8 +440,7 @@ export default function VerifyCodeScreen() {
               shadowOpacity: 0.15,
               shadowRadius: 16,
               elevation: 12,
-            }}
-          >
+            }}>
             <View className="mb-6 items-center">
               <Text className="text-center text-2xl font-bold tracking-tight text-gray-900">
                 Código de Verificação
@@ -466,7 +471,10 @@ export default function VerifyCodeScreen() {
               {countdown > 0 ? (
                 <Text className="text-base text-gray-500">Enviar novamente em {countdown}s</Text>
               ) : (
-                <TouchableOpacity onPress={handleResendCode} disabled={resendLoading} className="py-3">
+                <TouchableOpacity
+                  onPress={handleResendCode}
+                  disabled={resendLoading}
+                  className="py-3">
                   <Text className="text-base font-semibold text-primary">
                     {resendLoading ? 'Enviando...' : 'Reenviar código'}
                   </Text>

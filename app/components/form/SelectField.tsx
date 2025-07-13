@@ -51,9 +51,7 @@ export function SelectField({
       required={required}
       className={className}>
       <TouchableOpacity
-        className={`h-12 flex-row items-center justify-between rounded-lg border px-3
-          ${error ? 'border-error' : 'border-gray-300'}
-        `}
+        className={`h-12 flex-row items-center justify-between rounded-lg border px-3 ${error ? 'border-error' : 'border-gray-300'} `}
         onPress={() => setIsOpen(!isOpen)}
         disabled={isLoading}>
         <View className="flex-row items-center">

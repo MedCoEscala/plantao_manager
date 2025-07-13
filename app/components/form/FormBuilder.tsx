@@ -16,8 +16,8 @@ import {
   TextInputProps,
 } from 'react-native';
 
-import Button from '../ui/Button';
 import { useDialog } from '../../contexts/DialogContext';
+import Button from '../ui/Button';
 
 // Tipo para definição de um campo de formulário
 export interface FormField {
@@ -643,8 +643,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9', // border-gray-100
+    borderBottomWidth: 0,
   },
   optionIcon: {
     marginRight: 8,

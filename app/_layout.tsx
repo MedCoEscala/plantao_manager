@@ -15,10 +15,8 @@ import { LocationsProvider } from './contexts/LocationsContext';
 import { NotificationProvider } from './contexts/NotificationContext';
 import { ProfileProvider } from './contexts/ProfileContext';
 import { useNotifications } from './hooks/useNotifications';
-
-
-
-
+import { StatusBar } from 'expo-status-bar';
+import { initialWindowMetrics, SafeAreaProvider } from 'react-native-safe-area-context';
 
 LogBox.ignoreLogs(['Constants.platform.ios.model has been deprecated in favor of expo-device']);
 
@@ -40,10 +38,8 @@ const tokenCache = {
   },
 };
 
-// PROTEÇÃO CONTRA CRASH: Verificação segura da chave do Clerk
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
 
-// Componente de erro para chave ausente (sem crash)
 function ClerkKeyMissingError() {
   return (
     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
@@ -60,16 +56,13 @@ function ClerkKeyMissingError() {
   );
 }
 
-SplashScreen.preventAutoHideAsync().catch(() => {
-  /* ignore error */
-});
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 function RootLayoutNav() {
   const { isLoaded, isSignedIn } = useAuth();
   const router = useRouter();
   const [appIsReady, setAppIsReady] = useState(false);
-  
-  // Inicializar notificações dentro do ClerkProvider
+
   useNotifications();
   const [fontsLoaded, fontError] = useFonts({
     'Jakarta-Bold': require('../assets/fonts/PlusJakartaSans-Bold.ttf'),
@@ -123,41 +116,57 @@ function RootLayoutNav() {
   }
 
   return (
-    <NotificationProvider>
-      <DialogProvider>
-        <ProfileProvider>
-          <LocationsProvider>
-            <ContractorsProvider>
-              <Stack>
-                <Stack.Screen name="(root)" options={{ headerShown: false }} />
-                <Stack.Screen
-                  name="(auth)"
-                  options={{ presentation: 'modal', headerShown: false }}
-                />
-              </Stack>
-            </ContractorsProvider>
-          </LocationsProvider>
-        </ProfileProvider>
-      </DialogProvider>
-    </NotificationProvider>
+    <>
+      <StatusBar
+        style="dark"
+        backgroundColor={Platform.OS === 'android' ? '#f8fafc' : 'transparent'}
+        translucent={Platform.OS === 'android'}
+      />
+      <NotificationProvider>
+        <DialogProvider>
+          <ProfileProvider>
+            <LocationsProvider>
+              <ContractorsProvider>
+                <Stack
+                  screenOptions={{
+                    headerShown: false,
+                    contentStyle: { backgroundColor: '#f8fafc' },
+                    animation: 'fade_from_bottom',
+                  }}>
+                  <Stack.Screen name="(root)" options={{ headerShown: false }} />
+                  <Stack.Screen
+                    name="(auth)"
+                    options={{ presentation: 'modal', headerShown: false }}
+                  />
+                </Stack>
+              </ContractorsProvider>
+            </LocationsProvider>
+          </ProfileProvider>
+        </DialogProvider>
+      </NotificationProvider>
+    </>
   );
 }
 
 export default function RootLayout() {
-  // PROTEÇÃO CRÍTICA: Se não tem chave do Clerk, exibe erro sem crash
+  const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
   if (!publishableKey) {
     return (
       <GestureHandlerRootView style={{ flex: 1 }}>
-        <ClerkKeyMissingError />
+        <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+          <ClerkKeyMissingError />
+        </SafeAreaProvider>
       </GestureHandlerRootView>
     );
   }
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#f8fafc' }}>
-      <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
-        <RootLayoutNav />
-      </ClerkProvider>
+      <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+        <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
+          <RootLayoutNav />
+        </ClerkProvider>
+      </SafeAreaProvider>
     </GestureHandlerRootView>
-      );
-  }
+  );
+}
