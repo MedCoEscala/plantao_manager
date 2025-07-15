@@ -1,3 +1,5 @@
+// app/components/form/FormModal.tsx (versão corrigida e definitiva)
+
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState, useEffect, ReactNode } from 'react';
 import {
@@ -11,6 +13,7 @@ import {
   Dimensions,
   TouchableWithoutFeedback,
   StyleSheet,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -25,10 +28,6 @@ interface FormModalProps {
   fullHeight?: boolean;
 }
 
-/**
- * Componente padrão para modais de formulário
- * Fornece uma experiência consistente para todos os formulários modais
- */
 const FormModal: React.FC<FormModalProps> = ({
   visible,
   onClose,
@@ -38,9 +37,8 @@ const FormModal: React.FC<FormModalProps> = ({
   fullHeight = false,
 }) => {
   const insets = useSafeAreaInsets();
-  const [animatedValue] = useState(new Animated.Value(0));
+  const animatedValue = new Animated.Value(0);
 
-  // Calcular altura do modal considerando safe areas
   const MODAL_HEIGHT = fullHeight ? SCREEN_HEIGHT - insets.top - 20 : SCREEN_HEIGHT * height;
 
   useEffect(() => {
@@ -74,108 +72,89 @@ const FormModal: React.FC<FormModalProps> = ({
       toValue: 0,
       duration: 300,
       useNativeDriver: true,
-    }).start(() => {
-      onClose();
-    });
+    }).start(onClose);
   };
 
   if (!visible) return null;
 
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={handleClose}>
-      <TouchableWithoutFeedback onPress={handleClose}>
-        <Animated.View
-          style={[
-            styles.backdrop,
-            {
-              opacity: backdropOpacity,
-            },
-          ]}
-        />
-      </TouchableWithoutFeedback>
+      {/* O KeyboardAvoidingView deve ser o container principal */}
+      <KeyboardAvoidingView
+        style={styles.flexOne}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        enabled>
+        {/* Backdrop para fechar o modal */}
+        <TouchableWithoutFeedback onPress={handleClose}>
+          <View style={styles.backdrop} />
+        </TouchableWithoutFeedback>
 
-      <View style={styles.container}>
-        <Animated.View
-          style={[
-            styles.modalContainer,
-            {
-              transform: [{ translateY }],
-              height: MODAL_HEIGHT,
-              maxHeight: SCREEN_HEIGHT - insets.top - 20,
-              marginTop: insets.top + 20,
-            },
-          ]}>
-          {/* Header fixo */}
-          <View style={styles.header}>
-            <View style={styles.headerContent}>
+        {/* Container que posiciona o modal na base */}
+        <View style={styles.container} pointerEvents="box-none">
+          <Animated.View
+            style={[
+              styles.modalView,
+              {
+                transform: [{ translateY }],
+                maxHeight: MODAL_HEIGHT,
+                paddingBottom: insets.bottom,
+              },
+            ]}>
+            {/* Header Fixo */}
+            <View style={styles.header}>
               <Text style={styles.headerTitle}>{title}</Text>
-              <TouchableOpacity
-                style={styles.closeButton}
-                onPress={handleClose}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
                 <Ionicons name="close" size={24} color="#64748b" />
               </TouchableOpacity>
             </View>
-          </View>
 
-          {/* Conteúdo com scroll */}
-          <ScrollView
-            style={styles.scrollView}
-            contentContainerStyle={[
-              styles.scrollViewContent,
-              { paddingBottom: insets.bottom + 20 },
-            ]}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-            bounces={false}>
-            {children}
-          </ScrollView>
-        </Animated.View>
-      </View>
+            {/* Conteúdo com Rolagem */}
+            <ScrollView
+              style={styles.scrollView}
+              contentContainerStyle={styles.scrollContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+              bounces={false}>
+              {children}
+            </ScrollView>
+          </Animated.View>
+        </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };
 
 const styles = StyleSheet.create({
+  flexOne: {
+    flex: 1,
+  },
   backdrop: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#000',
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   container: {
     flex: 1,
-    justifyContent: 'flex-end',
+    justifyContent: 'flex-end', // Mantém o modal na base
   },
-  modalContainer: {
-    width: '100%',
+  modalView: {
     backgroundColor: 'white',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: -2,
-    },
+    shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 10,
+    overflow: 'hidden',
   },
   header: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: '#ffffff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-  },
-  headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
   },
   headerTitle: {
     fontSize: 18,
@@ -186,12 +165,11 @@ const styles = StyleSheet.create({
   closeButton: {
     padding: 4,
     borderRadius: 8,
-    backgroundColor: '#f8fafc',
   },
   scrollView: {
-    flex: 1,
+    // A altura será gerenciada pelo container flexível
   },
-  scrollViewContent: {
+  scrollContent: {
     padding: 20,
   },
 });

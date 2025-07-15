@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, ActivityIndicator } from 'react-native';
 
 import { useContractorsApi } from '../../services/contractors-api';
 import Button from '../ui/Button';
@@ -128,11 +128,7 @@ export default function ContractorForm({ contractorId, onSuccess, onCancel }: Co
   }
 
   return (
-    <ScrollView
-      className="flex-1"
-      showsVerticalScrollIndicator={false}
-      keyboardShouldPersistTaps="handled"
-      contentContainerStyle={{ flexGrow: 1 }}>
+    <View style={{ flex: 1 }}>
       <View className="space-y-4">
         <Input
           label="Nome do Contratante"
@@ -192,6 +188,6 @@ export default function ContractorForm({ contractorId, onSuccess, onCancel }: Co
           </Button>
         </View>
       </View>
-    </ScrollView>
+    </View>
   );
 }
