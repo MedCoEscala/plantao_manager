@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 
 import ContractorForm from './ContractorForm';
-import FormModal from '../form/FormModal';
+import KeyboardAwareFormModal from '../form/KeyboardAwareFormModal';
 
 interface ContractorFormModalProps {
   visible: boolean;
@@ -16,19 +16,18 @@ export const ContractorFormModal: React.FC<ContractorFormModalProps> = ({
   contractorId,
   onSuccess,
 }) => {
-  const handleSuccess = () => {
-    if (onSuccess) {
-      onSuccess();
-    }
-  };
+  const handleSuccess = useCallback(() => {
+    onSuccess?.();
+    onClose();
+  }, [onSuccess, onClose]);
 
   return (
-    <FormModal
+    <KeyboardAwareFormModal
       visible={visible}
       onClose={onClose}
       title={contractorId ? 'Editar Contratante' : 'Novo Contratante'}>
       <ContractorForm contractorId={contractorId} onSuccess={handleSuccess} onCancel={onClose} />
-    </FormModal>
+    </KeyboardAwareFormModal>
   );
 };
 

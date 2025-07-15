@@ -1,7 +1,7 @@
 import React from 'react';
 
 import PaymentForm from './PaymentForm';
-import FormModal from '../form/FormModal';
+import KeyboardAwareFormModal from '../form/KeyboardAwareFormModal';
 
 interface PaymentFormModalProps {
   visible: boolean;
@@ -22,10 +22,11 @@ const PaymentFormModal: React.FC<PaymentFormModalProps> = ({
     if (onSuccess) {
       onSuccess();
     }
+    onClose();
   };
 
   return (
-    <FormModal
+    <KeyboardAwareFormModal
       visible={visible}
       onClose={onClose}
       title={paymentId ? 'Editar Pagamento' : 'Novo Pagamento'}>
@@ -35,7 +36,7 @@ const PaymentFormModal: React.FC<PaymentFormModalProps> = ({
         onSuccess={handleSuccess}
         onCancel={onClose}
       />
-    </FormModal>
+    </KeyboardAwareFormModal>
   );
 };
 

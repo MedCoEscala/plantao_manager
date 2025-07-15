@@ -40,45 +40,45 @@ export function LocationsProvider({ children }: { children: React.ReactNode }) {
 
   const hasInitialized = useRef(false);
 
-  const fetchLocations = useCallback(async (): Promise<void> => {
-    // Só busca se o profile estiver inicializado
-    if (!isAuthLoaded || !userId || !isProfileInitialized) {
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      const token = await getToken();
-      if (!token) {
-        // PROTEÇÃO: Log do erro mas não crashar
-        console.warn('Token não disponível para LocationsContext');
-        setError('Erro de autenticação. Faça logout e login novamente.');
+  const fetchLocations = useCallback(
+    async (showLoadingState = true): Promise<void> => {
+      // Só busca se o profile estiver inicializado
+      if (!isAuthLoaded || !userId || !isProfileInitialized) {
+        setIsLoading(false);
         return;
       }
 
-      setIsLoading(true);
-      setError(null);
+      try {
+        if (showLoadingState) {
+          setIsLoading(true);
+        }
+        setError(null);
 
-      const data = await fetchWithAuth<Location[]>(
-        '/locations',
-        { method: 'GET' },
-        async () => token
-      );
+        const token = await getToken();
+        if (!token) {
+          console.warn('Token não disponível para buscar locais');
+          throw new Error('AUTH_TOKEN_UNAVAILABLE');
+        }
 
-      setLocations(data || []);
-    } catch (error: any) {
-      const errorMessage =
-        error?.response?.data?.message || error?.message || 'Erro ao carregar locais';
-      setError(errorMessage);
+        const data = await fetchWithAuth<Location[]>('/locations', {}, async () => token);
 
-      // Não mostrar toast se for erro de autenticação (ainda inicializando)
-      if (!error?.message?.includes('não autenticado')) {
-        showToast('Erro ao carregar locais', 'error');
+        // Ordenar por nome para consistência
+        const sortedLocations = data.sort((a, b) => a.name.localeCompare(b.name));
+        setLocations(sortedLocations);
+      } catch (error: any) {
+        console.error('Erro ao buscar locais:', error);
+        setError('Erro ao carregar locais');
+        if (error.message !== 'AUTH_TOKEN_UNAVAILABLE') {
+          showToast('Erro ao carregar locais', 'error');
+        }
+      } finally {
+        if (showLoadingState) {
+          setIsLoading(false);
+        }
       }
-    } finally {
-      setIsLoading(false);
-    }
-  }, [isAuthLoaded, userId, isProfileInitialized, getToken, showToast]);
+    },
+    [getToken, isAuthLoaded, userId, isProfileInitialized, showToast]
+  );
 
   const addLocation = useCallback(
     async (locationData: Omit<Location, 'id' | 'createdAt' | 'updatedAt'>): Promise<void> => {
@@ -100,8 +100,18 @@ export function LocationsProvider({ children }: { children: React.ReactNode }) {
           async () => token
         );
 
-        setLocations((prev) => [...prev, newLocation]);
+        // Atualizar o estado local imediatamente
+        setLocations((prev) => {
+          const updated = [...prev, newLocation];
+          return updated.sort((a, b) => a.name.localeCompare(b.name));
+        });
+
         showToast('Local adicionado com sucesso', 'success');
+
+        // Recarregar dados para garantir sincronização
+        setTimeout(() => {
+          fetchLocations(false);
+        }, 500);
       } catch (error: any) {
         console.error('Erro ao adicionar local:', error);
         const errorMessage = error?.response?.data?.message || 'Erro ao adicionar local';
@@ -109,7 +119,7 @@ export function LocationsProvider({ children }: { children: React.ReactNode }) {
         throw error;
       }
     },
-    [getToken, showToast]
+    [getToken, showToast, fetchLocations]
   );
 
   const updateLocation = useCallback(
@@ -132,8 +142,18 @@ export function LocationsProvider({ children }: { children: React.ReactNode }) {
           async () => token
         );
 
-        setLocations((prev) => prev.map((l) => (l.id === id ? updatedLocation : l)));
+        // Atualizar o estado local imediatamente
+        setLocations((prev) => {
+          const updated = prev.map((l) => (l.id === id ? updatedLocation : l));
+          return updated.sort((a, b) => a.name.localeCompare(b.name));
+        });
+
         showToast('Local atualizado com sucesso', 'success');
+
+        // Recarregar dados para garantir sincronização
+        setTimeout(() => {
+          fetchLocations(false);
+        }, 500);
       } catch (error: any) {
         console.error('Erro ao atualizar local:', error);
         const errorMessage = error?.response?.data?.message || 'Erro ao atualizar local';
@@ -141,7 +161,7 @@ export function LocationsProvider({ children }: { children: React.ReactNode }) {
         throw error;
       }
     },
-    [getToken, showToast]
+    [getToken, showToast, fetchLocations]
   );
 
   const deleteLocation = useCallback(
@@ -157,8 +177,15 @@ export function LocationsProvider({ children }: { children: React.ReactNode }) {
 
         await fetchWithAuth(`/locations/${id}`, { method: 'DELETE' }, async () => token);
 
+        // Atualizar o estado local imediatamente
         setLocations((prev) => prev.filter((l) => l.id !== id));
+
         showToast('Local removido com sucesso', 'success');
+
+        // Recarregar dados para garantir sincronização
+        setTimeout(() => {
+          fetchLocations(false);
+        }, 500);
       } catch (error: any) {
         console.error('Erro ao remover local:', error);
         const errorMessage = error?.response?.data?.message || 'Erro ao remover local';
@@ -166,10 +193,10 @@ export function LocationsProvider({ children }: { children: React.ReactNode }) {
         throw error;
       }
     },
-    [getToken, showToast]
+    [getToken, showToast, fetchLocations]
   );
 
-  // Carrega locais quando o profile estiver inicializado
+  // Inicializar contexto quando o profile for carregado
   useEffect(() => {
     if (isProfileInitialized && !hasInitialized.current) {
       hasInitialized.current = true;
@@ -187,14 +214,21 @@ export function LocationsProvider({ children }: { children: React.ReactNode }) {
     }
   }, [isAuthLoaded, userId]);
 
+  // Memoizar locationOptions para evitar recriações desnecessárias
+  const locationOptions = React.useMemo(
+    () =>
+      locations.map((location) => ({
+        label: location.name,
+        value: location.id,
+        icon: 'location-outline',
+        color: location.color,
+      })),
+    [locations]
+  );
+
   const value: LocationsContextType = {
     locations,
-    locationOptions: locations.map((location) => ({
-      label: location.name,
-      value: location.id,
-      icon: 'location-outline',
-      color: location.color,
-    })),
+    locationOptions,
     isLoading,
     error,
     refreshLocations: fetchLocations,

@@ -6,7 +6,6 @@ import {
   Text,
   TouchableOpacity,
   ScrollView,
-  KeyboardAvoidingView,
   Platform,
   Animated,
   Dimensions,
@@ -15,15 +14,15 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window');
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 interface FormModalProps {
   visible: boolean;
   onClose: () => void;
   title: string;
   children: ReactNode;
-  height?: number; // Altura do modal como porcentagem da tela (0-1)
-  fullHeight?: boolean; // Se true, o modal preenche toda a altura disponível
+  height?: number;
+  fullHeight?: boolean;
 }
 
 /**
@@ -35,12 +34,14 @@ const FormModal: React.FC<FormModalProps> = ({
   onClose,
   title,
   children,
-  height = 0.85, // Por padrão, ocupa 85% da altura da tela
-  fullHeight = true, // Por padrão, preenche toda a altura disponível
+  height = 0.8,
+  fullHeight = false,
 }) => {
   const insets = useSafeAreaInsets();
   const [animatedValue] = useState(new Animated.Value(0));
-  const MODAL_HEIGHT = fullHeight ? SCREEN_HEIGHT - insets.top - 10 : SCREEN_HEIGHT * height;
+
+  // Calcular altura do modal considerando safe areas
+  const MODAL_HEIGHT = fullHeight ? SCREEN_HEIGHT - insets.top - 20 : SCREEN_HEIGHT * height;
 
   useEffect(() => {
     if (visible) {
@@ -81,12 +82,7 @@ const FormModal: React.FC<FormModalProps> = ({
   if (!visible) return null;
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="none"
-      statusBarTranslucent
-      onRequestClose={handleClose}>
+    <Modal visible={visible} transparent animationType="none" onRequestClose={handleClose}>
       <TouchableWithoutFeedback onPress={handleClose}>
         <Animated.View
           style={[
@@ -98,36 +94,42 @@ const FormModal: React.FC<FormModalProps> = ({
         />
       </TouchableWithoutFeedback>
 
-      <View style={[styles.container]}>
+      <View style={styles.container}>
         <Animated.View
           style={[
             styles.modalContainer,
             {
               transform: [{ translateY }],
               height: MODAL_HEIGHT,
-              maxHeight: SCREEN_HEIGHT,
-              paddingBottom: insets.bottom, // Adiciona padding no bottom para o safe area
+              maxHeight: SCREEN_HEIGHT - insets.top - 20,
+              marginTop: insets.top + 20,
             },
           ]}>
+          {/* Header fixo */}
           <View style={styles.header}>
-            <Text style={styles.headerTitle}>{title}</Text>
-            <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
-              <Ionicons name="close" size={24} color="#64748b" />
-            </TouchableOpacity>
+            <View style={styles.headerContent}>
+              <Text style={styles.headerTitle}>{title}</Text>
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={handleClose}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <Ionicons name="close" size={24} color="#64748b" />
+              </TouchableOpacity>
+            </View>
           </View>
 
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            style={styles.formContainer}
-            keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}>
-            <ScrollView
-              style={styles.scrollView}
-              contentContainerStyle={styles.scrollViewContent}
-              showsVerticalScrollIndicator
-              keyboardShouldPersistTaps="handled">
-              {children}
-            </ScrollView>
-          </KeyboardAvoidingView>
+          {/* Conteúdo com scroll */}
+          <ScrollView
+            style={styles.scrollView}
+            contentContainerStyle={[
+              styles.scrollViewContent,
+              { paddingBottom: insets.bottom + 20 },
+            ]}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            bounces={false}>
+            {children}
+          </ScrollView>
         </Animated.View>
       </View>
     </Modal>
@@ -150,35 +152,47 @@ const styles = StyleSheet.create({
   modalContainer: {
     width: '100%',
     backgroundColor: 'white',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    overflow: 'hidden',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: -2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 10,
   },
   header: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+  },
+  headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderBottomWidth: 0,
-    paddingHorizontal: 20,
-    paddingVertical: 16,
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: '#1e293b',
+    flex: 1,
   },
   closeButton: {
-    padding: 8,
-  },
-  formContainer: {
-    flex: 1,
+    padding: 4,
+    borderRadius: 8,
+    backgroundColor: '#f8fafc',
   },
   scrollView: {
     flex: 1,
   },
   scrollViewContent: {
     padding: 20,
-    paddingBottom: 40,
   },
 });
 

@@ -1,5 +1,5 @@
 import { useAuth } from '@clerk/clerk-expo';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 
 import apiClient from '../lib/axios';
 
@@ -147,13 +147,16 @@ export const useContractorsApi = () => {
     [getToken]
   );
 
-  return {
-    getContractors,
-    getContractorById,
-    createContractor,
-    updateContractor,
-    deleteContractor,
-  };
+  return useMemo(
+    () => ({
+      getContractors,
+      getContractorById,
+      createContractor,
+      updateContractor,
+      deleteContractor,
+    }),
+    [getContractors, getContractorById, createContractor, updateContractor, deleteContractor]
+  );
 };
 
 // Default export para resolver warning do React Router

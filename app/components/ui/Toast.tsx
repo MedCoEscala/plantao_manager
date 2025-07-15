@@ -158,28 +158,36 @@ export const createToastContext = () => {
     const [type, setType] = React.useState<ToastType>('info');
     const [duration, setDuration] = React.useState(3000);
 
-    const showToast = (msg: string, toastType: ToastType = 'info', toastDuration = 3000) => {
-      setMessage(msg);
-      setTitle(undefined);
-      setType(toastType);
-      setDuration(toastDuration);
-      setVisible(true);
-    };
+    const showToast = React.useCallback(
+      (msg: string, toastType: ToastType = 'info', toastDuration = 3000) => {
+        setMessage(msg);
+        setTitle(undefined);
+        setType(toastType);
+        setDuration(toastDuration);
+        setVisible(true);
+      },
+      []
+    );
 
-    const show = (options: ToastOptions) => {
+    const show = React.useCallback((options: ToastOptions) => {
       setMessage(options.message);
       setTitle(options.title);
       setType(options.type || 'info');
       setDuration(options.duration || 3000);
       setVisible(true);
-    };
+    }, []);
 
-    const hideToast = () => {
+    const hideToast = React.useCallback(() => {
       setVisible(false);
-    };
+    }, []);
+
+    const contextValue = React.useMemo(
+      () => ({ showToast, hideToast, show }),
+      [showToast, hideToast, show]
+    );
 
     return (
-      <ToastContext.Provider value={{ showToast, hideToast, show }}>
+      <ToastContext.Provider value={contextValue}>
         {children}
         <Toast
           visible={visible}

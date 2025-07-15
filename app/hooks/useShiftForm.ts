@@ -31,61 +31,69 @@ interface UseShiftFormProps {
   onSuccess?: () => void;
 }
 
+// Função auxiliar para criar horário padrão
+const createDefaultTime = (baseDate: Date, hours: number, minutes: number = 0): Date => {
+  const date = new Date(baseDate);
+  date.setHours(hours, minutes, 0, 0);
+  return date;
+};
+
+// Função auxiliar para normalizar data
+const normalizeDate = (date: Date): Date => {
+  const normalized = new Date(date);
+  normalized.setHours(0, 0, 0, 0);
+  return normalized;
+};
+
 export function useShiftForm({ shiftId, initialDate, initialData, onSuccess }: UseShiftFormProps) {
   const shiftsApi = useShiftsApi();
   const { showError, showSuccess } = useNotification();
 
-  // Estado do formulário com inicialização melhorada
+  // Estado do formulário com inicialização simplificada
   const [formData, setFormData] = useState<FormData>(() => {
+    // Determinar data base
     let baseDate: Date;
     if (initialDate) {
-      // Garantir que initialDate seja sempre uma data local pura
-      const year = initialDate.getFullYear();
-      const month = initialDate.getMonth();
-      const day = initialDate.getDate();
-      baseDate = new Date(year, month, day, 0, 0, 0, 0);
+      baseDate = normalizeDate(initialDate);
     } else if (initialData?.date) {
-      baseDate = formatters.normalizeToLocalDate(initialData.date);
+      baseDate = normalizeDate(new Date(initialData.date));
     } else {
-      // Criar data de hoje sem timezone issues
-      const now = new Date();
-      baseDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+      baseDate = normalizeDate(new Date());
     }
 
-    // Horários padrão
-    const defaultStart = createLocalDateTime(baseDate, 8, 0);
-    const defaultEnd = createLocalDateTime(baseDate, 14, 0);
+    // Horários padrão ou inicial
+    let startTime: Date;
+    let endTime: Date;
+
+    if (initialData?.startTime && initialData?.endTime) {
+      try {
+        const startTimeStr = formatTime(initialData.startTime);
+        const endTimeStr = formatTime(initialData.endTime);
+
+        if (startTimeStr && endTimeStr) {
+          const [startHours, startMinutes] = startTimeStr.split(':').map(Number);
+          const [endHours, endMinutes] = endTimeStr.split(':').map(Number);
+
+          startTime = createDefaultTime(baseDate, startHours, startMinutes);
+          endTime = createDefaultTime(baseDate, endHours, endMinutes);
+        } else {
+          startTime = createDefaultTime(baseDate, 8, 0);
+          endTime = createDefaultTime(baseDate, 14, 0);
+        }
+      } catch (error) {
+        console.warn('Erro ao parsear horários iniciais:', error);
+        startTime = createDefaultTime(baseDate, 8, 0);
+        endTime = createDefaultTime(baseDate, 14, 0);
+      }
+    } else {
+      startTime = createDefaultTime(baseDate, 8, 0);
+      endTime = createDefaultTime(baseDate, 14, 0);
+    }
 
     return {
       date: baseDate,
-      startTime: initialData?.startTime
-        ? (() => {
-            try {
-              const timeStr = formatTime(initialData.startTime);
-              if (timeStr) {
-                const [hours, minutes] = timeStr.split(':').map(Number);
-                return createLocalDateTime(baseDate, hours || 8, minutes || 0);
-              }
-              return defaultStart;
-            } catch {
-              return defaultStart;
-            }
-          })()
-        : defaultStart,
-      endTime: initialData?.endTime
-        ? (() => {
-            try {
-              const timeStr = formatTime(initialData.endTime);
-              if (timeStr) {
-                const [hours, minutes] = timeStr.split(':').map(Number);
-                return createLocalDateTime(baseDate, hours || 14, minutes || 0);
-              }
-              return defaultEnd;
-            } catch {
-              return defaultEnd;
-            }
-          })()
-        : defaultEnd,
+      startTime,
+      endTime,
       locationId: initialData?.locationId || '',
       contractorId: initialData?.contractorId || '',
       value: initialData?.value?.toString() || '',
@@ -108,22 +116,36 @@ export function useShiftForm({ shiftId, initialDate, initialData, onSuccess }: U
 
         // Sincronizar data base quando necessário
         if (field === 'date' && value instanceof Date) {
-          const newDate = value as Date;
-          // Garantir que seja data local pura
-          const year = newDate.getFullYear();
-          const month = newDate.getMonth();
-          const day = newDate.getDate();
-          const normalizedDate = new Date(year, month, day, 0, 0, 0, 0);
+          const newDate = normalizeDate(value as Date);
+          newData.date = newDate;
 
-          newData.date = normalizedDate;
-
+          // Manter os horários relativos à nova data
           const startHours = prev.startTime.getHours();
           const startMinutes = prev.startTime.getMinutes();
           const endHours = prev.endTime.getHours();
           const endMinutes = prev.endTime.getMinutes();
 
-          newData.startTime = createLocalDateTime(normalizedDate, startHours, startMinutes);
-          newData.endTime = createLocalDateTime(normalizedDate, endHours, endMinutes);
+          newData.startTime = createDefaultTime(newDate, startHours, startMinutes);
+          newData.endTime = createDefaultTime(newDate, endHours, endMinutes);
+        }
+
+        // Sincronizar horários quando necessário
+        if (field === 'startTime' && value instanceof Date) {
+          const timeValue = value as Date;
+          newData.startTime = createDefaultTime(
+            prev.date,
+            timeValue.getHours(),
+            timeValue.getMinutes()
+          );
+        }
+
+        if (field === 'endTime' && value instanceof Date) {
+          const timeValue = value as Date;
+          newData.endTime = createDefaultTime(
+            prev.date,
+            timeValue.getHours(),
+            timeValue.getMinutes()
+          );
         }
 
         return newData;
@@ -146,8 +168,13 @@ export function useShiftForm({ shiftId, initialDate, initialData, onSuccess }: U
     const startMinutes = formData.startTime.getHours() * 60 + formData.startTime.getMinutes();
     const endMinutes = formData.endTime.getHours() * 60 + formData.endTime.getMinutes();
 
-    const durationMinutes =
-      endMinutes >= startMinutes ? endMinutes - startMinutes : 24 * 60 - startMinutes + endMinutes;
+    let durationMinutes: number;
+    if (endMinutes >= startMinutes) {
+      durationMinutes = endMinutes - startMinutes;
+    } else {
+      // Plantão atravessa meia-noite
+      durationMinutes = 24 * 60 - startMinutes + endMinutes;
+    }
 
     const hours = Math.floor(durationMinutes / 60);
     const minutes = durationMinutes % 60;
@@ -158,27 +185,19 @@ export function useShiftForm({ shiftId, initialDate, initialData, onSuccess }: U
   const validateForm = useCallback((): boolean => {
     const newErrors: Record<string, string> = {};
     const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+    const today = normalizeDate(now);
 
     // Validar data
     if (!formData.date) {
       newErrors.date = 'Data é obrigatória';
     } else {
-      const shiftDate = new Date(
-        formData.date.getFullYear(),
-        formData.date.getMonth(),
-        formData.date.getDate(),
-        0,
-        0,
-        0,
-        0
-      );
+      const shiftDate = normalizeDate(formData.date);
 
       if (!shiftId && isBefore(shiftDate, today)) {
         newErrors.date = 'Data não pode ser no passado';
       }
 
-      const maxDate = addDays(today, 730);
+      const maxDate = addDays(today, 730); // 2 anos no futuro
       if (isAfter(shiftDate, maxDate)) {
         newErrors.date = 'Data muito distante no futuro';
       }
@@ -201,8 +220,6 @@ export function useShiftForm({ shiftId, initialDate, initialData, onSuccess }: U
         newErrors.endTime = 'Horário de término deve ser diferente do início';
       }
     }
-
-    // Local é opcional, não precisa validar
 
     // Validar valor
     if (formData.value) {

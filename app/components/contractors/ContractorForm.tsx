@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, ActivityIndicator, ScrollView } from 'react-native';
 
 import { useContractorsApi } from '../../services/contractors-api';
 import Button from '../ui/Button';
@@ -13,51 +13,62 @@ interface ContractorFormProps {
 }
 
 export default function ContractorForm({ contractorId, onSuccess, onCancel }: ContractorFormProps) {
-  // Estados do formulário
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-
-  // Estados de validação e UI
-  const [errors, setErrors] = useState<{ [key: string]: string }>({});
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { showToast } = useToast();
   const contractorsApi = useContractorsApi();
 
-  // Efeito para carregar dados para edição ou limpar para criação
   useEffect(() => {
-    const loadOrCreate = async () => {
-      if (contractorId) {
+    if (contractorId) {
+      const loadContractor = async () => {
         setIsLoading(true);
         try {
-          const contractor = await contractorsApi.getContractorById(contractorId);
-          setName(contractor.name);
-          setEmail(contractor.email || '');
-          setPhone(contractor.phone || '');
+          const contractors = await contractorsApi.getContractors();
+          const contractor = contractors.find((c) => c.id === contractorId);
+
+          if (contractor) {
+            setName(contractor.name || '');
+            setEmail(contractor.email || '');
+            setPhone(contractor.phone || '');
+          } else {
+            throw new Error('Contratante não encontrado');
+          }
         } catch (error: any) {
-          console.error('Erro ao carregar dados do contratante:', error);
+          console.error('Erro ao carregar contratante:', error);
           showToast(`Erro: ${error.message || 'Não foi possível carregar os dados'}`, 'error');
-          if (onCancel) onCancel(); // Fecha o modal se houver erro
+          onCancel?.();
         } finally {
           setIsLoading(false);
         }
-      } else {
-        // Limpa o formulário para um novo contratante
-        setName('');
-        setEmail('');
-        setPhone('');
-        setErrors({});
+      };
+
+      loadContractor();
+    }
+  }, [contractorId]);
+
+  const formatPhone = (text: string) => {
+    const cleaned = text.replace(/\D/g, '');
+    let formatted = '';
+
+    if (cleaned.length > 0) {
+      formatted = cleaned.slice(0, 2);
+      if (cleaned.length > 2) {
+        formatted += ` ${cleaned.slice(2, 6)}`;
       }
-    };
+      if (cleaned.length > 6) {
+        formatted += `-${cleaned.slice(6, 10)}`;
+      }
+    }
+    return formatted;
+  };
 
-    loadOrCreate();
-  }, [contractorId]); // Remove showToast, onCancel e contractorsApi das dependências
-
-  // Validação do formulário
   const validateForm = () => {
-    const newErrors: { [key: string]: string } = {};
+    const newErrors: Record<string, string> = {};
 
     if (!name.trim()) {
       newErrors.name = 'Nome é obrigatório';
@@ -75,24 +86,6 @@ export default function ContractorForm({ contractorId, onSuccess, onCancel }: Co
     return Object.keys(newErrors).length === 0;
   };
 
-  // Formatar telefone
-  const handlePhoneChange = (text: string) => {
-    const cleaned = text.replace(/\D/g, '');
-    let formatted = '';
-    if (cleaned.length > 0) {
-      // Formato: 17 3463-1787
-      formatted = cleaned.slice(0, 2); // DDD
-      if (cleaned.length > 2) {
-        formatted += ` ${cleaned.slice(2, 6)}`; // Primeira parte do número
-      }
-      if (cleaned.length > 6) {
-        formatted += `-${cleaned.slice(6, 10)}`; // Segunda parte do número
-      }
-    }
-    setPhone(formatted);
-  };
-
-  // Salvar formulário
   const handleSubmit = async () => {
     if (!validateForm()) {
       showToast('Por favor, corrija os erros no formulário', 'error');
@@ -113,12 +106,10 @@ export default function ContractorForm({ contractorId, onSuccess, onCancel }: Co
         showToast('Contratante atualizado com sucesso!', 'success');
       } else {
         await contractorsApi.createContractor({ ...formData, email: formData.email || '' });
-        showToast('Contratante adicionado com sucesso!', 'success');
+        showToast('Contratante criado com sucesso!', 'success');
       }
 
-      if (onSuccess) {
-        onSuccess();
-      }
+      onSuccess?.();
     } catch (error: any) {
       console.error('Erro ao salvar contratante:', error);
       showToast(`Erro: ${error.message || 'Falha ao salvar'}`, 'error');
@@ -129,62 +120,78 @@ export default function ContractorForm({ contractorId, onSuccess, onCancel }: Co
 
   if (isLoading) {
     return (
-      <View className="flex-1 items-center justify-center p-6">
+      <View className="flex-1 items-center justify-center py-12">
         <ActivityIndicator size="large" color="#18cb96" />
-        <Text className="mt-4 text-text-light">Carregando dados...</Text>
+        <Text className="mt-4 text-sm text-gray-600">Carregando dados...</Text>
       </View>
     );
   }
 
   return (
-    <View className="space-y-4 p-1">
-      <Input
-        label="Nome"
-        value={name}
-        onChangeText={setName}
-        placeholder="Nome do contratante"
-        required
-        error={errors.name}
-        autoCapitalize="words"
-        disabled={isSubmitting}
-      />
+    <ScrollView
+      className="flex-1"
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+      contentContainerStyle={{ flexGrow: 1 }}>
+      <View className="space-y-4">
+        <Input
+          label="Nome do Contratante"
+          value={name}
+          onChangeText={setName}
+          placeholder="Digite o nome completo"
+          required
+          error={errors.name}
+          autoCapitalize="words"
+          disabled={isSubmitting}
+          leftIcon="person-outline"
+        />
 
-      <Input
-        label="Email"
-        value={email}
-        onChangeText={setEmail}
-        placeholder="Email do contratante"
-        keyboardType="email-address"
-        error={errors.email}
-        helperText="Opcional"
-        autoCapitalize="none"
-        leftIcon="mail-outline"
-        disabled={isSubmitting}
-      />
+        <Input
+          label="Email"
+          value={email}
+          onChangeText={setEmail}
+          placeholder="contato@exemplo.com"
+          keyboardType="email-address"
+          error={errors.email}
+          helperText="Email para contato (opcional)"
+          autoCapitalize="none"
+          leftIcon="mail-outline"
+          disabled={isSubmitting}
+        />
 
-      <Input
-        label="Telefone"
-        value={phone}
-        onChangeText={handlePhoneChange}
-        placeholder="00 0000-0000"
-        keyboardType="phone-pad"
-        helperText="Opcional"
-        error={errors.phone}
-        leftIcon="call-outline"
-        maxLength={12}
-        disabled={isSubmitting}
-      />
+        <Input
+          label="Telefone"
+          value={phone}
+          onChangeText={(text) => {
+            const formatted = formatPhone(text);
+            setPhone(formatted);
+          }}
+          placeholder="17 99999-9999"
+          keyboardType="phone-pad"
+          helperText="Número de telefone (opcional)"
+          error={errors.phone}
+          leftIcon="call-outline"
+          maxLength={12}
+          disabled={isSubmitting}
+        />
 
-      <View className="mt-6 flex-row space-x-3">
-        {onCancel && (
-          <Button variant="outline" onPress={onCancel} disabled={isSubmitting} className="flex-1">
-            Cancelar
+        <View className="flex-row space-x-3 pt-4">
+          {onCancel && (
+            <Button variant="outline" onPress={onCancel} disabled={isSubmitting} className="flex-1">
+              Cancelar
+            </Button>
+          )}
+
+          <Button
+            variant="primary"
+            onPress={handleSubmit}
+            loading={isSubmitting}
+            disabled={isSubmitting}
+            className={onCancel ? 'flex-1' : 'w-full'}>
+            {contractorId ? 'Atualizar Dados' : 'Salvar Dados'}
           </Button>
-        )}
-        <Button variant="primary" onPress={handleSubmit} loading={isSubmitting} className="flex-1">
-          {contractorId ? 'Atualizar' : 'Salvar'}
-        </Button>
+        </View>
       </View>
-    </View>
+    </ScrollView>
   );
 }
