@@ -13,21 +13,20 @@ import { useShiftsSync } from '../../../contexts/ShiftsSyncContext';
 import { useShiftsApi, Shift } from '../../../services/shifts-api';
 import { formatDate, formatTime, formatCurrency } from '../../../utils/formatters';
 
-// Função auxiliar para obter cor baseada no status
 const getStatusColor = (status: string) => {
   switch (status) {
     case 'Agendado':
-      return '#3B82F6'; // azul
+      return '#3B82F6';
     case 'Confirmado':
-      return '#10B981'; // verde
+      return '#10B981';
     case 'Cancelado':
-      return '#EF4444'; // vermelho
+      return '#EF4444';
     case 'Concluído':
-      return '#8B5CF6'; // roxo
+      return '#8B5CF6';
     case 'Pendente':
-      return '#F59E0B'; // laranja
+      return '#F59E0B';
     default:
-      return '#64748B'; // cinza
+      return '#64748B';
   }
 };
 
@@ -60,14 +59,10 @@ export default function ShiftDetailsScreen() {
   const [shift, setShift] = useState<ShiftDetails | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Referência para controlar se já iniciamos o carregamento
   const hasLoadedRef = useRef(false);
-  // Referência para controlar se componente está montado
   const isMounted = useRef(true);
-  // Referência para retry timers
   const retryTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Limpar recursos quando o componente for desmontado
   useEffect(() => {
     isMounted.current = true;
 
@@ -79,33 +74,27 @@ export default function ShiftDetailsScreen() {
     };
   }, []);
 
-  // Função centralizada para carregar os detalhes do plantão
   const loadShiftDetails = useCallback(async () => {
-    // Não carregue se o componente não estiver montado
     if (!isMounted.current) return;
 
-    // Não carregue se não tiver ID
     if (!shiftId) {
       setError('ID do plantão não fornecido');
       setIsLoading(false);
       return;
     }
 
-    // Defina o estado de carregamento
     setIsLoading(true);
 
     try {
       console.log(`Carregando detalhes do plantão: ${shiftId}`);
       const shiftData = await shiftsApi.getShiftById(shiftId);
 
-      // Verifique se o componente ainda está montado antes de atualizar o estado
       if (!isMounted.current) return;
 
       if (!shiftData || !shiftData.id) {
         throw new Error('Dados do plantão incompletos ou inválidos');
       }
 
-      // Transforme os dados para o formato esperado pelo componente
       setShift({
         id: shiftData.id,
         date: shiftData.date,
@@ -199,38 +188,41 @@ export default function ShiftDetailsScreen() {
   };
 
   const getShiftDuration = () => {
-    if (!shift?.startTime || !shift?.endTime) return '';
+    if (!shift?.startTime || !shift?.endTime || !shift?.date) return '';
 
     try {
-      // Limpar os horários para garantir que estejam no formato correto
+      const shiftDate = new Date(shift.date);
+      const startDateTime = new Date(shiftDate);
+      const endDateTime = new Date(shiftDate);
+
       const startTimeStr = formatTime(shift.startTime);
       const endTimeStr = formatTime(shift.endTime);
 
       if (!startTimeStr || !endTimeStr) return '';
 
-      // Parse das strings de hora já formatadas
       const [startHours, startMinutes] = startTimeStr.split(':').map(Number);
       const [endHours, endMinutes] = endTimeStr.split(':').map(Number);
 
-      // Verificar se temos números válidos
       if (isNaN(startHours) || isNaN(startMinutes) || isNaN(endHours) || isNaN(endMinutes)) {
         console.error('Valores inválidos para cálculo de duração:', { startTimeStr, endTimeStr });
         return '';
       }
 
-      const startTotalMinutes = startHours * 60 + startMinutes;
-      let endTotalMinutes = endHours * 60 + endMinutes;
+      startDateTime.setHours(startHours, startMinutes, 0, 0);
+      endDateTime.setHours(endHours, endMinutes, 0, 0);
 
-      // Ajustar para plantões noturnos (quando término é no dia seguinte)
-      if (endTotalMinutes < startTotalMinutes) {
-        endTotalMinutes += 24 * 60; // Adicionar 24 horas em minutos
+      if (endDateTime <= startDateTime) {
+        endDateTime.setDate(endDateTime.getDate() + 1);
       }
 
-      const durationMinutes = endTotalMinutes - startTotalMinutes;
-      const hours = Math.floor(durationMinutes / 60);
-      const minutes = durationMinutes % 60;
+      const diffMs = endDateTime.getTime() - startDateTime.getTime();
+      const totalMinutes = Math.floor(diffMs / (1000 * 60));
+      const hours = Math.floor(totalMinutes / 60);
+      const minutes = totalMinutes % 60;
 
-      return `${hours}h${minutes > 0 ? ` ${minutes}min` : ''}`;
+      const duration = `${hours}h${minutes > 0 ? ` ${minutes}min` : ''}`;
+
+      return hours >= 24 ? `${duration} 🌙` : duration;
     } catch (e) {
       console.error('Erro ao calcular duração:', e);
       return '';

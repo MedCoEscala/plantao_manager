@@ -15,6 +15,50 @@ import formatters, {
   normalizeToLocalDate,
 } from '../utils/formatters';
 import { RecurrenceCalculator } from '../utils/recurrence';
+import { useDialog } from '../contexts/DialogContext';
+
+const calculateShiftDuration = (
+  startTime: Date,
+  endTime: Date,
+  date: Date
+): { duration: string; crossesMidnight: boolean; totalHours: number } => {
+  try {
+    const startDateTime = new Date(date);
+    startDateTime.setHours(startTime.getHours(), startTime.getMinutes(), 0, 0);
+
+    let endDateTime = new Date(date);
+    endDateTime.setHours(endTime.getHours(), endTime.getMinutes(), 0, 0);
+
+    const crossesMidnight =
+      endTime.getHours() < startTime.getHours() ||
+      (endTime.getHours() === startTime.getHours() &&
+        endTime.getMinutes() <= startTime.getMinutes());
+
+    if (crossesMidnight) {
+      endDateTime.setDate(endDateTime.getDate() + 1);
+    }
+
+    const diffMs = endDateTime.getTime() - startDateTime.getTime();
+
+    const totalMinutes = Math.floor(diffMs / (1000 * 60));
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+
+    const duration = `${hours}h${minutes > 0 ? ` ${minutes}min` : ''}`;
+
+    return {
+      duration,
+      crossesMidnight,
+      totalHours: hours + minutes / 60,
+    };
+  } catch (error) {
+    return {
+      duration: '0h',
+      crossesMidnight: false,
+      totalHours: 0,
+    };
+  }
+};
 
 interface FormData {
   date: Date;
@@ -82,6 +126,7 @@ export function useShiftForm({ shiftId, initialDate, initialData, onSuccess }: U
   const shiftsApi = useShiftsApi();
   const { showError, showSuccess } = useNotification();
   const { triggerShiftsRefresh } = useShiftsSync();
+  const { showDialog } = useDialog();
 
   const [formData, setFormData] = useState<FormData>(() => {
     console.log('🔧 Inicializando formulário com dados:', initialData);
@@ -175,7 +220,6 @@ export function useShiftForm({ shiftId, initialDate, initialData, onSuccess }: U
           });
         }
 
-        // Sincronizar horários quando necessário
         if (field === 'startTime' && value instanceof Date) {
           const timeValue = value as Date;
           newData.startTime = createDefaultTime(
@@ -205,7 +249,6 @@ export function useShiftForm({ shiftId, initialDate, initialData, onSuccess }: U
         return newData;
       });
 
-      // Limpar erro relacionado
       if (errors[field]) {
         setErrors((prev) => {
           const newErrors = { ...prev };
@@ -217,43 +260,21 @@ export function useShiftForm({ shiftId, initialDate, initialData, onSuccess }: U
     [errors]
   );
 
-  // Calcular duração do plantão
   const shiftDuration = useMemo(() => {
-    try {
-      const startMinutes = formData.startTime.getHours() * 60 + formData.startTime.getMinutes();
-      const endMinutes = formData.endTime.getHours() * 60 + formData.endTime.getMinutes();
+    const { duration } = calculateShiftDuration(
+      formData.startTime,
+      formData.endTime,
+      formData.date
+    );
 
-      let durationMinutes: number;
-      if (endMinutes >= startMinutes) {
-        durationMinutes = endMinutes - startMinutes;
-      } else {
-        // Plantão atravessa meia-noite
-        durationMinutes = 24 * 60 - startMinutes + endMinutes;
-      }
+    return duration;
+  }, [formData.startTime, formData.endTime, formData.date]);
 
-      const hours = Math.floor(durationMinutes / 60);
-      const minutes = durationMinutes % 60;
-      const duration = `${hours}h${minutes > 0 ? ` ${minutes}min` : ''}`;
-
-      console.log('⏱️ Duração calculada:', duration, {
-        start: `${formData.startTime.getHours()}:${formData.startTime.getMinutes().toString().padStart(2, '0')}`,
-        end: `${formData.endTime.getHours()}:${formData.endTime.getMinutes().toString().padStart(2, '0')}`,
-      });
-
-      return duration;
-    } catch (error) {
-      console.warn('❌ Erro ao calcular duração:', error);
-      return '0h';
-    }
-  }, [formData.startTime, formData.endTime]);
-
-  // Validação do formulário
   const validateForm = useCallback((): boolean => {
     const newErrors: Record<string, string> = {};
     const now = new Date();
     const today = normalizeDate(now);
 
-    // Validar data
     if (!formData.date) {
       newErrors.date = 'Data é obrigatória';
     } else {
@@ -263,13 +284,12 @@ export function useShiftForm({ shiftId, initialDate, initialData, onSuccess }: U
         newErrors.date = 'Data não pode ser no passado';
       }
 
-      const maxDate = addDays(today, 730); // 2 anos no futuro
+      const maxDate = addDays(today, 730);
       if (isAfter(shiftDate, maxDate)) {
         newErrors.date = 'Data muito distante no futuro';
       }
     }
 
-    // Validar horários
     if (!formData.startTime) {
       newErrors.startTime = 'Horário de início é obrigatório';
     }
@@ -278,16 +298,6 @@ export function useShiftForm({ shiftId, initialDate, initialData, onSuccess }: U
       newErrors.endTime = 'Horário de término é obrigatório';
     }
 
-    if (formData.startTime && formData.endTime) {
-      const startMinutes = formData.startTime.getHours() * 60 + formData.startTime.getMinutes();
-      const endMinutes = formData.endTime.getHours() * 60 + formData.endTime.getMinutes();
-
-      if (startMinutes === endMinutes) {
-        newErrors.endTime = 'Horário de término deve ser diferente do início';
-      }
-    }
-
-    // Validar valor
     if (formData.value) {
       const formattedValue = formData.value.replace(/\./g, '').replace(',', '.');
       const numericValue = parseFloat(formattedValue);
@@ -306,14 +316,9 @@ export function useShiftForm({ shiftId, initialDate, initialData, onSuccess }: U
     return true;
   }, [formData, shiftId, showError]);
 
-  // Submissão do formulário
-  const handleSubmit = useCallback(async () => {
-    if (isSubmitting || !validateForm()) return;
-
+  const proceedWithSubmit = async () => {
     setIsSubmitting(true);
-
     try {
-      // CORREÇÃO: Garantir que sempre enviamos HH:MM
       const formattedDate = dateToLocalDateString(formData.date);
       const formattedStartTime = dateToLocalTimeString(formData.startTime);
       const formattedEndTime = dateToLocalTimeString(formData.endTime);
@@ -336,71 +341,65 @@ export function useShiftForm({ shiftId, initialDate, initialData, onSuccess }: U
         contractorId: formData.contractorId || undefined,
       };
 
-      console.log('📤 Enviando dados do plantão:', shiftData);
-
       if (shiftId) {
-        // Atualização
-        const result = await shiftsApi.updateShift(shiftId, shiftData);
-        console.log('✅ Plantão atualizado:', result);
+        await shiftsApi.updateShift(shiftId, shiftData);
         showSuccess('Plantão atualizado com sucesso!');
-
-        // Disparar sincronização para outras telas
-        triggerShiftsRefresh();
       } else if (recurrenceConfig) {
-        // Criação em lote
-        const dates = RecurrenceCalculator.calculateDates(recurrenceConfig);
+        const { totalHours, duration } = calculateShiftDuration(
+          formData.startTime,
+          formData.endTime,
+          formData.date
+        );
 
-        if (dates.length === 0) {
-          throw new Error('Nenhuma data calculada para a recorrência');
+        if (totalHours >= 24) {
+          showDialog({
+            title: 'Confirmar Duração',
+            message: `O plantão tem uma duração de ${duration}. Deseja confirmar e salvar mesmo assim?`,
+            type: 'confirm',
+            confirmText: 'Confirmar',
+            onConfirm: () => {
+              shiftsApi.createShift(shiftData);
+              showSuccess('Plantão criado com sucesso!');
+            },
+          });
+        } else {
+          await shiftsApi.createShift(shiftData);
+          showSuccess('Plantão criado com sucesso!');
         }
-
-        if (dates.length > 100) {
-          throw new Error('Muitas datas calculadas. Limite máximo: 100 plantões');
-        }
-
-        // Confirmar criação
-        const confirmed = await new Promise<boolean>((resolve) => {
-          Alert.alert(
-            'Confirmar Criação',
-            `Serão criados ${dates.length} plantões com recorrência. Deseja continuar?`,
-            [
-              { text: 'Cancelar', style: 'cancel', onPress: () => resolve(false) },
-              { text: 'Criar Plantões', onPress: () => resolve(true) },
-            ]
-          );
-        });
-
-        if (!confirmed) return;
-
-        const shiftsData = dates.map((shiftDate) => ({
-          ...shiftData,
-          date: dateToLocalDateString(shiftDate),
-        }));
-
-        console.log('📤 Enviando lote de plantões:', shiftsData.length, 'plantões');
-
-        await shiftsApi.createShiftsBatch({ shifts: shiftsData });
-        showSuccess(`${dates.length} plantões criados com sucesso!`);
-
-        // Disparar sincronização para outras telas
-        triggerShiftsRefresh();
       } else {
-        // Criação simples
-        const result = await shiftsApi.createShift(shiftData);
-        console.log('✅ Plantão criado:', result);
+        await shiftsApi.createShift(shiftData);
         showSuccess('Plantão criado com sucesso!');
-
-        // Disparar sincronização para outras telas
-        triggerShiftsRefresh();
       }
 
+      triggerShiftsRefresh();
       onSuccess?.();
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Erro ao salvar plantão';
-      console.error('❌ Erro ao salvar plantão:', errorMessage, error);
       showError(errorMessage);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleSubmit = useCallback(async () => {
+    if (isSubmitting || !validateForm()) return;
+
+    const { totalHours, duration } = calculateShiftDuration(
+      formData.startTime,
+      formData.endTime,
+      formData.date
+    );
+
+    if (totalHours >= 24) {
+      showDialog({
+        title: 'Confirmar Duração',
+        message: `O plantão tem uma duração de ${duration}. Deseja confirmar e salvar mesmo assim?`,
+        type: 'confirm',
+        confirmText: 'Confirmar',
+        onConfirm: proceedWithSubmit,
+      });
+    } else {
+      proceedWithSubmit();
     }
   }, [
     isSubmitting,
@@ -413,6 +412,7 @@ export function useShiftForm({ shiftId, initialDate, initialData, onSuccess }: U
     showError,
     onSuccess,
     triggerShiftsRefresh,
+    showDialog,
   ]);
 
   return {

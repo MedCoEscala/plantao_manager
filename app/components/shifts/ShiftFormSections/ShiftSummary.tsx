@@ -74,6 +74,7 @@ const ShiftSummary = memo<ShiftSummaryProps>(({ date, startTime, endTime, value,
     if (!duration || duration === '0h') return '⚠️';
 
     const hours = parseInt(duration.split('h')[0]);
+    if (hours >= 24) return ' marathon '; // Ícone para plantões longos
     if (hours >= 12) return '🌙';
     if (hours >= 8) return '⏰';
     if (hours >= 4) return '⏱️';

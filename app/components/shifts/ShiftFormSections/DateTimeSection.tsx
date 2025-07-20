@@ -49,27 +49,39 @@ const DateTimeSection = memo<DateTimeSectionProps>(
     }, [memoizedValues]);
 
     const localDuration = useMemo(() => {
-      if (!startTime || !endTime) return '0h';
+      if (!startTime || !endTime || !date)
+        return { duration: '0h', is24Plus: false, crossesMidnight: false };
 
       try {
-        const startMinutes = startTime.getHours() * 60 + startTime.getMinutes();
-        const endMinutes = endTime.getHours() * 60 + endTime.getMinutes();
+        const startDateTime = new Date(date);
+        startDateTime.setHours(startTime.getHours(), startTime.getMinutes(), 0, 0);
 
-        let durationMinutes: number;
-        if (endMinutes >= startMinutes) {
-          durationMinutes = endMinutes - startMinutes;
-        } else {
-          durationMinutes = 24 * 60 - startMinutes + endMinutes;
+        let endDateTime = new Date(date);
+        endDateTime.setHours(endTime.getHours(), endTime.getMinutes(), 0, 0);
+
+        const crossesMidnight =
+          endTime.getHours() < startTime.getHours() ||
+          (endTime.getHours() === startTime.getHours() &&
+            endTime.getMinutes() <= startTime.getMinutes());
+
+        if (crossesMidnight) {
+          endDateTime.setDate(endDateTime.getDate() + 1);
         }
 
-        const hours = Math.floor(durationMinutes / 60);
-        const minutes = durationMinutes % 60;
-        return `${hours}h${minutes > 0 ? ` ${minutes}min` : ''}`;
+        const diffMs = endDateTime.getTime() - startDateTime.getTime();
+        const totalMinutes = Math.floor(diffMs / (1000 * 60));
+        const hours = Math.floor(totalMinutes / 60);
+        const minutes = totalMinutes % 60;
+
+        return {
+          duration: `${hours}h${minutes > 0 ? ` ${minutes}min` : ''}`,
+          is24Plus: hours >= 24,
+          crossesMidnight,
+        };
       } catch (error) {
-        console.warn('❌ Erro ao calcular duração local:', error);
-        return '0h';
+        return { duration: '0h', is24Plus: false, crossesMidnight: false };
       }
-    }, [startTime, endTime]);
+    }, [startTime, endTime, date]);
 
     const handleDateChange = (newDate: Date) => {
       onDateChange(newDate);
@@ -125,28 +137,19 @@ const DateTimeSection = memo<DateTimeSectionProps>(
 
         <View key={`duration-${lastUpdate}`} className="rounded-xl bg-blue-50 p-4">
           <Text className="text-center text-sm font-semibold text-blue-700">
-            ⏱️ Duração: {duration || localDuration}
+            ⏱️ Duração: {duration || localDuration.duration}
           </Text>
 
-          {duration !== localDuration && (
-            <Text className="mt-1 text-center text-xs text-orange-600">
-              ⚠️ Recalculando... ({localDuration})
+          {localDuration.is24Plus ? (
+            <Text className="mt-1 text-center text-xs font-medium text-orange-600">
+              ⚠️ Plantão com 24 horas ou mais!
             </Text>
-          )}
-
-          {__DEV__ && (
-            <View className="mt-2 border-t border-blue-200 pt-2">
-              <Text className="text-center text-xs text-blue-600">
-                🐛 {startTime ? dateToLocalTimeString(startTime) : 'N/A'} -{' '}
-                {endTime ? dateToLocalTimeString(endTime) : 'N/A'}
+          ) : (
+            localDuration.crossesMidnight && (
+              <Text className="mt-1 text-center text-xs text-blue-600">
+                🌙 Plantão atravessa a meia-noite.
               </Text>
-              <Text className="text-center text-xs text-blue-500">
-                Última atualização: {new Date(lastUpdate).toLocaleTimeString()}
-              </Text>
-              <Text className="text-center text-xs text-blue-500">
-                Local: {localDuration} | Props: {duration}
-              </Text>
-            </View>
+            )
           )}
         </View>
 
@@ -156,7 +159,7 @@ const DateTimeSection = memo<DateTimeSectionProps>(
           startTime.getMinutes() === endTime.getMinutes() && (
             <View className="mt-2 rounded-xl bg-red-50 p-3">
               <Text className="text-center text-sm font-medium text-red-600">
-                ⚠️ Horário de início e fim são iguais
+                ⚠️ Horário de início e fim são iguais. Duração será de 24h.
               </Text>
             </View>
           )}
