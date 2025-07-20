@@ -34,31 +34,7 @@ export class ShiftsService {
 
   constructor(private prisma: PrismaService) {}
 
-  /**
-   * Criar um objeto Date local a partir de uma string de data (YYYY-MM-DD)
-   * Evita problemas de timezone tratando a data como local
-   */
-  private createLocalDate(dateString: string): Date {
-    const [year, month, day] = dateString.split('-').map(Number);
-    if (
-      !year ||
-      !month ||
-      !day ||
-      month < 1 ||
-      month > 12 ||
-      day < 1 ||
-      day > 31
-    ) {
-      throw new BadRequestException('Formato de data inválido. Use YYYY-MM-DD');
-    }
-    return new Date(year, month - 1, day);
-  }
-
-  /**
-   * Criar um objeto Date local com horário específico
-   */
-  private createLocalDateTime(dateString: string, timeString: string): Date {
-    const baseDate = this.createLocalDate(dateString);
+  private timeStringToDate(timeString: string): Date {
     const [hours, minutes] = timeString.split(':').map(Number);
 
     if (
@@ -69,16 +45,57 @@ export class ShiftsService {
       minutes < 0 ||
       minutes > 59
     ) {
-      throw new BadRequestException('Formato de horário inválido. Use HH:MM');
+      throw new BadRequestException(
+        `Horário inválido: ${timeString}. Use formato HH:MM`,
+      );
     }
 
-    baseDate.setHours(hours, minutes, 0, 0);
-    return baseDate;
+    const date = new Date(2000, 0, 1, hours, minutes, 0, 0);
+    return date;
   }
 
-  /**
-   * Validar formato de horário
-   */
+  private dateToTimeString(date: Date): string {
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${hours}:${minutes}`;
+  }
+
+  private dateToDateString(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  private dateStringToDate(dateString: string): Date {
+    const [year, month, day] = dateString.split('-').map(Number);
+
+    if (
+      !year ||
+      !month ||
+      !day ||
+      month < 1 ||
+      month > 12 ||
+      day < 1 ||
+      day > 31
+    ) {
+      throw new BadRequestException(
+        `Data inválida: ${dateString}. Use formato YYYY-MM-DD`,
+      );
+    }
+
+    return new Date(year, month - 1, day);
+  }
+
+  private formatShiftResponse(shift: any): any {
+    return {
+      ...shift,
+      date: this.dateToDateString(shift.date),
+      startTime: this.dateToTimeString(shift.startTime),
+      endTime: this.dateToTimeString(shift.endTime),
+    };
+  }
+
   private validateTimeFormat(time: string): boolean {
     const timeRegex = /^([01]?[0-9]|2[0-3]):([0-5][0-9])$/;
     return timeRegex.test(time);
@@ -105,9 +122,8 @@ export class ShiftsService {
       };
 
       if (filterDto.startDate && filterDto.endDate) {
-        const startDate = this.createLocalDate(filterDto.startDate);
-        const endDate = this.createLocalDate(filterDto.endDate);
-
+        const startDate = this.dateStringToDate(filterDto.startDate);
+        const endDate = this.dateStringToDate(filterDto.endDate);
         endDate.setHours(23, 59, 59, 999);
 
         if (startDate > endDate) {
@@ -121,16 +137,12 @@ export class ShiftsService {
           lte: endDate,
         };
       } else if (filterDto.startDate) {
-        const startDate = this.createLocalDate(filterDto.startDate);
-        where.date = {
-          gte: startDate,
-        };
+        const startDate = this.dateStringToDate(filterDto.startDate);
+        where.date = { gte: startDate };
       } else if (filterDto.endDate) {
-        const endDate = this.createLocalDate(filterDto.endDate);
+        const endDate = this.dateStringToDate(filterDto.endDate);
         endDate.setHours(23, 59, 59, 999);
-        where.date = {
-          lte: endDate,
-        };
+        where.date = { lte: endDate };
       }
 
       if (filterDto.locationId) {
@@ -141,7 +153,7 @@ export class ShiftsService {
         where.contractorId = filterDto.contractorId;
       }
 
-      this.logger.log(`Buscando plantões para userId: ${user.id} com filtros`);
+      this.logger.log(`Buscando plantões para userId: ${user.id}`);
 
       const plantoes = await this.prisma.plantao.findMany({
         where,
@@ -154,12 +166,9 @@ export class ShiftsService {
         },
       });
 
-      return plantoes.map((plantao) => ({
-        ...plantao,
-        date: this.formatDateToLocalString(plantao.date),
-        startTime: plantao.startTime.toISOString(),
-        endTime: plantao.endTime.toISOString(),
-      })) as any;
+      return plantoes.map((plantao) =>
+        this.formatShiftResponse(plantao),
+      ) as any;
     } catch (error) {
       this.logger.error(
         `Erro ao buscar plantões: ${error.message}`,
@@ -167,13 +176,6 @@ export class ShiftsService {
       );
       throw error;
     }
-  }
-
-  private formatDateToLocalString(date: Date): string {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
   }
 
   async findOne(id: string): Promise<Plantao & { user: { clerkId: string } }> {
@@ -196,12 +198,7 @@ export class ShiftsService {
         throw new NotFoundException(`Plantão com ID ${id} não encontrado`);
       }
 
-      return {
-        ...shift,
-        date: this.formatDateToLocalString(shift.date),
-        startTime: shift.startTime.toISOString(),
-        endTime: shift.endTime.toISOString(),
-      } as any;
+      return this.formatShiftResponse(shift) as any;
     } catch (error) {
       this.logger.error(
         `Erro ao buscar plantão ${id}: ${error.message}`,
@@ -234,7 +231,6 @@ export class ShiftsService {
         );
       }
 
-      // Validar formatos de horário
       if (!this.validateTimeFormat(createShiftDto.startTime)) {
         throw new BadRequestException(
           'Horário de início deve estar no formato HH:MM (ex: 08:00)',
@@ -247,71 +243,21 @@ export class ShiftsService {
         );
       }
 
-      // Criar datas locais para o plantão
-      const shiftDate = this.createLocalDate(createShiftDto.date);
-      const startTime = this.createLocalDateTime(
-        createShiftDto.date,
-        createShiftDto.startTime,
-      );
-      const endTime = this.createLocalDateTime(
-        createShiftDto.date,
-        createShiftDto.endTime,
-      );
+      const shiftDate = this.dateStringToDate(createShiftDto.date);
+      const startTime = this.timeStringToDate(createShiftDto.startTime);
+      const endTime = this.timeStringToDate(createShiftDto.endTime);
 
-      // Verificar se o horário de término é após o início
-      // Para plantões noturnos, o endTime pode ser no dia seguinte
       if (endTime <= startTime) {
         endTime.setDate(endTime.getDate() + 1);
       }
 
-      // Validar se a data não é muito antiga (opcional - pode ser configurável)
-      const oneYearAgo = new Date();
-      oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+      const locationId = createShiftDto.locationId?.trim() || undefined;
+      const contractorId = createShiftDto.contractorId?.trim() || undefined;
 
-      if (shiftDate < oneYearAgo) {
-        this.logger.warn(
-          `Plantão criado com data muito antiga: ${createShiftDto.date}`,
-        );
-      }
+      this.logger.log(
+        `Criando plantão para ${createShiftDto.date} das ${createShiftDto.startTime} às ${createShiftDto.endTime}`,
+      );
 
-      // Verificar conflitos de horário no mesmo dia (opcional)
-      const existingShifts = await this.prisma.plantao.findMany({
-        where: {
-          userId: user.id,
-          date: {
-            gte: new Date(
-              shiftDate.getFullYear(),
-              shiftDate.getMonth(),
-              shiftDate.getDate(),
-            ),
-            lt: new Date(
-              shiftDate.getFullYear(),
-              shiftDate.getMonth(),
-              shiftDate.getDate() + 1,
-            ),
-          },
-        },
-        select: { id: true, startTime: true, endTime: true },
-      });
-
-      // Log de conflitos para monitoramento
-      if (existingShifts.length > 0) {
-        this.logger.warn(
-          `Possível sobreposição de plantões para o dia ${createShiftDto.date}`,
-        );
-      }
-
-      const locationId =
-        createShiftDto.locationId && createShiftDto.locationId.trim() !== ''
-          ? createShiftDto.locationId
-          : undefined;
-
-      const contractorId =
-        createShiftDto.contractorId && createShiftDto.contractorId.trim() !== ''
-          ? createShiftDto.contractorId
-          : undefined;
-
-      // Criar o plantão
       const newShift = await this.prisma.plantao.create({
         data: {
           date: shiftDate,
@@ -321,18 +267,10 @@ export class ShiftsService {
           isFixed: createShiftDto.isFixed || false,
           paymentType: createShiftDto.paymentType,
           notes: createShiftDto.notes || null,
-          user: {
-            connect: { id: user.id },
-          },
-          ...(locationId && {
-            location: {
-              connect: { id: locationId },
-            },
-          }),
+          user: { connect: { id: user.id } },
+          ...(locationId && { location: { connect: { id: locationId } } }),
           ...(contractorId && {
-            contractor: {
-              connect: { id: contractorId },
-            },
+            contractor: { connect: { id: contractorId } },
           }),
         },
         include: {
@@ -341,15 +279,14 @@ export class ShiftsService {
         },
       });
 
-      this.logger.log(`Plantão criado com sucesso: ${newShift.id}`);
-      return {
-        ...newShift,
-        date: this.formatDateToLocalString(newShift.date),
-        startTime: newShift.startTime.toISOString(),
-        endTime: newShift.endTime.toISOString(),
-      } as any;
+      this.logger.log(`✅ Plantão criado com sucesso: ${newShift.id}`);
+
+      return this.formatShiftResponse(newShift) as any;
     } catch (error) {
-      this.logger.error(`Erro ao criar plantão: ${error.message}`, error.stack);
+      this.logger.error(
+        `❌ Erro ao criar plantão: ${error.message}`,
+        error.stack,
+      );
 
       if (
         error instanceof BadRequestException ||
@@ -368,18 +305,6 @@ export class ShiftsService {
     try {
       const existingShift = await this.prisma.plantao.findUnique({
         where: { id },
-        select: {
-          id: true,
-          date: true,
-          startTime: true,
-          endTime: true,
-          value: true,
-          paymentType: true,
-          isFixed: true,
-          notes: true,
-          locationId: true,
-          contractorId: true,
-        },
       });
 
       if (!existingShift) {
@@ -388,28 +313,19 @@ export class ShiftsService {
 
       const updateData: Prisma.PlantaoUpdateInput = {};
 
-      // Atualizar data se fornecida
       if (updateShiftDto.date !== undefined) {
-        updateData.date = this.createLocalDate(updateShiftDto.date);
+        updateData.date = this.dateStringToDate(updateShiftDto.date);
       }
 
-      const workingDate =
-        updateShiftDto.date || existingShift.date.toISOString().split('T')[0];
-
-      // Atualizar horário de início se fornecido
       if (updateShiftDto.startTime !== undefined) {
         if (!this.validateTimeFormat(updateShiftDto.startTime)) {
           throw new BadRequestException(
             'Horário de início deve estar no formato HH:MM',
           );
         }
-        updateData.startTime = this.createLocalDateTime(
-          workingDate,
-          updateShiftDto.startTime,
-        );
+        updateData.startTime = this.timeStringToDate(updateShiftDto.startTime);
       }
 
-      // Atualizar horário de término se fornecido
       if (updateShiftDto.endTime !== undefined) {
         if (!this.validateTimeFormat(updateShiftDto.endTime)) {
           throw new BadRequestException(
@@ -417,12 +333,7 @@ export class ShiftsService {
           );
         }
 
-        const endTime = this.createLocalDateTime(
-          workingDate,
-          updateShiftDto.endTime,
-        );
-
-        // Verificar com horário de início atualizado ou existente
+        const endTime = this.timeStringToDate(updateShiftDto.endTime);
         const startTime = updateData.startTime || existingShift.startTime;
 
         if (endTime <= startTime) {
@@ -432,7 +343,6 @@ export class ShiftsService {
         updateData.endTime = endTime;
       }
 
-      // Atualizar outros campos
       if (updateShiftDto.value !== undefined) {
         updateData.value = updateShiftDto.value;
       }
@@ -450,10 +360,7 @@ export class ShiftsService {
       }
 
       if (updateShiftDto.locationId !== undefined) {
-        if (
-          updateShiftDto.locationId &&
-          updateShiftDto.locationId.trim() !== ''
-        ) {
+        if (updateShiftDto.locationId?.trim()) {
           updateData.location = { connect: { id: updateShiftDto.locationId } };
         } else {
           updateData.location = { disconnect: true };
@@ -461,10 +368,7 @@ export class ShiftsService {
       }
 
       if (updateShiftDto.contractorId !== undefined) {
-        if (
-          updateShiftDto.contractorId &&
-          updateShiftDto.contractorId.trim() !== ''
-        ) {
+        if (updateShiftDto.contractorId?.trim()) {
           updateData.contractor = {
             connect: { id: updateShiftDto.contractorId },
           };
@@ -472,6 +376,15 @@ export class ShiftsService {
           updateData.contractor = { disconnect: true };
         }
       }
+
+      this.logger.log(
+        `Atualizando plantão ${id} com dados:`,
+        JSON.stringify({
+          date: updateShiftDto.date,
+          startTime: updateShiftDto.startTime,
+          endTime: updateShiftDto.endTime,
+        }),
+      );
 
       const updatedShift = await this.prisma.plantao.update({
         where: { id },
@@ -482,16 +395,12 @@ export class ShiftsService {
         },
       });
 
-      this.logger.log(`Plantão atualizado com sucesso: ${id}`);
-      return {
-        ...updatedShift,
-        date: this.formatDateToLocalString(updatedShift.date),
-        startTime: updatedShift.startTime.toISOString(),
-        endTime: updatedShift.endTime.toISOString(),
-      } as any;
+      this.logger.log(`✅ Plantão atualizado com sucesso: ${id}`);
+
+      return this.formatShiftResponse(updatedShift) as any;
     } catch (error) {
       this.logger.error(
-        `Erro ao atualizar plantão ${id}: ${error.message}`,
+        `❌ Erro ao atualizar plantão ${id}: ${error.message}`,
         error.stack,
       );
 
@@ -526,16 +435,12 @@ export class ShiftsService {
         },
       });
 
-      this.logger.log(`Plantão removido com sucesso: ${id}`);
-      return {
-        ...deletedShift,
-        date: this.formatDateToLocalString(deletedShift.date),
-        startTime: deletedShift.startTime.toISOString(),
-        endTime: deletedShift.endTime.toISOString(),
-      } as any;
+      this.logger.log(`✅ Plantão removido com sucesso: ${id}`);
+
+      return this.formatShiftResponse(deletedShift) as any;
     } catch (error) {
       this.logger.error(
-        `Erro ao remover plantão ${id}: ${error.message}`,
+        `❌ Erro ao remover plantão ${id}: ${error.message}`,
         error.stack,
       );
 
@@ -583,7 +488,6 @@ export class ShiftsService {
         );
       }
 
-      // Validar todos os shifts antes de criar qualquer um
       const validationErrors: string[] = [];
       for (let i = 0; i < shifts.length; i++) {
         const shift = shifts[i];
@@ -597,7 +501,7 @@ export class ShiftsService {
         }
 
         try {
-          this.createLocalDate(shift.date);
+          this.dateStringToDate(shift.date);
         } catch {
           validationErrors.push(`Shift ${i + 1}: Data inválida`);
         }
@@ -609,24 +513,19 @@ export class ShiftsService {
         );
       }
 
-      // Buscar conflitos existentes se skipConflicts estiver habilitado
-      let existingShifts: {
-        date: Date;
-        startTime: Date;
-        endTime: Date;
-      }[] = [];
+      let existingShifts: { date: Date; startTime: Date; endTime: Date }[] = [];
 
       if (skipConflicts) {
         const dates = shifts.map((s) => s.date);
         existingShifts = await this.findExistingShifts(user.id, dates);
       }
 
-      // Processar cada shift
+      this.logger.log(`Criando ${shifts.length} plantões em lote`);
+
       for (const shift of shifts) {
         try {
-          // Verificar conflitos
           if (skipConflicts) {
-            const shiftDate = this.createLocalDate(shift.date);
+            const shiftDate = this.dateStringToDate(shift.date);
             const hasConflict = existingShifts.some((existing) => {
               const existingDate = new Date(existing.date);
               return (
@@ -643,7 +542,6 @@ export class ShiftsService {
             }
           }
 
-          // Criar o shift
           const createdShift = await this.create(clerkId, shift);
           result.created.push(createdShift);
           result.summary.created++;
@@ -651,30 +549,28 @@ export class ShiftsService {
           const errorMessage =
             error instanceof Error ? error.message : 'Erro desconhecido';
 
-          result.failed.push({
-            shift,
-            error: errorMessage,
-          });
+          result.failed.push({ shift, error: errorMessage });
           result.summary.failed++;
 
           if (!continueOnError) {
             throw error;
           }
 
-          this.logger.warn(`Erro ao criar plantão em lote: ${errorMessage}`, {
-            shift,
-          });
+          this.logger.warn(
+            `❌ Erro ao criar plantão em lote: ${errorMessage}`,
+            { shift },
+          );
         }
       }
 
       this.logger.log(
-        `Criação em lote concluída: ${result.summary.created} criados, ${result.summary.skipped} ignorados, ${result.summary.failed} falharam`,
+        `✅ Criação em lote concluída: ${result.summary.created} criados, ${result.summary.skipped} ignorados, ${result.summary.failed} falharam`,
       );
 
       return result;
     } catch (error) {
       this.logger.error(
-        `Erro na criação em lote: ${error.message}`,
+        `❌ Erro na criação em lote: ${error.message}`,
         error.stack,
       );
 
@@ -696,7 +592,7 @@ export class ShiftsService {
     dates: string[],
   ): Promise<{ id: string; date: Date; startTime: Date; endTime: Date }[]> {
     try {
-      const dateObjects = dates.map((date) => this.createLocalDate(date));
+      const dateObjects = dates.map((date) => this.dateStringToDate(date));
       const minDate = new Date(
         Math.min(...dateObjects.map((d) => d.getTime())),
       );
@@ -704,7 +600,6 @@ export class ShiftsService {
         Math.max(...dateObjects.map((d) => d.getTime())),
       );
 
-      // Estender o range para incluir todo o dia
       maxDate.setHours(23, 59, 59, 999);
 
       return this.prisma.plantao.findMany({
@@ -724,7 +619,7 @@ export class ShiftsService {
       });
     } catch (error) {
       this.logger.error(
-        `Erro ao buscar plantões existentes: ${error.message}`,
+        `❌ Erro ao buscar plantões existentes: ${error.message}`,
         error.stack,
       );
       return [];

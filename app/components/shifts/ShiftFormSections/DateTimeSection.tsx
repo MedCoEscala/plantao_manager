@@ -28,6 +28,17 @@ const DateTimeSection = memo<DateTimeSectionProps>(
     onEndTimeChange,
     errors,
   }) => {
+    console.log('📊 DateTimeSection - Valores atuais:', {
+      date: date?.toDateString(),
+      startTime: startTime
+        ? `${startTime.getHours()}:${startTime.getMinutes().toString().padStart(2, '0')}`
+        : 'undefined',
+      endTime: endTime
+        ? `${endTime.getHours()}:${endTime.getMinutes().toString().padStart(2, '0')}`
+        : 'undefined',
+      duration,
+    });
+
     return (
       <Card className="m-6 mb-4">
         <SectionHeader
@@ -72,6 +83,12 @@ const DateTimeSection = memo<DateTimeSectionProps>(
           <Text className="text-center text-sm font-semibold text-blue-700">
             ⏱️ Duração: {duration}
           </Text>
+          {__DEV__ && (
+            <Text className="mt-1 text-center text-xs text-blue-600">
+              Debug: {startTime ? dateToLocalTimeString(startTime) : 'N/A'} -{' '}
+              {endTime ? dateToLocalTimeString(endTime) : 'N/A'}
+            </Text>
+          )}
         </View>
       </Card>
     );

@@ -1,12 +1,11 @@
 import { format, isValid } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
-// Função auxiliar para normalizar datas para o timezone local
-const normalizeToLocalDate = (date: string | Date): Date => {
+export const normalizeToLocalDate = (date: string | Date): Date => {
   if (typeof date === 'string') {
     if (!date.includes('T') && !date.includes('Z') && date.includes('-')) {
       const [year, month, day] = date.split('-').map(Number);
-      if (year && month && day) {
+      if (year && month && day && month >= 1 && month <= 12 && day >= 1 && day <= 31) {
         return new Date(year, month - 1, day, 0, 0, 0, 0);
       }
     }
@@ -14,7 +13,7 @@ const normalizeToLocalDate = (date: string | Date): Date => {
     if (date.includes('T') || date.includes('Z')) {
       const dateOnly = date.split('T')[0];
       const [year, month, day] = dateOnly.split('-').map(Number);
-      if (year && month && day) {
+      if (year && month && day && month >= 1 && month <= 12 && day >= 1 && day <= 31) {
         return new Date(year, month - 1, day, 0, 0, 0, 0);
       }
     }
@@ -44,7 +43,6 @@ const normalizeToLocalDate = (date: string | Date): Date => {
   return new Date();
 };
 
-// Função para formatar data de plantão (sempre como data local)
 export const formatShiftDate = (
   date: string | Date | null | undefined,
   formatStr = "dd 'de' MMMM 'de' yyyy"
@@ -88,13 +86,19 @@ export const formatTime = (time: string | Date | null | undefined): string => {
       const match = time.match(timeRegex);
 
       if (match) {
-        return `${match[1].padStart(2, '0')}:${match[2].padStart(2, '0')}`;
+        const hours = match[1].padStart(2, '0');
+        const minutes = match[2].padStart(2, '0');
+        return `${hours}:${minutes}`;
       }
 
-      if (time.includes('T') || time.includes('Z')) {
-        const parsedDate = new Date(time);
-        if (isValid(parsedDate)) {
-          return format(parsedDate, 'HH:mm');
+      if (time.includes('T')) {
+        const timePart = time.split('T')[1];
+        if (timePart) {
+          const timeOnly = timePart.split('Z')[0].split('+')[0].split('-')[0];
+          const [hours, minutes] = timeOnly.split(':');
+          if (hours && minutes) {
+            return `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}`;
+          }
         }
       }
     }
@@ -105,6 +109,7 @@ export const formatTime = (time: string | Date | null | undefined): string => {
 
     return '';
   } catch (error) {
+    console.warn('Erro ao formatar horário:', time, error);
     return '';
   }
 };
@@ -123,7 +128,6 @@ export const formatCurrency = (value: number | string | null | undefined): strin
   }
 };
 
-// Função para converter Date para string de data local (YYYY-MM-DD)
 export const dateToLocalDateString = (date: Date): string => {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -131,21 +135,64 @@ export const dateToLocalDateString = (date: Date): string => {
   return `${year}-${month}-${day}`;
 };
 
-// Função para converter Date para string de hora local (HH:MM)
-export const dateToLocalTimeString = (date: Date): string => {
-  const hours = String(date.getHours()).padStart(2, '0');
-  const minutes = String(date.getMinutes()).padStart(2, '0');
+export const dateToLocalTimeString = (time: Date | string): string => {
+  if (typeof time === 'string') {
+    return formatTime(time);
+  }
+
+  if (!isValid(time)) {
+    return '00:00';
+  }
+
+  const hours = String(time.getHours()).padStart(2, '0');
+  const minutes = String(time.getMinutes()).padStart(2, '0');
   return `${hours}:${minutes}`;
 };
 
-// Função para criar Date local a partir de data e hora
-export const createLocalDateTime = (date: Date, hours: number, minutes: number): Date => {
-  const localDate = new Date(date);
-  localDate.setHours(hours, minutes, 0, 0);
+export const createLocalDateTime = (
+  date: Date | string,
+  hours: number | string,
+  minutes: number | string = 0
+): Date => {
+  const baseDate =
+    typeof date === 'string' ? normalizeToLocalDate(date) : normalizeToLocalDate(date);
+
+  const h = typeof hours === 'string' ? parseInt(hours, 10) : hours;
+  const m = typeof minutes === 'string' ? parseInt(minutes, 10) : minutes;
+
+  if (isNaN(h) || isNaN(m) || h < 0 || h > 23 || m < 0 || m > 59) {
+    return baseDate;
+  }
+
+  const localDate = new Date(baseDate);
+  localDate.setHours(h, m, 0, 0);
   return localDate;
 };
 
-// Default export para resolver warning do React Router
+export const parseISOTimeToLocal = (isoString: string, baseDate?: Date): Date => {
+  const base = baseDate || new Date();
+  const localBase = new Date(base.getFullYear(), base.getMonth(), base.getDate(), 0, 0, 0, 0);
+
+  try {
+    if (isoString.includes('T')) {
+      const timePart = isoString.split('T')[1];
+      if (timePart) {
+        const timeOnly = timePart.split('Z')[0].split('+')[0].split('-')[0];
+        const [hours, minutes] = timeOnly.split(':').map(Number);
+
+        if (!isNaN(hours) && !isNaN(minutes)) {
+          localBase.setHours(hours, minutes, 0, 0);
+          return localBase;
+        }
+      }
+    }
+  } catch (error) {
+    console.warn('Erro ao converter ISO para local:', error);
+  }
+
+  return localBase;
+};
+
 const formatters = {
   formatDate,
   formatTime,
@@ -155,6 +202,7 @@ const formatters = {
   dateToLocalTimeString,
   createLocalDateTime,
   normalizeToLocalDate,
+  parseISOTimeToLocal,
 };
 
 export default formatters;
