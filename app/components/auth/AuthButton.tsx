@@ -29,19 +29,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-    ...(Platform.OS === 'ios'
-      ? {
-          shadowColor: '#000',
-          shadowOffset: {
-            width: 0,
-            height: 2,
-          },
-          shadowOpacity: 0.1,
-          shadowRadius: 8,
-        }
-      : {
-          elevation: 4,
-        }),
+    // Removido estilos nativos de sombra para usar apenas Tailwind
   },
   buttonSm: {
     paddingVertical: 10,

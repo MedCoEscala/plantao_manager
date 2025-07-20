@@ -23,6 +23,7 @@ import ShiftFormModal from '../../components/shifts/ShiftFormModal';
 import FloatingButton from '../../components/ui/FloatingButton';
 import ScreenWrapper from '../../components/ui/ScreenWrapper';
 import { useDialog } from '../../contexts/DialogContext';
+import { useShiftsSync } from '../../contexts/ShiftsSyncContext';
 import { useProfile } from '../../hooks/useProfile';
 import { useShiftsApi, Shift } from '../../services/shifts-api';
 import formatters, { formatDate, formatTime, formatCurrency } from '../../utils/formatters';
@@ -42,6 +43,7 @@ export default function ShiftsScreen() {
   const { profile, loading: isProfileLoading } = useProfile();
   const { showDialog } = useDialog();
   const { showError, showSuccess } = useNotification();
+  const { subscribeToRefresh } = useShiftsSync();
   const router = useRouter();
   const shiftsApi = useShiftsApi();
 
@@ -141,6 +143,16 @@ export default function ShiftsScreen() {
       });
     }
   }, [currentMonth, isProfileLoading, isDataLoaded, loadShifts]);
+
+  // Inscrever na sincronização de plantões
+  useEffect(() => {
+    const unsubscribe = subscribeToRefresh(() => {
+      console.log('🔄 Tela principal recebeu notificação de atualização');
+      loadShifts(true);
+    });
+
+    return unsubscribe;
+  }, [subscribeToRefresh, loadShifts]);
 
   const shiftsForSelectedDate = useMemo(() => {
     if (!shifts || shifts.length === 0) return [];
@@ -387,17 +399,11 @@ export default function ShiftsScreen() {
       return {
         bottom: tabBarHeight + navigationBarHeight + spacing,
         right: 24,
-        elevation: 8,
-        zIndex: 1000,
       };
     }
     return {
       bottom: 60 + insets.bottom + 24,
       right: 24,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.3,
-      shadowRadius: 8,
     };
   };
 

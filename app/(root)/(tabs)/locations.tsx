@@ -1,6 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
@@ -10,9 +9,7 @@ import {
   ActivityIndicator,
   TextInput,
   Animated,
-  Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { LocationFormModal } from '../../components/ui';
 import FloatingButton from '../../components/ui/FloatingButton';

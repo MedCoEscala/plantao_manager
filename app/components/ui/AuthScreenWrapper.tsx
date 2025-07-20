@@ -23,7 +23,7 @@ export const AuthScreenWrapper: React.FC<AuthScreenWrapperProps> = ({
 
   return (
     <SafeAreaView className="flex-1" edges={edges} style={{ backgroundColor }}>
-      <StatusBar style="dark" backgroundColor="transparent" translucent />
+      <StatusBar style="dark" translucent />
 
       {showGradient && (
         <LinearGradient

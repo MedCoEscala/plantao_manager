@@ -49,7 +49,7 @@ const ShiftFormModal: React.FC<ShiftFormModalProps> = ({
       animationType="slide"
       presentationStyle="pageSheet"
       onRequestClose={handleCancel}>
-      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+      <StatusBar barStyle="dark-content" />
 
       <View className="flex-1 bg-background">
         {/* Header moderno */}

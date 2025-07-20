@@ -30,6 +30,7 @@ import {
   PAYMENT_ANIMATIONS,
 } from '../../constants/payment-constants';
 import { useDialog } from '../../contexts/DialogContext';
+import { useShiftsSync } from '../../contexts/ShiftsSyncContext';
 import { useContractorsSelector } from '../../hooks/useContractorsSelector';
 import { useLocationsSelector } from '../../hooks/useLocationsSelector';
 import { useSelection } from '../../hooks/useSelection';
@@ -100,6 +101,7 @@ export default function PaymentsScreen() {
   // APIs e hooks
   const { showDialog } = useDialog();
   const { showToast } = useToast();
+  const { subscribeToRefresh } = useShiftsSync();
   const router = useRouter();
   const shiftsApi = useShiftsApi();
   const paymentsApi = usePaymentsApi();
@@ -317,6 +319,16 @@ export default function PaymentsScreen() {
       }
     };
   }, [filtersString]); // Apenas filtersString como dependência
+
+  // Inscrever na sincronização de plantões
+  useEffect(() => {
+    const unsubscribe = subscribeToRefresh(() => {
+      console.log('🔄 Tela de pagamentos recebeu notificação de atualização');
+      loadShifts(true);
+    });
+
+    return unsubscribe;
+  }, [subscribeToRefresh, loadShifts]);
 
   // Função de refresh manual
   const handleRefresh = useCallback(async () => {
@@ -916,27 +928,11 @@ export default function PaymentsScreen() {
 
       {/* Botões de ação flutuantes */}
       {isSelectionMode && selectionCount > 0 && (
-        <View
-          className="absolute bottom-24 left-4 right-4"
-          style={{
-            elevation: 10,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.3,
-            shadowRadius: 8,
-            zIndex: 1000,
-          }}>
+        <View className="absolute bottom-24 left-4 right-4 z-50">
           <View className="flex-row space-x-3">
             <TouchableOpacity
               className="flex-1 flex-row items-center justify-center rounded-2xl bg-success py-5"
-              onPress={handleMarkAsPaid}
-              style={{
-                elevation: 5,
-                shadowColor: '#10b981',
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.3,
-                shadowRadius: 4,
-              }}>
+              onPress={handleMarkAsPaid}>
               <Ionicons name="checkmark-circle-outline" size={22} color="#FFFFFF" />
               <Text className="ml-2 text-base font-semibold text-white">
                 {PAYMENT_MESSAGES.ACTION_MARK_PAID}
@@ -945,14 +941,7 @@ export default function PaymentsScreen() {
 
             <TouchableOpacity
               className="flex-1 flex-row items-center justify-center rounded-2xl bg-warning py-5"
-              onPress={handleMarkAsUnpaid}
-              style={{
-                elevation: 5,
-                shadowColor: '#f59e0b',
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.3,
-                shadowRadius: 4,
-              }}>
+              onPress={handleMarkAsUnpaid}>
               <Ionicons name="close-circle-outline" size={22} color="#FFFFFF" />
               <Text className="ml-2 text-base font-semibold text-white">
                 {PAYMENT_MESSAGES.ACTION_MARK_UNPAID}

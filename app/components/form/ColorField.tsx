@@ -220,23 +220,13 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
   },
   selectedColorOption: {
     borderColor: '#374151',
     borderWidth: 3,
   },
   checkmark: {
-    textShadowColor: 'rgba(0, 0, 0, 0.5)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+    // Removido textShadow para usar apenas Tailwind
   },
   colorOptionName: {
     fontSize: 10,

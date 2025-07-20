@@ -29,16 +29,11 @@ export const ScreenWrapper: React.FC<ScreenWrapperProps> = ({
   const finalEdges = edges || defaultEdges;
 
   // Configuração da StatusBar baseada na plataforma
-  const statusBarBackground = Platform.OS === 'android' ? backgroundColor : 'transparent';
   const statusBarTranslucentValue = Platform.OS === 'android' ? statusBarTranslucent : false;
 
   return (
     <SafeAreaView className={className} edges={finalEdges}>
-      <StatusBar
-        style={statusBarStyle}
-        backgroundColor={statusBarBackground}
-        translucent={statusBarTranslucentValue}
-      />
+      <StatusBar style={statusBarStyle} translucent={statusBarTranslucentValue} />
       {children}
     </SafeAreaView>
   );

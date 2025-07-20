@@ -14,6 +14,7 @@ import { DialogProvider } from './contexts/DialogContext';
 import { LocationsProvider } from './contexts/LocationsContext';
 import { NotificationProvider } from './contexts/NotificationContext';
 import { ProfileProvider } from './contexts/ProfileContext';
+import { ShiftsSyncProvider } from './contexts/ShiftsSyncContext';
 import { useNotifications } from './hooks/useNotifications';
 import { StatusBar } from 'expo-status-bar';
 import { initialWindowMetrics, SafeAreaProvider } from 'react-native-safe-area-context';
@@ -127,18 +128,20 @@ function RootLayoutNav() {
           <ProfileProvider>
             <LocationsProvider>
               <ContractorsProvider>
-                <Stack
-                  screenOptions={{
-                    headerShown: false,
-                    contentStyle: { backgroundColor: '#f8fafc' },
-                    animation: 'fade_from_bottom',
-                  }}>
-                  <Stack.Screen name="(root)" options={{ headerShown: false }} />
-                  <Stack.Screen
-                    name="(auth)"
-                    options={{ presentation: 'modal', headerShown: false }}
-                  />
-                </Stack>
+                <ShiftsSyncProvider>
+                  <Stack
+                    screenOptions={{
+                      headerShown: false,
+                      contentStyle: { backgroundColor: '#f8fafc' },
+                      animation: 'fade_from_bottom',
+                    }}>
+                    <Stack.Screen name="(root)" options={{ headerShown: false }} />
+                    <Stack.Screen
+                      name="(auth)"
+                      options={{ presentation: 'modal', headerShown: false }}
+                    />
+                  </Stack>
+                </ShiftsSyncProvider>
               </ContractorsProvider>
             </LocationsProvider>
           </ProfileProvider>

@@ -37,44 +37,37 @@ const ModernButton: React.FC<ModernButtonProps> = ({
         return {
           colors: ['#18cb96', '#16a085'] as const,
           textColor: '#FFFFFF',
-          shadowColor: 'rgba(24, 203, 150, 0.3)',
         };
       case 'secondary':
         return {
           colors: ['#3b82f6', '#1e40af'] as const,
           textColor: '#FFFFFF',
-          shadowColor: 'rgba(59, 130, 246, 0.3)',
         };
       case 'success':
         return {
           colors: ['#10b981', '#059669'] as const,
           textColor: '#FFFFFF',
-          shadowColor: 'rgba(16, 185, 129, 0.3)',
         };
       case 'warning':
         return {
           colors: ['#f59e0b', '#d97706'] as const,
           textColor: '#FFFFFF',
-          shadowColor: 'rgba(245, 158, 11, 0.3)',
         };
       case 'danger':
         return {
           colors: ['#ef4444', '#dc2626'] as const,
           textColor: '#FFFFFF',
-          shadowColor: 'rgba(239, 68, 68, 0.3)',
         };
       case 'outline':
         return {
           colors: ['#f8fafc', '#f1f5f9'] as const,
           textColor: '#374151',
-          shadowColor: 'rgba(0, 0, 0, 0.1)',
           border: true,
         };
       default:
         return {
           colors: ['#18cb96', '#16a085'] as const,
           textColor: '#FFFFFF',
-          shadowColor: 'rgba(24, 203, 150, 0.3)',
         };
     }
   };

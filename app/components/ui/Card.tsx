@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, ViewProps } from 'react-native';
+import { View, ViewProps, Platform } from 'react-native';
 
 import { cn } from '../../utils/cn';
 
@@ -9,11 +9,24 @@ interface CardProps extends ViewProps {
   padding?: 'none' | 'sm' | 'md' | 'lg';
 }
 
+const elevatedStyle = Platform.select({
+  ios: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.23,
+    shadowRadius: 2.62,
+  },
+  android: {
+    elevation: 4,
+  },
+});
+
 export default function Card({
   children,
   variant = 'elevated',
   padding = 'md',
   className,
+  style,
   ...props
 }: CardProps) {
   const baseStyles = 'bg-white rounded-2xl';
@@ -21,7 +34,7 @@ export default function Card({
   const variantStyles = {
     default: '',
     outlined: 'border border-gray-200',
-    elevated: 'shadow-sm shadow-gray-100',
+    elevated: '',
   };
 
   const paddingStyles = {
@@ -34,6 +47,7 @@ export default function Card({
   return (
     <View
       className={cn(baseStyles, variantStyles[variant], paddingStyles[padding], className)}
+      style={[variant === 'elevated' && elevatedStyle, style]}
       {...props}>
       {children}
     </View>

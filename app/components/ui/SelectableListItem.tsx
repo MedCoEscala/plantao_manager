@@ -78,11 +78,6 @@ export const SelectableListItem: React.FC<SelectableListItemProps> = ({
     backgroundColor: isSelected ? 'rgba(24, 203, 150, 0.1)' : 'white',
     borderWidth: 2,
     borderColor: isSelected ? '#18cb96' : 'transparent',
-    elevation: isSelected ? 3 : 1,
-    shadowColor: isSelected ? '#18cb96' : '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: isSelected ? 0.25 : 0.1,
-    shadowRadius: isSelected ? 4 : 2,
     ...style,
     ...(isSelected ? selectedStyle : {}),
   };

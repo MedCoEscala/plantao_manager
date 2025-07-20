@@ -3,6 +3,7 @@ import { useState, useCallback, useMemo } from 'react';
 import { Alert } from 'react-native';
 
 import { useNotification } from '../contexts/NotificationContext';
+import { useShiftsSync } from '../contexts/ShiftsSyncContext';
 import { useShiftsApi, CreateShiftData, UpdateShiftData, Shift } from '../services/shifts-api';
 import { RecurrenceConfig } from '../types/recurrence';
 import formatters, {
@@ -80,6 +81,7 @@ const parseTimeFromBackend = (timeString: string | undefined, baseDate: Date): D
 export function useShiftForm({ shiftId, initialDate, initialData, onSuccess }: UseShiftFormProps) {
   const shiftsApi = useShiftsApi();
   const { showError, showSuccess } = useNotification();
+  const { triggerShiftsRefresh } = useShiftsSync();
 
   const [formData, setFormData] = useState<FormData>(() => {
     console.log('🔧 Inicializando formulário com dados:', initialData);
@@ -341,6 +343,9 @@ export function useShiftForm({ shiftId, initialDate, initialData, onSuccess }: U
         const result = await shiftsApi.updateShift(shiftId, shiftData);
         console.log('✅ Plantão atualizado:', result);
         showSuccess('Plantão atualizado com sucesso!');
+
+        // Disparar sincronização para outras telas
+        triggerShiftsRefresh();
       } else if (recurrenceConfig) {
         // Criação em lote
         const dates = RecurrenceCalculator.calculateDates(recurrenceConfig);
@@ -376,11 +381,17 @@ export function useShiftForm({ shiftId, initialDate, initialData, onSuccess }: U
 
         await shiftsApi.createShiftsBatch({ shifts: shiftsData });
         showSuccess(`${dates.length} plantões criados com sucesso!`);
+
+        // Disparar sincronização para outras telas
+        triggerShiftsRefresh();
       } else {
         // Criação simples
         const result = await shiftsApi.createShift(shiftData);
         console.log('✅ Plantão criado:', result);
         showSuccess('Plantão criado com sucesso!');
+
+        // Disparar sincronização para outras telas
+        triggerShiftsRefresh();
       }
 
       onSuccess?.();
@@ -401,6 +412,7 @@ export function useShiftForm({ shiftId, initialDate, initialData, onSuccess }: U
     showSuccess,
     showError,
     onSuccess,
+    triggerShiftsRefresh,
   ]);
 
   return {

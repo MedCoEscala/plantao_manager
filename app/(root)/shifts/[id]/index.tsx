@@ -9,6 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useToast } from '../../../components/ui/Toast';
 import { useDialog } from '../../../contexts/DialogContext';
+import { useShiftsSync } from '../../../contexts/ShiftsSyncContext';
 import { useShiftsApi, Shift } from '../../../services/shifts-api';
 import { formatDate, formatTime, formatCurrency } from '../../../utils/formatters';
 
@@ -50,6 +51,7 @@ export default function ShiftDetailsScreen() {
   const shiftId = params.id as string;
   const { showToast } = useToast();
   const { showDialog } = useDialog();
+  const { subscribeToRefresh, triggerShiftsRefresh } = useShiftsSync();
   const shiftsApi = useShiftsApi();
 
   const [isLoading, setIsLoading] = useState(true);
@@ -143,6 +145,17 @@ export default function ShiftDetailsScreen() {
     }
   }, [loadShiftDetails]);
 
+  // Inscrever na sincronização de plantões para recarregar dados quando houver mudanças
+  useEffect(() => {
+    const unsubscribe = subscribeToRefresh(() => {
+      console.log('🔄 Tela de detalhes recebeu notificação de atualização');
+      // Recarregar dados do plantão atual
+      loadShiftDetails();
+    });
+
+    return unsubscribe;
+  }, [subscribeToRefresh, loadShiftDetails]);
+
   const handleEdit = () => {
     if (!shiftId) return;
 
@@ -167,6 +180,10 @@ export default function ShiftDetailsScreen() {
         try {
           await shiftsApi.deleteShift(shiftId);
           showToast('Plantão excluído com sucesso!', 'success');
+
+          // Disparar sincronização para outras telas
+          triggerShiftsRefresh();
+
           router.back();
         } catch (error: any) {
           console.error('Erro ao excluir plantão:', error);

@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+import React, { memo, useMemo } from 'react';
 import { View, Text, ScrollView, ActivityIndicator } from 'react-native';
 
 import RecurrenceSelector from './RecurrenceSelector';
@@ -38,25 +38,52 @@ const ShiftForm = memo<ShiftFormProps>(
       onSuccess,
     });
 
+    const memoizedDuration = useMemo(() => {
+      return shiftDuration;
+    }, [shiftDuration]);
+
+    const dateTimeProps = useMemo(
+      () => ({
+        date: formData.date,
+        startTime: formData.startTime,
+        endTime: formData.endTime,
+        duration: memoizedDuration,
+        onDateChange: (date: Date) => {
+          updateField('date', date);
+        },
+        onStartTimeChange: (time: Date) => {
+          updateField('startTime', time);
+        },
+        onEndTimeChange: (time: Date) => {
+          updateField('endTime', time);
+        },
+        errors,
+      }),
+      [formData.date, formData.startTime, formData.endTime, memoizedDuration, updateField, errors]
+    );
+
+    const summaryProps = useMemo(
+      () => ({
+        date: formData.date,
+        startTime: formData.startTime,
+        endTime: formData.endTime,
+        value: formData.value,
+        duration: memoizedDuration,
+      }),
+      [formData.date, formData.startTime, formData.endTime, formData.value, memoizedDuration]
+    );
+
     return (
       <ScrollView
         className="flex-1 bg-gray-50"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 24 }}
         keyboardShouldPersistTaps="handled">
-        {/* Seção: Data e Horário */}
         <DateTimeSection
-          date={formData.date}
-          startTime={formData.startTime}
-          endTime={formData.endTime}
-          duration={shiftDuration}
-          onDateChange={(date) => updateField('date', date)}
-          onStartTimeChange={(time) => updateField('startTime', time)}
-          onEndTimeChange={(time) => updateField('endTime', time)}
-          errors={errors}
+          key={`datetime-${formData.date?.getTime()}-${formData.startTime?.getTime()}-${formData.endTime?.getTime()}`}
+          {...dateTimeProps}
         />
 
-        {/* Seção: Recorrência (apenas para novos plantões) */}
         {!shiftId && (
           <View className="mx-6 mb-4">
             <RecurrenceSelector
@@ -69,7 +96,6 @@ const ShiftForm = memo<ShiftFormProps>(
           </View>
         )}
 
-        {/* Seção: Local e Contratante */}
         <LocationContractorSection
           locationId={formData.locationId}
           contractorId={formData.contractorId}
@@ -78,7 +104,6 @@ const ShiftForm = memo<ShiftFormProps>(
           errors={errors}
         />
 
-        {/* Seção: Pagamento */}
         <PaymentSection
           value={formData.value}
           paymentType={formData.paymentType}
@@ -87,13 +112,11 @@ const ShiftForm = memo<ShiftFormProps>(
           errors={errors}
         />
 
-        {/* Seção: Observações */}
         <NotesSection
           notes={formData.notes}
           onNotesChange={(notes) => updateField('notes', notes)}
         />
 
-        {/* Botões de Ação */}
         <View className="mx-6 mb-4 mt-6">
           <View className="flex-row gap-3">
             {onCancel && (
@@ -116,7 +139,7 @@ const ShiftForm = memo<ShiftFormProps>(
               onPress={handleSubmit}
               loading={isSubmitting}
               disabled={isSubmitting}
-              className={`${onCancel ? 'flex-1' : 'w-full'} h-12 rounded-xl shadow-sm`}>
+              className={`${onCancel ? 'flex-1' : 'w-full'} h-12 rounded-xl`}>
               {isSubmitting ? (
                 <View className="flex-row items-center justify-center">
                   <ActivityIndicator size="small" color="#ffffff" className="mr-2" />
@@ -135,16 +158,22 @@ const ShiftForm = memo<ShiftFormProps>(
           </View>
         </View>
 
-        {/* Resumo do Plantão */}
         <View className="mx-6">
           <ShiftSummary
-            date={formData.date}
-            startTime={formData.startTime}
-            endTime={formData.endTime}
-            value={formData.value}
-            duration={shiftDuration}
+            key={`summary-${formData.date?.getTime()}-${formData.startTime?.getTime()}-${formData.endTime?.getTime()}-${formData.value}`}
+            {...summaryProps}
           />
         </View>
+
+        {__DEV__ && (
+          <View className="mx-6 mt-4 rounded-xl bg-yellow-50 p-4">
+            <Text className="text-sm font-semibold text-yellow-700">🐛 Debug Info:</Text>
+            <Text className="text-xs text-yellow-600">Duração atual: {memoizedDuration}</Text>
+            <Text className="text-xs text-yellow-600">
+              Última atualização: {new Date().toLocaleTimeString()}
+            </Text>
+          </View>
+        )}
       </ScrollView>
     );
   }

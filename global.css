@@ -2,20 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Garantir compatibilidade de produção */
 @layer base {
   * {
     box-sizing: border-box;
-  }
-}
-
-/* Classes customizadas para produção */
-@layer utilities {
-  .shadow-sm {
-    elevation: 2;
-    shadow-color: #000;
-    shadow-offset: 0px 1px;
-    shadow-opacity: 0.05;
-    shadow-radius: 3px;
   }
 }

@@ -272,86 +272,56 @@ const CalendarComponent: React.FC<CalendarProps> = ({
     const hasShift = shiftCount > 0;
     const weekdayLetter = format(item, 'EEEEE', { locale: ptBR }).toUpperCase();
 
-    // Estilos memoizados com tipagem correta
-    const containerStyle = useMemo<ViewStyle>(
-      () => ({
-        marginHorizontal: 4,
-        width: WEEK_ITEM_WIDTH,
-        height: 80,
-        borderRadius: 16,
-        overflow: 'hidden',
-        backgroundColor: isSelected
-          ? '#18cb96'
-          : isTodayDate
-            ? 'white'
-            : hasShift
-              ? '#18cb9620'
-              : 'white',
-        borderWidth: isTodayDate && !isSelected ? 1.5 : hasShift ? 0 : 1,
-        borderColor: isTodayDate && !isSelected ? '#18cb96' : '#e5e7eb',
-        justifyContent: 'center',
-        alignItems: 'center',
-        shadowColor: isSelected ? '#18cb96' : 'transparent',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.3,
-        shadowRadius: 4,
-        elevation: isSelected ? 3 : 0,
-      }),
-      [isSelected, isTodayDate, hasShift]
-    );
+    // Classes Tailwind dinâmicas
+    const containerClasses = useMemo(() => {
+      const baseClasses = 'mx-1 w-20 h-20 rounded-2xl overflow-hidden justify-center items-center';
 
-    const weekdayTextStyle = useMemo<TextStyle>(
-      () => ({
-        fontSize: 12,
-        fontWeight: '700',
-        marginBottom: 4,
-        color: isSelected ? 'white' : isTodayDate ? '#18cb96' : '#64748b',
-      }),
-      [isSelected, isTodayDate]
-    );
+      if (isSelected) {
+        return `${baseClasses} bg-primary shadow-lg`;
+      } else if (isTodayDate) {
+        return `${baseClasses} bg-white border-2 border-primary`;
+      } else if (hasShift) {
+        return `${baseClasses} bg-primary/20 border border-gray-200`;
+      } else {
+        return `${baseClasses} bg-white border border-gray-200`;
+      }
+    }, [isSelected, isTodayDate, hasShift]);
 
-    const dateTextStyle = useMemo<TextStyle>(
-      () => ({
-        fontSize: 18,
-        fontWeight: '700',
-        color: isSelected ? 'white' : isTodayDate ? '#18cb96' : '#1e293b',
-      }),
-      [isSelected, isTodayDate]
-    );
+    const weekdayTextClasses = useMemo(() => {
+      const baseClasses = 'text-xs font-bold mb-1';
+      if (isSelected) return `${baseClasses} text-white`;
+      if (isTodayDate) return `${baseClasses} text-primary`;
+      return `${baseClasses} text-gray-500`;
+    }, [isSelected, isTodayDate]);
 
-    const badgeContainerStyle = useMemo<ViewStyle>(
-      () => ({
-        marginTop: 4,
-        minWidth: 18,
-        paddingHorizontal: 6,
-        paddingVertical: 2,
-        borderRadius: 10,
-        backgroundColor: isSelected ? 'white' : '#18cb96',
-        alignItems: 'center',
-      }),
-      [isSelected]
-    );
+    const dateTextClasses = useMemo(() => {
+      const baseClasses = 'text-lg font-bold';
+      if (isSelected) return `${baseClasses} text-white`;
+      if (isTodayDate) return `${baseClasses} text-primary`;
+      return `${baseClasses} text-text-dark`;
+    }, [isSelected, isTodayDate]);
 
-    const badgeTextStyle = useMemo<TextStyle>(
-      () => ({
-        fontSize: 10,
-        fontWeight: '700',
-        color: isSelected ? '#18cb96' : 'white',
-      }),
-      [isSelected]
-    );
+    const badgeContainerClasses = useMemo(() => {
+      const baseClasses = 'mt-1 min-w-[18px] px-1.5 py-0.5 rounded-full items-center';
+      return isSelected ? `${baseClasses} bg-white` : `${baseClasses} bg-primary`;
+    }, [isSelected]);
+
+    const badgeTextClasses = useMemo(() => {
+      const baseClasses = 'text-[10px] font-bold';
+      return isSelected ? `${baseClasses} text-primary` : `${baseClasses} text-white`;
+    }, [isSelected]);
 
     return (
       <Pressable
         onPress={() => onSelectDate(item)}
-        style={containerStyle}
+        className={containerClasses}
         android_ripple={{ color: 'rgba(0, 0, 0, 0.1)' }}>
-        <Text style={weekdayTextStyle}>{weekdayLetter}</Text>
-        <Text style={dateTextStyle}>{getDate(item)}</Text>
+        <Text className={weekdayTextClasses}>{weekdayLetter}</Text>
+        <Text className={dateTextClasses}>{getDate(item)}</Text>
 
         {hasShift && (
-          <View style={badgeContainerStyle}>
-            <Text style={badgeTextStyle}>{shiftCount}</Text>
+          <View className={badgeContainerClasses}>
+            <Text className={badgeTextClasses}>{shiftCount}</Text>
           </View>
         )}
       </Pressable>

@@ -35,17 +35,11 @@ export const FloatingButton: React.FC<FloatingButtonProps> = ({
       return {
         bottom: tabBarHeight + navigationBarHeight + spacing,
         right: 24,
-        elevation: 8,
-        zIndex: 1000,
       };
     }
     return {
       bottom: 60 + insets.bottom + 24,
       right: 24,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.3,
-      shadowRadius: 8,
     };
   };
 
@@ -54,7 +48,6 @@ export const FloatingButton: React.FC<FloatingButtonProps> = ({
       className="absolute h-14 w-14 items-center justify-center rounded-full shadow-lg"
       style={{
         backgroundColor,
-        elevation: 4,
         ...getFloatingButtonPosition(),
       }}
       activeOpacity={0.9}

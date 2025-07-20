@@ -132,6 +132,10 @@ export function DateField({
       locale: 'pt_BR',
       confirmTextIOS: 'Confirmar',
       cancelTextIOS: 'Cancelar',
+      // Configurações para evitar problemas de estilo
+      modalStyleIOS: {
+        backgroundColor: 'white',
+      },
     };
   }, [
     isPickerVisible,
@@ -175,7 +179,13 @@ export function DateField({
         <Ionicons name={getIconName()} size={20} color={normalizedValue ? '#18cb96' : '#64748b'} />
       </TouchableOpacity>
 
-      <DateTimePicker {...pickerProps} />
+      <DateTimePicker
+        {...pickerProps}
+        // Configurações adicionais para evitar problemas de estilo
+        pickerContainerStyleIOS={{
+          backgroundColor: 'white',
+        }}
+      />
     </FieldWrapper>
   );
 }

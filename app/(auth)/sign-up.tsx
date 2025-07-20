@@ -357,13 +357,7 @@ export default function SignUpScreen() {
           <TouchableOpacity
             onPress={handleBack}
             className="h-12 w-12 items-center justify-center rounded-full border border-gray-200 bg-white/80"
-            style={{
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.1,
-              shadowRadius: 4,
-              elevation: 3,
-            }}>
+            style={{}}>
             <Ionicons name="arrow-back" size={22} color="#1a1a1a" />
           </TouchableOpacity>
 
@@ -393,11 +387,6 @@ export default function SignUpScreen() {
           style={{
             opacity: fadeAnim,
             transform: [{ translateY: slideAnim }],
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 8 },
-            shadowOpacity: 0.15,
-            shadowRadius: 16,
-            elevation: 12,
           }}>
           {renderStepIndicator()}
           <View className="mb-6 items-center">

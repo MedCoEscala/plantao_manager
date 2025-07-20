@@ -152,11 +152,6 @@ export default function SignInScreen() {
           style={{
             opacity: fadeAnim,
             transform: [{ translateY: slideAnim }],
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 8 },
-            shadowOpacity: 0.15,
-            shadowRadius: 16,
-            elevation: 12,
           }}>
           <View className="mb-6 items-center">
             <Text className="text-center text-2xl font-bold tracking-tight text-gray-900">

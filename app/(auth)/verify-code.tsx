@@ -387,13 +387,7 @@ export default function VerifyCodeScreen() {
           <TouchableOpacity
             onPress={() => router.back()}
             className="h-12 w-12 items-center justify-center rounded-full border border-gray-200 bg-white/80"
-            style={{
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.1,
-              shadowRadius: 4,
-              elevation: 3,
-            }}>
+            style={{}}>
             <Ionicons name="arrow-back" size={22} color="#1a1a1a" />
           </TouchableOpacity>
 
@@ -435,11 +429,6 @@ export default function VerifyCodeScreen() {
             style={{
               opacity: fadeAnim,
               transform: [{ translateY: slideAnim }],
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 8 },
-              shadowOpacity: 0.15,
-              shadowRadius: 16,
-              elevation: 12,
             }}>
             <View className="mb-6 items-center">
               <Text className="text-center text-2xl font-bold tracking-tight text-gray-900">
