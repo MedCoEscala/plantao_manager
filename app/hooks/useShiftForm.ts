@@ -316,10 +316,9 @@ export function useShiftForm({ shiftId, initialDate, initialData, onSuccess }: U
     return true;
   }, [formData, shiftId, showError]);
 
-  const proceedWithSubmit = async () => {
-    setIsSubmitting(true);
-    try {
-      const formattedDate = dateToLocalDateString(formData.date);
+  const createShiftData = useCallback(
+    (shiftDate: Date): CreateShiftData => {
+      const formattedDate = dateToLocalDateString(shiftDate);
       const formattedStartTime = dateToLocalTimeString(formData.startTime);
       const formattedEndTime = dateToLocalTimeString(formData.endTime);
 
@@ -327,10 +326,10 @@ export function useShiftForm({ shiftId, initialDate, initialData, onSuccess }: U
       const numericValue = parseFloat(formattedValue);
 
       if (isNaN(numericValue) || numericValue <= 0) {
-        throw new Error('Valor do plantão inválido');
+        throw new Error('Valor do plantão inválido.');
       }
 
-      const shiftData = {
+      return {
         date: formattedDate,
         startTime: formattedStartTime,
         endTime: formattedEndTime,
@@ -340,41 +339,65 @@ export function useShiftForm({ shiftId, initialDate, initialData, onSuccess }: U
         locationId: formData.locationId || undefined,
         contractorId: formData.contractorId || undefined,
       };
+    },
+    [formData]
+  );
 
+  const proceedWithSubmit = async () => {
+    setIsSubmitting(true);
+    try {
       if (shiftId) {
+        const shiftData = createShiftData(formData.date);
         await shiftsApi.updateShift(shiftId, shiftData);
+
         showSuccess('Plantão atualizado com sucesso!');
       } else if (recurrenceConfig) {
-        const { totalHours, duration } = calculateShiftDuration(
-          formData.startTime,
-          formData.endTime,
-          formData.date
-        );
+        const calculatedDates = RecurrenceCalculator.calculateDates(recurrenceConfig);
 
-        if (totalHours >= 24) {
-          showDialog({
-            title: 'Confirmar Duração',
-            message: `O plantão tem uma duração de ${duration}. Deseja confirmar e salvar mesmo assim?`,
-            type: 'confirm',
-            confirmText: 'Confirmar',
-            onConfirm: () => {
-              shiftsApi.createShift(shiftData);
-              showSuccess('Plantão criado com sucesso!');
-            },
-          });
+        if (calculatedDates.length === 0) {
+          throw new Error('Nenhuma data foi gerada para a recorrência selecionada.');
+        }
+
+        const shiftsToCreate = calculatedDates.map((data) => createShiftData(data));
+
+        const batchResult = await shiftsApi.createShiftsBatch({
+          shifts: shiftsToCreate,
+          skipConflicts: true,
+          continueOnError: true,
+        });
+
+        const { created, skipped, failed, summary } = batchResult;
+
+        let message = `${summary.created} plantão${summary.created !== 1 ? 's' : ''} criado${summary.created !== 1 ? 's' : ''} com sucesso!`;
+
+        if (summary.skipped > 0) {
+          message += `\n${summary.skipped} plantão${summary.skipped !== 1 ? 's' : ''} ignorado${summary.skipped !== 1 ? 's' : ''} (conflito de data).`;
+        }
+
+        if (summary.failed > 0) {
+          message += `\n${summary.failed} plantão${summary.failed !== 1 ? 's' : ''} falharam.`;
+          console.warn('❌ Plantões que falharam:', failed);
+        }
+
+        if (summary.created > 0) {
+          showSuccess(message);
+        } else if (summary.skipped > 0 && summary.failed === 0) {
+          showError('Todos os plantões já existem nas datas selecionadas.');
         } else {
-          await shiftsApi.createShift(shiftData);
-          showSuccess('Plantão criado com sucesso!');
+          showError('Não foi possível criar nenhum plantão. Verifique os dados e tente novamente.');
         }
       } else {
+        const shiftData = createShiftData(formData.date);
         await shiftsApi.createShift(shiftData);
+
         showSuccess('Plantão criado com sucesso!');
       }
 
       triggerShiftsRefresh();
       onSuccess?.();
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Erro ao salvar plantão';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Ocorreu um erro ao salvar o plantão.';
       showError(errorMessage);
     } finally {
       setIsSubmitting(false);

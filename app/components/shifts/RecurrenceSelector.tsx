@@ -82,6 +82,34 @@ export default function RecurrenceSelector({
   const [dayOfWeek, setDayOfWeek] = useState<number>(() => getDay(normalizedStartDate));
   const [monthDays, setMonthDays] = useState<string[]>([]);
 
+  // ✅ CORREÇÃO: Validação mais robusta da configuração
+  const validateRecurrenceConfig = useCallback(
+    (type: RecurrenceType): boolean => {
+      switch (type) {
+        case 'weekly':
+          return weekdays.length > 0 && weekdays.every((day) => day >= 0 && day <= 6);
+        case 'monthly-weekday':
+          return (
+            weekNumbers.length > 0 &&
+            weekNumbers.every((week) => week >= 1 && week <= 5) &&
+            dayOfWeek >= 0 &&
+            dayOfWeek <= 6
+          );
+        case 'monthly-specific':
+          return (
+            monthDays.length > 0 &&
+            monthDays.every((day) => {
+              const dayNum = parseInt(day);
+              return !isNaN(dayNum) && dayNum >= 1 && dayNum <= 31;
+            })
+          );
+        default:
+          return false;
+      }
+    },
+    [weekdays, weekNumbers, dayOfWeek, monthDays]
+  );
+
   // Sincronizar configurações quando startDate muda
   useEffect(() => {
     const dayOfWeekFromStart = getDay(normalizedStartDate);
@@ -99,17 +127,27 @@ export default function RecurrenceSelector({
   const recurrenceConfig = useMemo((): RecurrenceConfig | null => {
     if (selectedType === 'none') return null;
 
+    // ✅ CORREÇÃO: Validação antes de criar o config
+    if (!validateRecurrenceConfig(selectedType as RecurrenceType)) {
+      console.warn('Configuração de recorrência inválida:', {
+        type: selectedType,
+        weekdays,
+        weekNumbers,
+        dayOfWeek,
+        monthDays,
+      });
+      return null;
+    }
+
     let pattern: RecurrencePattern | null = null;
 
     try {
       switch (selectedType) {
         case 'weekly':
-          if (weekdays.length === 0) return null;
           pattern = { type: 'weekly', daysOfWeek: [...weekdays].sort() };
           break;
 
         case 'monthly-weekday':
-          if (weekNumbers.length === 0) return null;
           pattern = {
             type: 'monthly-weekday',
             weekNumber: [...weekNumbers].sort(),
@@ -118,7 +156,6 @@ export default function RecurrenceSelector({
           break;
 
         case 'monthly-specific':
-          if (monthDays.length === 0) return null;
           const validDays = monthDays
             .map((d) => parseInt(d))
             .filter((d) => !isNaN(d) && d >= 1 && d <= 31)
@@ -131,17 +168,35 @@ export default function RecurrenceSelector({
 
       if (!pattern) return null;
 
-      return {
+      const config: RecurrenceConfig = {
         pattern,
         startDate: normalizedStartDate,
         endDate,
         exceptions: [],
       };
+
+      // ✅ CORREÇÃO: Validar o padrão usando RecurrenceCalculator
+      const validation = RecurrenceCalculator.validatePattern(pattern);
+      if (!validation.isValid) {
+        console.error('Padrão de recorrência inválido:', validation.errors);
+        return null;
+      }
+
+      return config;
     } catch (error) {
       console.error('Erro ao calcular configuração de recorrência:', error);
       return null;
     }
-  }, [selectedType, weekdays, weekNumbers, dayOfWeek, monthDays, normalizedStartDate, endDate]);
+  }, [
+    selectedType,
+    weekdays,
+    weekNumbers,
+    dayOfWeek,
+    monthDays,
+    normalizedStartDate,
+    endDate,
+    validateRecurrenceConfig,
+  ]);
 
   // Calcular preview de datas de forma segura
   const previewDates = useMemo(() => {
@@ -149,6 +204,7 @@ export default function RecurrenceSelector({
 
     try {
       const dates = RecurrenceCalculator.calculateDates(recurrenceConfig);
+      console.log('📅 Preview calculado:', dates.length, 'datas');
       // Limitar preview para melhor performance
       return dates.slice(0, 10);
     } catch (error) {
@@ -159,8 +215,9 @@ export default function RecurrenceSelector({
 
   // Notificar mudanças de forma otimizada
   useEffect(() => {
-    // Debounce para evitar muitas chamadas
+    // ✅ CORREÇÃO: Debounce para evitar muitas chamadas e validar antes de enviar
     const timeoutId = setTimeout(() => {
+      console.log('🔄 Enviando configuração de recorrência:', recurrenceConfig);
       onRecurrenceChange(recurrenceConfig);
     }, 100);
 
@@ -169,19 +226,25 @@ export default function RecurrenceSelector({
 
   const handleTypeSelect = useCallback(
     (type: RecurrenceType | 'none') => {
+      console.log('🎯 Selecionando tipo de recorrência:', type);
       setSelectedType(type);
 
       // Configurações padrão baseadas na data inicial
       switch (type) {
         case 'weekly':
-          setWeekdays([getDay(normalizedStartDate)]);
+          const currentDayOfWeek = getDay(normalizedStartDate);
+          setWeekdays([currentDayOfWeek]);
+          console.log('📅 Configuração semanal:', [currentDayOfWeek]);
           break;
         case 'monthly-weekday':
           setWeekNumbers([1]);
           setDayOfWeek(getDay(normalizedStartDate));
+          console.log('📅 Configuração mensal por dia da semana:', { weekNumbers: [1], dayOfWeek });
           break;
         case 'monthly-specific':
-          setMonthDays([normalizedStartDate.getDate().toString()]);
+          const dayOfMonth = normalizedStartDate.getDate().toString();
+          setMonthDays([dayOfMonth]);
+          console.log('📅 Configuração mensal por dia específico:', [dayOfMonth]);
           break;
         default:
           setWeekdays([]);
@@ -190,7 +253,7 @@ export default function RecurrenceSelector({
       }
 
       if (type !== 'none') {
-        setTimeout(() => setShowModal(true), 150);
+        setShowModal(true);
       }
     },
     [normalizedStartDate]
@@ -199,6 +262,7 @@ export default function RecurrenceSelector({
   const toggleWeekday = useCallback((day: number) => {
     setWeekdays((prev) => {
       const newWeekdays = prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day];
+      console.log('📅 Dias da semana atualizados:', newWeekdays.sort());
       return newWeekdays.sort();
     });
   }, []);
@@ -206,6 +270,7 @@ export default function RecurrenceSelector({
   const toggleWeekNumber = useCallback((num: number) => {
     setWeekNumbers((prev) => {
       const newNumbers = prev.includes(num) ? prev.filter((n) => n !== num) : [...prev, num];
+      console.log('📅 Semanas do mês atualizadas:', newNumbers.sort());
       return newNumbers.sort();
     });
   }, []);
@@ -216,7 +281,9 @@ export default function RecurrenceSelector({
 
     setMonthDays((prev) => {
       const newDays = prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day];
-      return newDays.sort((a, b) => parseInt(a) - parseInt(b));
+      const sortedDays = newDays.sort((a, b) => parseInt(a) - parseInt(b));
+      console.log('📅 Dias do mês atualizados:', sortedDays);
+      return sortedDays;
     });
   }, []);
 
@@ -233,7 +300,8 @@ export default function RecurrenceSelector({
       const description = RecurrenceCalculator.getRecurrenceDescription(recurrenceConfig.pattern);
       const totalDates = RecurrenceCalculator.calculateDates(recurrenceConfig).length;
       return `${description} • ${totalDates} plantão${totalDates > 1 ? 's' : ''}`;
-    } catch {
+    } catch (error) {
+      console.error('Erro ao gerar resumo:', error);
       return 'Configuração inválida';
     }
   }, [selectedType, recurrenceConfig]);
@@ -245,6 +313,7 @@ export default function RecurrenceSelector({
   const handleEndDateChange = useCallback(
     (date: Date) => {
       if (isValid(date) && date >= normalizedStartDate) {
+        console.log('📅 Data final atualizada:', date.toDateString());
         setEndDate(date);
       }
     },
@@ -329,6 +398,18 @@ export default function RecurrenceSelector({
             </View>
           </View>
         )}
+
+        {/* ✅ CORREÇÃO: Mostrar erro se configuração inválida */}
+        {selectedType !== 'none' && !recurrenceConfig && (
+          <View className="mt-4 rounded-xl bg-red-50 p-4">
+            <Text className="text-sm font-medium text-red-700">
+              ⚠️ Configuração incompleta ou inválida
+            </Text>
+            <Text className="mt-1 text-xs text-red-600">
+              Configure ao menos uma opção para continuar
+            </Text>
+          </View>
+        )}
       </Card>
 
       {/* Modal de Configuração */}
@@ -392,6 +473,12 @@ export default function RecurrenceSelector({
                       </TouchableOpacity>
                     ))}
                   </View>
+                  {/* ✅ CORREÇÃO: Feedback se nenhum dia selecionado */}
+                  {weekdays.length === 0 && (
+                    <Text className="mt-2 text-sm text-red-500">
+                      Selecione pelo menos um dia da semana
+                    </Text>
+                  )}
                 </View>
               )}
 
@@ -444,6 +531,12 @@ export default function RecurrenceSelector({
                       </TouchableOpacity>
                     ))}
                   </View>
+                  {/* ✅ CORREÇÃO: Feedback se configuração incompleta */}
+                  {weekNumbers.length === 0 && (
+                    <Text className="mt-2 text-sm text-red-500">
+                      Selecione pelo menos uma semana do mês
+                    </Text>
+                  )}
                 </View>
               )}
 
@@ -475,6 +568,12 @@ export default function RecurrenceSelector({
                       );
                     })}
                   </View>
+                  {/* ✅ CORREÇÃO: Feedback se nenhum dia selecionado */}
+                  {monthDays.length === 0 && (
+                    <Text className="mt-2 text-sm text-red-500">
+                      Selecione pelo menos um dia do mês
+                    </Text>
+                  )}
                 </View>
               )}
 
