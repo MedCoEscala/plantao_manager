@@ -9,7 +9,9 @@ import {
   ActivityIndicator,
   TextInput,
   Animated,
+  Platform, // Importar Platform
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context'; // Importar hook
 
 import { LocationFormModal } from '../../components/ui';
 import FloatingButton from '../../components/ui/FloatingButton';
@@ -34,6 +36,26 @@ const LocationsScreen = () => {
   const { showToast } = useToast();
   const router = useRouter();
   const locationsApi = useLocationsApi();
+  const insets = useSafeAreaInsets(); // Usar o hook aqui
+
+  // Função para calcular a posição do botão dinamicamente
+  const getFloatingButtonPosition = () => {
+    if (Platform.OS === 'android') {
+      const tabBarHeight = 60; // Altura base da TabBar
+      const navigationBarHeight = Math.max(insets.bottom, 10); // Altura da barra de navegação do Android
+      const spacing = 20; // Espaçamento extra
+
+      return {
+        bottom: tabBarHeight + navigationBarHeight + spacing,
+        right: 24,
+      };
+    }
+    // Para iOS, a lógica pode ser um pouco mais simples
+    return {
+      bottom: 60 + insets.bottom + 24,
+      right: 24,
+    };
+  };
 
   useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -374,7 +396,8 @@ const LocationsScreen = () => {
         </View>
       )}
 
-      <FloatingButton onPress={handleAddLocation} />
+      {/* Aplicar o estilo de posicionamento dinâmico aqui */}
+      <FloatingButton onPress={handleAddLocation} style={getFloatingButtonPosition()} />
 
       <LocationFormModal
         visible={isAddModalVisible}
