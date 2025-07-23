@@ -1,6 +1,14 @@
 import { useAuth } from '@clerk/clerk-react';
 import { Ionicons } from '@expo/vector-icons';
-import { format, isSameDay, isValid } from 'date-fns';
+import {
+  endOfMonth,
+  endOfWeek,
+  format,
+  isSameDay,
+  isValid,
+  startOfMonth,
+  startOfWeek,
+} from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -74,29 +82,27 @@ export default function ShiftsScreen() {
   const loadShifts = useCallback(
     async (forceRefresh = false) => {
       if ((isLoading && !forceRefresh) || isProfileLoading) return;
+      const monthKey = `${currentMonth.getFullYear()}-${currentMonth.getMonth()}`;
 
+      if (!forceRefresh && monthKey === prevMonthRef.current && shifts.length > 0) {
+        setIsLoading(false);
+        return;
+      }
       setIsLoading(true);
       try {
-        const firstDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
-        const lastDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
+        const monthStart = startOfMonth(currentMonth);
+        const monthEnd = endOfMonth(currentMonth);
+        const firstDayVisible = startOfWeek(monthStart, { locale: ptBR });
+        const lastDayVisible = endOfWeek(monthEnd, { locale: ptBR });
 
-        const monthKey = `${currentMonth.getFullYear()}-${currentMonth.getMonth()}`;
-
-        if (!forceRefresh && monthKey === prevMonthRef.current && shifts.length > 0) {
-          console.log(`Mês ${monthKey} já carregado, pulando requisição`);
-          setIsLoading(false);
-          return;
-        }
-
-        const formattedStartDate = format(firstDay, 'yyyy-MM-dd');
-        const formattedEndDate = format(lastDay, 'yyyy-MM-dd');
+        const formattedStartDate = format(firstDayVisible, 'yyyy-MM-dd');
+        const formattedEndDate = format(lastDayVisible, 'yyyy-MM-dd');
 
         const data = await shiftsApi.getShifts({
           startDate: formattedStartDate,
           endDate: formattedEndDate,
         });
 
-        console.log(`Plantões carregados: ${data.length}`);
         setShifts(data);
         setIsDataLoaded(true);
 
@@ -146,7 +152,6 @@ export default function ShiftsScreen() {
 
   useEffect(() => {
     const unsubscribe = subscribeToRefresh(() => {
-      console.log('🔄 Tela principal recebeu notificação de atualização');
       loadShifts(true);
     });
 

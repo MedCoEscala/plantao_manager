@@ -135,6 +135,7 @@ export default function TabsLayout() {
         options={{
           title: 'Perfil',
           headerTitle: 'Meu Perfil',
+          headerShown: false,
           tabBarIcon: ({ color, size }) => (
             <View className="items-center justify-center">
               <Ionicons name="person-outline" size={size} color={color} />
