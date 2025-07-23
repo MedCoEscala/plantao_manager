@@ -9,9 +9,9 @@ import {
   ActivityIndicator,
   TextInput,
   Animated,
-  Platform, // Importar Platform
+  Platform,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context'; // Importar hook
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { LocationFormModal } from '../../components/ui';
 import FloatingButton from '../../components/ui/FloatingButton';
@@ -36,21 +36,19 @@ const LocationsScreen = () => {
   const { showToast } = useToast();
   const router = useRouter();
   const locationsApi = useLocationsApi();
-  const insets = useSafeAreaInsets(); // Usar o hook aqui
+  const insets = useSafeAreaInsets();
 
-  // Função para calcular a posição do botão dinamicamente
   const getFloatingButtonPosition = () => {
     if (Platform.OS === 'android') {
-      const tabBarHeight = 60; // Altura base da TabBar
-      const navigationBarHeight = Math.max(insets.bottom, 10); // Altura da barra de navegação do Android
-      const spacing = 20; // Espaçamento extra
+      const tabBarHeight = 60;
+      const navigationBarHeight = Math.max(insets.bottom, 10);
+      const spacing = 20;
 
       return {
         bottom: tabBarHeight + navigationBarHeight + spacing,
         right: 24,
       };
     }
-    // Para iOS, a lógica pode ser um pouco mais simples
     return {
       bottom: 60 + insets.bottom + 24,
       right: 24,
@@ -78,9 +76,7 @@ const LocationsScreen = () => {
           filters.searchTerm = searchQuery.trim();
         }
 
-        console.log('[LocationsScreen] Carregando locais...');
         const data = await locationsApi.getLocations(filters);
-        console.log(`[LocationsScreen] ${data.length} locais carregados`);
 
         setLocations(data);
         setFilteredLocations(data);
@@ -93,10 +89,8 @@ const LocationsScreen = () => {
           setIsFirstLoad(false);
         }
       } catch (error: any) {
-        console.error('Erro ao carregar locais:', error);
         showToast(`Erro ao carregar locais: ${error.message || 'Erro desconhecido'}`, 'error');
 
-        // Parar o loop infinito em caso de erro
         if (isFirstLoad) {
           setIsFirstLoad(false);
         }
@@ -108,14 +102,13 @@ const LocationsScreen = () => {
     [searchQuery, refreshing, isLoading, isFirstLoad, locationsApi, showToast]
   );
 
-  // Carregamento inicial apenas uma vez - usando ref para evitar loop
   const hasLoadedRef = useRef(false);
   useEffect(() => {
     if (!hasLoadedRef.current) {
       hasLoadedRef.current = true;
       loadLocations(true);
     }
-  }, []); // Sem dependências para evitar loop
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -149,7 +142,6 @@ const LocationsScreen = () => {
             setFilteredLocations((prev) => prev.filter((loc) => loc.id !== location.id));
             showToast('Local excluído com sucesso', 'success');
           } catch (error: any) {
-            console.error('Erro ao excluir local:', error);
             showToast(`Erro ao excluir local: ${error.message || 'Erro desconhecido'}`, 'error');
           }
         },
@@ -176,7 +168,6 @@ const LocationsScreen = () => {
   const handleModalSuccess = useCallback(() => {
     setIsAddModalVisible(false);
     setSelectedLocation(null);
-    // Recarregar apenas quando necessário - usando função direta
     setTimeout(() => {
       setRefreshing(true);
       setIsLoading(true);
@@ -189,10 +180,8 @@ const LocationsScreen = () => {
         .then((data) => {
           setLocations(data);
           setFilteredLocations(data);
-          console.log(`[LocationsScreen] ${data.length} locais recarregados após modal`);
         })
         .catch((error) => {
-          console.error('Erro ao recarregar locais após modal:', error);
           showToast(`Erro ao recarregar locais: ${error.message || 'Erro desconhecido'}`, 'error');
         })
         .finally(() => {
@@ -286,7 +275,6 @@ const LocationsScreen = () => {
 
   return (
     <ScreenWrapper className="flex-1 bg-background">
-      {/* Header */}
       <View className="z-10 bg-white px-4 py-3">
         <View className="flex-row items-center justify-between">
           <Text className="text-xl font-bold text-text-dark">Meus Locais</Text>
@@ -396,7 +384,6 @@ const LocationsScreen = () => {
         </View>
       )}
 
-      {/* Aplicar o estilo de posicionamento dinâmico aqui */}
       <FloatingButton onPress={handleAddLocation} style={getFloatingButtonPosition()} />
 
       <LocationFormModal
