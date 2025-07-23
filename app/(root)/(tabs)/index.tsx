@@ -144,7 +144,6 @@ export default function ShiftsScreen() {
     }
   }, [currentMonth, isProfileLoading, isDataLoaded, loadShifts]);
 
-  // Inscrever na sincronização de plantões
   useEffect(() => {
     const unsubscribe = subscribeToRefresh(() => {
       console.log('🔄 Tela principal recebeu notificação de atualização');
@@ -182,21 +181,24 @@ export default function ShiftsScreen() {
       await loadShifts(true);
       showSuccess('Dados atualizados com sucesso!');
     } catch (error) {
-      // Error já é tratado internamente no loadShifts
     } finally {
       setIsRefreshing(false);
     }
   }, [loadShifts, showSuccess]);
 
-  const navigateToAddShift = useCallback(() => {
-    setModalInitialDate(null);
-    setIsAddModalVisible(true);
-  }, []);
+  const navigateToAddShift = useCallback(
+    (useSpecificDate?: Date) => {
+      const dateToUse = useSpecificDate || selectedDate;
+
+      setModalInitialDate(dateToUse);
+      setIsAddModalVisible(true);
+    },
+    [selectedDate]
+  );
 
   const navigateToAddShiftOnDate = useCallback(() => {
-    setModalInitialDate(selectedDate);
-    setIsAddModalVisible(true);
-  }, [selectedDate]);
+    navigateToAddShift(selectedDate);
+  }, [selectedDate, navigateToAddShift]);
 
   const navigateToShiftDetails = useCallback(
     (shift: Shift) => {
@@ -286,14 +288,14 @@ export default function ShiftsScreen() {
 
         switch (status) {
           case 'agendado':
-            return { label: 'Agendado', color: '#18cb96' }; // primary
+            return { label: 'Agendado', color: '#18cb96' };
           case 'confirmado':
-            return { label: 'Confirmado', color: '#10b981' }; // success
+            return { label: 'Confirmado', color: '#10b981' };
           case 'cancelado':
-            return { label: 'Cancelado', color: '#ef4444' }; // error
+            return { label: 'Cancelado', color: '#ef4444' };
           case 'concluído':
           case 'concluido':
-            return { label: 'Concluído', color: '#64748b' }; // text-light
+            return { label: 'Concluído', color: '#64748b' };
           default:
             return { label: item.status || 'Agendado', color: '#64748b' };
         }
@@ -328,8 +330,7 @@ export default function ShiftsScreen() {
               <View className="items-end justify-between">
                 <View
                   className="rounded-full px-3 py-1"
-                  style={{ backgroundColor: `${statusInfo.color}20` }} // 20% opacity
-                >
+                  style={{ backgroundColor: `${statusInfo.color}20` }}>
                   <Text className="text-xs font-semibold" style={{ color: statusInfo.color }}>
                     {statusInfo.label}
                   </Text>
@@ -381,7 +382,7 @@ export default function ShiftsScreen() {
         <TouchableOpacity
           className="flex-row items-center rounded-xl bg-primary px-5 py-2.5 shadow-sm"
           activeOpacity={0.8}
-          onPress={navigateToAddShift}>
+          onPress={() => navigateToAddShift()}>
           <Ionicons name="add-circle-outline" size={18} color="#ffffff" />
           <Text className="ml-2 font-semibold text-white">Adicionar Plantão</Text>
         </TouchableOpacity>
@@ -486,8 +487,11 @@ export default function ShiftsScreen() {
         />
       )}
 
-      <FloatingButton onPress={navigateToAddShift} />
-      {/* Logout Button */}
+      <FloatingButton
+        onPress={() => navigateToAddShift()}
+        selectedDate={selectedDate}
+        style={getFloatingButtonPosition()}
+      />
 
       <ShiftFormModal
         visible={isAddModalVisible}
