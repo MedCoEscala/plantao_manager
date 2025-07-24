@@ -89,32 +89,21 @@ const normalizeDate = (date: Date): Date => {
 
 const parseTimeFromBackend = (timeString: string | undefined, baseDate: Date): Date => {
   if (!timeString) {
-    console.log('⚠️ Horário vazio, usando padrão 08:00');
     return createDefaultTime(baseDate, 8, 0);
   }
 
-  console.log('🔍 Parseando horário do backend:', timeString);
-
   try {
     if (timeString.includes('T') && timeString.includes('Z')) {
-      console.log('📥 Detectado formato ISO, extraindo horário...');
       const localTime = parseISOTimeToLocal(timeString, baseDate);
-      console.log(
-        '✅ Horário extraído:',
-        `${localTime.getHours()}:${localTime.getMinutes().toString().padStart(2, '0')}`
-      );
       return localTime;
     }
 
     if (timeString.includes(':')) {
       const [hours, minutes] = timeString.split(':').map(Number);
       if (!isNaN(hours) && !isNaN(minutes)) {
-        console.log('✅ Formato HH:MM detectado:', `${hours}:${minutes}`);
         return createDefaultTime(baseDate, hours, minutes);
       }
     }
-
-    console.log('⚠️ Formato não reconhecido, usando padrão');
   } catch (error) {
     console.error('❌ Erro ao parsear horário:', error);
   }
@@ -129,8 +118,6 @@ export function useShiftForm({ shiftId, initialDate, initialData, onSuccess }: U
   const { showDialog } = useDialog();
 
   const [formData, setFormData] = useState<FormData>(() => {
-    console.log('🔧 Inicializando formulário com dados:', initialData);
-
     let baseDate: Date;
     if (initialDate) {
       baseDate = normalizeDate(initialDate);
@@ -140,30 +127,13 @@ export function useShiftForm({ shiftId, initialDate, initialData, onSuccess }: U
       baseDate = normalizeDate(new Date());
     }
 
-    console.log('📅 Data base determinada:', baseDate.toDateString());
-
     let startTime: Date;
     let endTime: Date;
 
     if (initialData?.startTime && initialData?.endTime) {
-      console.log('🔄 Processando horários iniciais...');
-      console.log('   startTime recebido:', initialData.startTime);
-      console.log('   endTime recebido:', initialData.endTime);
-
       startTime = parseTimeFromBackend(initialData.startTime, baseDate);
       endTime = parseTimeFromBackend(initialData.endTime, baseDate);
-
-      console.log('✅ Horários processados:');
-      console.log(
-        '   startTime final:',
-        `${startTime.getHours()}:${startTime.getMinutes().toString().padStart(2, '0')}`
-      );
-      console.log(
-        '   endTime final:',
-        `${endTime.getHours()}:${endTime.getMinutes().toString().padStart(2, '0')}`
-      );
     } else {
-      console.log('🆕 Usando horários padrão (08:00 - 14:00)');
       startTime = createDefaultTime(baseDate, 8, 0);
       endTime = createDefaultTime(baseDate, 14, 0);
     }
@@ -179,13 +149,6 @@ export function useShiftForm({ shiftId, initialDate, initialData, onSuccess }: U
       notes: initialData?.notes?.replace(/\nHorário:.*$/, '') || '',
     };
 
-    console.log('📋 Estado inicial do formulário:', {
-      date: formState.date.toDateString(),
-      startTime: `${formState.startTime.getHours()}:${formState.startTime.getMinutes().toString().padStart(2, '0')}`,
-      endTime: `${formState.endTime.getHours()}:${formState.endTime.getMinutes().toString().padStart(2, '0')}`,
-      value: formState.value,
-    });
-
     return formState;
   });
 
@@ -195,8 +158,6 @@ export function useShiftForm({ shiftId, initialDate, initialData, onSuccess }: U
 
   const updateField = useCallback(
     <K extends keyof FormData>(field: K, value: FormData[K]) => {
-      console.log(`🔄 Atualizando campo ${field}:`, value);
-
       setFormData((prev) => {
         if (prev[field] === value) return prev;
 
@@ -213,11 +174,6 @@ export function useShiftForm({ shiftId, initialDate, initialData, onSuccess }: U
 
           newData.startTime = createDefaultTime(newDate, startHours, startMinutes);
           newData.endTime = createDefaultTime(newDate, endHours, endMinutes);
-
-          console.log('📅 Data atualizada, horários mantidos:', {
-            start: `${startHours}:${startMinutes.toString().padStart(2, '0')}`,
-            end: `${endHours}:${endMinutes.toString().padStart(2, '0')}`,
-          });
         }
 
         if (field === 'startTime' && value instanceof Date) {
@@ -227,10 +183,6 @@ export function useShiftForm({ shiftId, initialDate, initialData, onSuccess }: U
             timeValue.getHours(),
             timeValue.getMinutes()
           );
-          console.log(
-            '🕐 Horário de início atualizado:',
-            `${timeValue.getHours()}:${timeValue.getMinutes().toString().padStart(2, '0')}`
-          );
         }
 
         if (field === 'endTime' && value instanceof Date) {
@@ -239,10 +191,6 @@ export function useShiftForm({ shiftId, initialDate, initialData, onSuccess }: U
             prev.date,
             timeValue.getHours(),
             timeValue.getMinutes()
-          );
-          console.log(
-            '🕕 Horário de término atualizado:',
-            `${timeValue.getHours()}:${timeValue.getMinutes().toString().padStart(2, '0')}`
           );
         }
 
@@ -279,10 +227,6 @@ export function useShiftForm({ shiftId, initialDate, initialData, onSuccess }: U
       newErrors.date = 'Data é obrigatória';
     } else {
       const shiftDate = normalizeDate(formData.date);
-
-      if (!shiftId && isBefore(shiftDate, today)) {
-        newErrors.date = 'Data não pode ser no passado';
-      }
 
       const maxDate = addDays(today, 730);
       if (isAfter(shiftDate, maxDate)) {
