@@ -18,12 +18,10 @@ import { UpdateShiftDto } from './dto/update-shift.dto';
 
 export interface BatchCreateResult {
   created: Plantao[];
-  skipped: CreateShiftBatchItemDto[];
   failed: { shift: CreateShiftBatchItemDto; error: string }[];
   summary: {
     total: number;
     created: number;
-    skipped: number;
     failed: number;
   };
 }
@@ -458,20 +456,15 @@ export class ShiftsService {
     clerkId: string,
     createShiftsBatchDto: CreateShiftsBatchDto,
   ): Promise<BatchCreateResult> {
-    const {
-      shifts,
-      skipConflicts = true,
-      continueOnError = true,
-    } = createShiftsBatchDto;
+    const { shifts, continueOnError = true } = createShiftsBatchDto;
 
     const result: BatchCreateResult = {
       created: [],
-      skipped: [],
+
       failed: [],
       summary: {
         total: shifts.length,
         created: 0,
-        skipped: 0,
         failed: 0,
       },
     };
@@ -513,35 +506,13 @@ export class ShiftsService {
         );
       }
 
-      let existingShifts: { date: Date; startTime: Date; endTime: Date }[] = [];
-
-      if (skipConflicts) {
-        const dates = shifts.map((s) => s.date);
-        existingShifts = await this.findExistingShifts(user.id, dates);
-      }
+      const dates = shifts.map((s) => s.date);
+      await this.findExistingShifts(user.id, dates);
 
       this.logger.log(`Criando ${shifts.length} plantões em lote`);
 
       for (const shift of shifts) {
         try {
-          if (skipConflicts) {
-            const shiftDate = this.dateStringToDate(shift.date);
-            const hasConflict = existingShifts.some((existing) => {
-              const existingDate = new Date(existing.date);
-              return (
-                existingDate.getFullYear() === shiftDate.getFullYear() &&
-                existingDate.getMonth() === shiftDate.getMonth() &&
-                existingDate.getDate() === shiftDate.getDate()
-              );
-            });
-
-            if (hasConflict) {
-              result.skipped.push(shift);
-              result.summary.skipped++;
-              continue;
-            }
-          }
-
           const createdShift = await this.create(clerkId, shift);
           result.created.push(createdShift);
           result.summary.created++;
@@ -564,7 +535,7 @@ export class ShiftsService {
       }
 
       this.logger.log(
-        `✅ Criação em lote concluída: ${result.summary.created} criados, ${result.summary.skipped} ignorados, ${result.summary.failed} falharam`,
+        `✅ Criação em lote concluída: ${result.summary.created} criados, ${result.summary.failed} falharam`,
       );
 
       return result;

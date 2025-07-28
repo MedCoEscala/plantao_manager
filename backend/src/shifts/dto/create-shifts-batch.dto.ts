@@ -77,10 +77,5 @@ export class CreateShiftsBatchDto {
   @IsBoolean()
   @IsOptional()
   @Type(() => Boolean)
-  skipConflicts?: boolean; // Pular plantões que já existem nas mesmas datas/horários
-
-  @IsBoolean()
-  @IsOptional()
-  @Type(() => Boolean)
   continueOnError?: boolean; // Continuar criando outros plantões se um falhar
 }
