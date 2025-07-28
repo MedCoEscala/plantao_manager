@@ -18,10 +18,12 @@ import { UpdateShiftDto } from './dto/update-shift.dto';
 
 export interface BatchCreateResult {
   created: Plantao[];
+  skipped: CreateShiftBatchItemDto[];
   failed: { shift: CreateShiftBatchItemDto; error: string }[];
   summary: {
     total: number;
     created: number;
+    skipped: number;
     failed: number;
   };
 }
@@ -456,15 +458,20 @@ export class ShiftsService {
     clerkId: string,
     createShiftsBatchDto: CreateShiftsBatchDto,
   ): Promise<BatchCreateResult> {
-    const { shifts, continueOnError = true } = createShiftsBatchDto;
+    const {
+      shifts,
+      skipConflicts = false,
+      continueOnError = true,
+    } = createShiftsBatchDto;
 
     const result: BatchCreateResult = {
       created: [],
-
+      skipped: [],
       failed: [],
       summary: {
         total: shifts.length,
         created: 0,
+        skipped: 0,
         failed: 0,
       },
     };
@@ -506,13 +513,62 @@ export class ShiftsService {
         );
       }
 
-      const dates = shifts.map((s) => s.date);
-      await this.findExistingShifts(user.id, dates);
+      let existingShifts: {
+        date: Date;
+        startTime: Date;
+        endTime: Date;
+        id: string;
+      }[] = [];
 
-      this.logger.log(`Criando ${shifts.length} plantões em lote`);
+      if (skipConflicts) {
+        const dates = shifts.map((s) => s.date);
+        existingShifts = await this.findExistingShifts(user.id, dates);
+      }
+
+      this.logger.log(
+        `Criando ${shifts.length} plantões em lote (skipConflicts: ${skipConflicts})`,
+      );
 
       for (const shift of shifts) {
         try {
+          if (skipConflicts) {
+            const shiftDate = this.dateStringToDate(shift.date);
+            const shiftStartTime = this.timeStringToDate(shift.startTime);
+            const shiftEndTime = this.timeStringToDate(shift.endTime);
+
+            if (shiftEndTime <= shiftStartTime) {
+              shiftEndTime.setDate(shiftEndTime.getDate() + 1);
+            }
+
+            const hasConflict = existingShifts.some((existing) => {
+              const existingDate = new Date(existing.date);
+
+              const isSameDate =
+                existingDate.getFullYear() === shiftDate.getFullYear() &&
+                existingDate.getMonth() === shiftDate.getMonth() &&
+                existingDate.getDate() === shiftDate.getDate();
+
+              if (!isSameDate) return false;
+
+              const existingStart = existing.startTime;
+              const existingEnd = existing.endTime;
+
+              const hasTimeOverlap =
+                shiftStartTime < existingEnd && shiftEndTime > existingStart;
+
+              return hasTimeOverlap;
+            });
+
+            if (hasConflict) {
+              result.skipped.push(shift);
+              result.summary.skipped++;
+              this.logger.log(
+                `Plantão ignorado por conflito: ${shift.date} ${shift.startTime}-${shift.endTime}`,
+              );
+              continue;
+            }
+          }
+
           const createdShift = await this.create(clerkId, shift);
           result.created.push(createdShift);
           result.summary.created++;
@@ -535,7 +591,7 @@ export class ShiftsService {
       }
 
       this.logger.log(
-        `✅ Criação em lote concluída: ${result.summary.created} criados, ${result.summary.failed} falharam`,
+        `✅ Criação em lote concluída: ${result.summary.created} criados, ${result.summary.skipped} ignorados, ${result.summary.failed} falharam`,
       );
 
       return result;

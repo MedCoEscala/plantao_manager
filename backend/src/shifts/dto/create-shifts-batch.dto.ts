@@ -77,5 +77,10 @@ export class CreateShiftsBatchDto {
   @IsBoolean()
   @IsOptional()
   @Type(() => Boolean)
-  continueOnError?: boolean; // Continuar criando outros plantões se um falhar
+  skipConflicts?: boolean = false;
+
+  @IsBoolean()
+  @IsOptional()
+  @Type(() => Boolean)
+  continueOnError?: boolean = true;
 }
