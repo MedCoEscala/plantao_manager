@@ -1,230 +1,125 @@
-import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  Switch,
-  ScrollView,
-  Alert,
-  ActivityIndicator,
-  TouchableOpacity,
-} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter, Stack } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+import React from 'react';
+import { View, Text, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useNotifications } from '../../hooks/useNotifications';
-import {
-  useNotificationsApi,
-  NotificationConfig,
-  UpdateNotificationConfigData,
-} from '../../services/notifications-api';
+import { NotificationSettings } from '../../components/notifications/NotificationSettings';
+import { NotificationStatusCard } from '../../components/notifications/NotificationStatusCard';
+import { useNotificationsContext } from '../../contexts/NotificationContext';
 
-const NotificationsSettingsScreen = () => {
-  const [config, setConfig] = useState<NotificationConfig | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+export default function NotificationsSettingsScreen() {
+  const router = useRouter();
+  const { hasPermissions, requestPermissions, isLoading } = useNotificationsContext();
 
-  const { getNotificationConfig, updateNotificationConfig } = useNotificationsApi();
-  const { isRegistered, isLoading } = useNotifications();
-
-  useEffect(() => {
-    loadConfig();
-  }, []);
-
-  const loadConfig = async () => {
-    try {
-      const notificationConfig = await getNotificationConfig();
-      setConfig(notificationConfig);
-    } catch (error) {
-      console.error('Erro ao carregar configurações:', error);
-      Alert.alert('Erro', 'Não foi possível carregar as configurações de notificação');
-    } finally {
-      setLoading(false);
+  const handlePermissionRequest = async () => {
+    if (hasPermissions) {
+      return;
     }
-  };
 
-  const saveConfig = async (updates: UpdateNotificationConfigData) => {
-    if (!config) return;
-
-    setSaving(true);
-    try {
-      const updatedConfig = await updateNotificationConfig(updates);
-      setConfig(updatedConfig);
-    } catch (error) {
-      console.error('Erro ao salvar configurações:', error);
-      Alert.alert('Erro', 'Não foi possível salvar as configurações');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  if (loading || isLoading) {
-    return (
-      <SafeAreaView className="flex-1 items-center justify-center bg-white">
-        <ActivityIndicator size="large" color="#0077B6" />
-        <Text className="mt-4 text-gray-600">Carregando configurações...</Text>
-      </SafeAreaView>
+    Alert.alert(
+      'Ativar Notificações',
+      'Para receber lembretes sobre seus plantões, precisamos da sua permissão para enviar notificações.',
+      [
+        {
+          text: 'Cancelar',
+          style: 'cancel',
+        },
+        {
+          text: 'Ativar',
+          onPress: async () => {
+            const granted = await requestPermissions();
+            if (!granted) {
+              Alert.alert(
+                'Permissão Negada',
+                'Você pode ativar as notificações a qualquer momento nas configurações do dispositivo.',
+                [{ text: 'OK' }]
+              );
+            }
+          },
+        },
+      ]
     );
-  }
-
-  if (!config) {
-    return (
-      <SafeAreaView className="flex-1 items-center justify-center bg-white p-6">
-        <Text className="text-center text-gray-600">
-          Não foi possível carregar as configurações de notificação
-        </Text>
-        <TouchableOpacity onPress={loadConfig} className="mt-4 rounded-lg bg-blue-600 px-6 py-3">
-          <Text className="font-medium text-white">Tentar Novamente</Text>
-        </TouchableOpacity>
-      </SafeAreaView>
-    );
-  }
+  };
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
-      <ScrollView className="flex-1 p-6">
-        <View className="mb-6">
-          <Text className="mb-2 text-2xl font-bold text-gray-800">
-            Configurações de Notificação
-          </Text>
-          <Text className="text-gray-600">
-            Personalize como e quando você quer receber notificações sobre seus plantões
-          </Text>
-        </View>
+    <SafeAreaView className="flex-1 bg-gray-50">
+      <StatusBar style="dark" />
 
-        {/* Status do registro */}
-        <View className="mb-6 rounded-lg bg-gray-50 p-4">
-          <View className="flex-row items-center justify-between">
-            <Text className="font-medium text-gray-800">Status das Notificações</Text>
-            <View
-              className={`rounded-full px-3 py-1 ${isRegistered ? 'bg-green-100' : 'bg-red-100'}`}>
-              <Text
-                className={`text-sm font-medium ${
-                  isRegistered ? 'text-green-800' : 'text-red-800'
-                }`}>
-                {isRegistered ? 'Ativo' : 'Inativo'}
+      <Stack.Screen
+        options={{
+          title: 'Notificações',
+          headerTitleAlign: 'center',
+          headerShadowVisible: false,
+          headerStyle: {
+            backgroundColor: '#f9fafb',
+          },
+          headerLeft: () => (
+            <TouchableOpacity onPress={() => router.back()} className="p-2">
+              <Ionicons name="arrow-back" size={24} color="#1f2937" />
+            </TouchableOpacity>
+          ),
+        }}
+      />
+
+      <View className="flex-1">
+        {/* Status Card */}
+        <NotificationStatusCard showFullStatus={true} onSettingsPress={handlePermissionRequest} />
+
+        {/* Informações sobre notificações */}
+        <View className="mx-4 mb-4 rounded-xl bg-blue-50 p-4">
+          <View className="flex-row items-start">
+            <Ionicons name="information-circle" size={20} color="#3b82f6" />
+            <View className="ml-3 flex-1">
+              <Text className="text-sm font-medium text-blue-900">
+                Como funcionam as notificações
+              </Text>
+              <Text className="mt-1 text-xs text-blue-700">
+                • Lembretes diários sobre plantões do dia{'\n'}• Avisos antes dos plantões começarem
+                {'\n'}• Relatórios semanais e mensais{'\n'}• Confirmações de mudanças nos plantões
               </Text>
             </View>
           </View>
-          <Text className="mt-2 text-sm text-gray-600">
-            {isRegistered
-              ? 'Seu dispositivo está registrado para receber notificações'
-              : 'Erro ao registrar dispositivo para notificações'}
-          </Text>
         </View>
 
-        {/* Lembretes Diários */}
-        <View className="mb-6">
-          <View className="rounded-lg border border-gray-200 bg-white p-4">
-            <View className="mb-2 flex-row items-center justify-between">
-              <Text className="text-lg font-medium text-gray-800">Lembrete Diário</Text>
-              <Switch
-                value={config.dailyReminder}
-                onValueChange={(value) => saveConfig({ dailyReminder: value })}
-                disabled={saving}
-              />
-            </View>
-            <Text className="mb-3 text-sm text-gray-600">
-              Receba um resumo dos seus plantões todos os dias às {config.dailyReminderTime}
-            </Text>
-            {config.dailyReminder && (
-              <Text className="text-sm text-blue-600">📅 Horário: {config.dailyReminderTime}</Text>
-            )}
-          </View>
-        </View>
+        {/* Configurações */}
+        {hasPermissions ? (
+          <NotificationSettings />
+        ) : (
+          <View className="flex-1 items-center justify-center px-6">
+            <View className="items-center">
+              <View className="mb-4 h-20 w-20 items-center justify-center rounded-full bg-gray-100">
+                <Ionicons name="notifications-off" size={40} color="#6b7280" />
+              </View>
 
-        {/* Lembretes Antes dos Plantões */}
-        <View className="mb-6">
-          <View className="rounded-lg border border-gray-200 bg-white p-4">
-            <View className="mb-2 flex-row items-center justify-between">
-              <Text className="text-lg font-medium text-gray-800">Lembrete Antes do Plantão</Text>
-              <Switch
-                value={config.beforeShiftReminder}
-                onValueChange={(value) => saveConfig({ beforeShiftReminder: value })}
-                disabled={saving}
-              />
-            </View>
-            <Text className="mb-3 text-sm text-gray-600">
-              Receba uma notificação {config.beforeShiftMinutes} minutos antes de cada plantão
-              começar
-            </Text>
-            {config.beforeShiftReminder && (
-              <Text className="text-sm text-blue-600">
-                ⏰ Antecedência: {config.beforeShiftMinutes} minutos
+              <Text className="mb-2 text-center text-lg font-bold text-gray-900">
+                Notificações Desabilitadas
               </Text>
-            )}
-          </View>
-        </View>
 
-        {/* Relatórios Semanais */}
-        <View className="mb-6">
-          <View className="rounded-lg border border-gray-200 bg-white p-4">
-            <View className="mb-2 flex-row items-center justify-between">
-              <Text className="text-lg font-medium text-gray-800">Relatório Semanal</Text>
-              <Switch
-                value={config.weeklyReport}
-                onValueChange={(value) => saveConfig({ weeklyReport: value })}
-                disabled={saving}
-              />
-            </View>
-            <Text className="mb-3 text-sm text-gray-600">
-              Receba um resumo semanal dos seus plantões
-            </Text>
-            {config.weeklyReport && (
-              <Text className="text-sm text-blue-600">
-                📊 Toda segunda-feira às {config.weeklyReportTime}
+              <Text className="mb-6 text-center text-sm text-gray-600">
+                Para configurar lembretes e receber notificações sobre seus plantões, você precisa
+                primeiro permitir que o app envie notificações.
               </Text>
-            )}
-          </View>
-        </View>
 
-        {/* Relatórios Mensais */}
-        <View className="mb-6">
-          <View className="rounded-lg border border-gray-200 bg-white p-4">
-            <View className="mb-2 flex-row items-center justify-between">
-              <Text className="text-lg font-medium text-gray-800">Relatório Mensal</Text>
-              <Switch
-                value={config.monthlyReport}
-                onValueChange={(value) => saveConfig({ monthlyReport: value })}
-                disabled={saving}
-              />
+              <TouchableOpacity
+                onPress={handlePermissionRequest}
+                disabled={isLoading}
+                className="w-full rounded-xl bg-primary py-4">
+                <Text className="text-center text-base font-semibold text-white">
+                  {isLoading ? 'Verificando...' : 'Ativar Notificações'}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => router.back()}
+                className="mt-4 w-full rounded-xl border border-gray-300 bg-white py-4">
+                <Text className="text-center text-base font-medium text-gray-700">Voltar</Text>
+              </TouchableOpacity>
             </View>
-            <Text className="mb-3 text-sm text-gray-600">
-              Receba um resumo mensal dos seus plantões e ganhos
-            </Text>
-            {config.monthlyReport && (
-              <Text className="text-sm text-blue-600">
-                📈 Todo dia {config.monthlyReportDay} às {config.monthlyReportTime}
-              </Text>
-            )}
-          </View>
-        </View>
-
-        {/* Lembretes de Pagamento */}
-        <View className="mb-6">
-          <View className="rounded-lg border border-gray-200 bg-white p-4">
-            <View className="mb-2 flex-row items-center justify-between">
-              <Text className="text-lg font-medium text-gray-800">Lembretes de Pagamento</Text>
-              <Switch
-                value={config.paymentReminder}
-                onValueChange={(value) => saveConfig({ paymentReminder: value })}
-                disabled={saving}
-              />
-            </View>
-            <Text className="text-sm text-gray-600">
-              Receba lembretes sobre plantões pendentes de pagamento
-            </Text>
-          </View>
-        </View>
-
-        {saving && (
-          <View className="flex-row items-center justify-center py-4">
-            <ActivityIndicator size="small" color="#0077B6" />
-            <Text className="ml-2 text-gray-600">Salvando...</Text>
           </View>
         )}
-      </ScrollView>
+      </View>
     </SafeAreaView>
   );
-};
-
-export default NotificationsSettingsScreen;
+}

@@ -46,15 +46,17 @@ interface CalendarProps {
   selectedDate: Date;
   onSelectDate: (date: Date) => void;
   onMonthChange?: (month: Date) => void;
-  currentMonth?: Date; // Opcional: mês controlado externamente
+  currentMonth?: Date;
 }
 
-const WEEKDAYS = ['D', 'S', 'T', 'Q', 'Qi', 'S', 'S'];
+const WEEKDAYS = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const DAY_WIDTH = Math.floor((SCREEN_WIDTH - 40) / 7);
+// Corrigindo o cálculo para considerar o padding do container principal
+const CONTAINER_PADDING = 8; // 4px de cada lado do container principal
+const DAY_MARGIN = 2; // margin de cada dia
+const DAY_WIDTH = Math.floor((SCREEN_WIDTH - CONTAINER_PADDING * 2 - DAY_MARGIN * 14) / 7); // 14 = 7 dias * 2 margens
 const WEEK_ITEM_WIDTH = Math.floor((SCREEN_WIDTH - 64) / 5);
 
-// Convertendo para StyleSheet para melhor performance
 const styles = StyleSheet.create({
   container: {
     borderBottomWidth: 0,
@@ -106,12 +108,19 @@ const styles = StyleSheet.create({
   weekContainer: {
     paddingVertical: 12,
   },
+  // Corrigindo o container principal do mês
+  monthContainer: {
+    paddingHorizontal: CONTAINER_PADDING,
+    paddingBottom: 8,
+  },
   weekdayContainer: {
     flexDirection: 'row',
     marginBottom: 4,
   },
+  // Corrigindo o weekday label para ter o mesmo espaçamento dos dias
   weekdayLabel: {
     width: DAY_WIDTH,
+    margin: DAY_MARGIN,
     alignItems: 'center',
     paddingVertical: 8,
   },
@@ -328,7 +337,6 @@ const CalendarComponent: React.FC<CalendarProps> = ({
     );
   }
 
-  // Memoize o componente WeekDay para evitar re-renders
   const MemoizedWeekDay = React.memo(WeekDay);
 
   const renderMonthDay = useCallback(
@@ -339,9 +347,9 @@ const CalendarComponent: React.FC<CalendarProps> = ({
       const shiftCount = countShifts(date);
       const hasShift = shiftCount > 0;
 
-      // Usando tipos TypeScript corretos
+      // Usando os mesmos valores de margin para manter alinhamento
       const dayContainerStyle: ViewStyle = {
-        margin: 2,
+        margin: DAY_MARGIN,
         width: DAY_WIDTH,
         height: DAY_WIDTH,
         borderRadius: 8,
@@ -478,7 +486,7 @@ const CalendarComponent: React.FC<CalendarProps> = ({
       )}
 
       {calendarView === 'month' && (
-        <View style={{ paddingHorizontal: 4, paddingBottom: 8 }}>
+        <View style={styles.monthContainer}>
           <View style={styles.weekdayContainer}>
             {WEEKDAYS.map((day, index) => (
               <View key={`weekday-${index}`} style={styles.weekdayLabel}>

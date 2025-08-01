@@ -306,7 +306,7 @@ export function useShiftForm({ shiftId, initialDate, initialData, onSuccess }: U
 
         const batchResult = await shiftsApi.createShiftsBatch({
           shifts: shiftsToCreate,
-          skipConflicts: true,
+          skipConflicts: false,
           continueOnError: true,
         });
 
@@ -315,7 +315,7 @@ export function useShiftForm({ shiftId, initialDate, initialData, onSuccess }: U
         let message = `${summary.created} plantão${summary.created !== 1 ? 's' : ''} criado${summary.created !== 1 ? 's' : ''} com sucesso!`;
 
         if (summary.skipped > 0) {
-          message += `\n${summary.skipped} plantão${summary.skipped !== 1 ? 's' : ''} ignorado${summary.skipped !== 1 ? 's' : ''} (conflito de data).`;
+          message += `\n${summary.skipped} plantão${summary.skipped !== 1 ? 's' : ''} ignorado${summary.skipped !== 1 ? 's' : ''}.`;
         }
 
         if (summary.failed > 0) {
@@ -325,10 +325,10 @@ export function useShiftForm({ shiftId, initialDate, initialData, onSuccess }: U
 
         if (summary.created > 0) {
           showSuccess(message);
-        } else if (summary.skipped > 0 && summary.failed === 0) {
-          showError('Todos os plantões já existem nas datas selecionadas.');
+        } else if (summary.failed > 0) {
+          showError('Não foi possível criar os plantões. Verifique os dados e tente novamente.');
         } else {
-          showError('Não foi possível criar nenhum plantão. Verifique os dados e tente novamente.');
+          showError('Nenhum plantão foi criado. Verifique os dados e tente novamente.');
         }
       } else {
         const shiftData = createShiftData(formData.date);

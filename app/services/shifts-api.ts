@@ -251,7 +251,14 @@ export const useShiftsApi = () => {
           throw new Error('Token de autenticação não disponível');
         }
 
-        const validationErrors = validateBatchData(data);
+        // ✅ MUDANÇA: Garantir que skipConflicts seja false por padrão
+        const batchData = {
+          ...data,
+          skipConflicts: data.skipConflicts ?? false, // Default false
+          continueOnError: data.continueOnError ?? true, // Default true
+        };
+
+        const validationErrors = validateBatchData(batchData);
         if (validationErrors.length > 0) {
           const limitedErrors = validationErrors.slice(0, 5);
           const errorMessage = limitedErrors.join(', ');
@@ -263,12 +270,12 @@ export const useShiftsApi = () => {
         }
 
         console.log('📦 Criando lote de plantões:', {
-          total: data.shifts.length,
-          skipConflicts: data.skipConflicts,
-          continueOnError: data.continueOnError,
+          total: batchData.shifts.length,
+          skipConflicts: batchData.skipConflicts,
+          continueOnError: batchData.continueOnError,
         });
 
-        const response = await apiClient.post('/shifts/batch', data, {
+        const response = await apiClient.post('/shifts/batch', batchData, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
