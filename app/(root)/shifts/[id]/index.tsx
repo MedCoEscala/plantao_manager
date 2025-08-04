@@ -5,13 +5,13 @@ import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useToast } from '../../../components/ui/Toast';
 import { useDialog } from '../../../contexts/DialogContext';
 import { useShiftsSync } from '../../../contexts/ShiftsSyncContext';
 import { useShiftsApi, Shift } from '../../../services/shifts-api';
 import { formatDate, formatTime, formatCurrency } from '../../../utils/formatters';
+import ScreenWrapper from '@/components/ui/ScreenWrapper';
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -237,19 +237,19 @@ export default function ShiftDetailsScreen() {
 
   if (isLoading) {
     return (
-      <SafeAreaView className="flex-1 bg-white">
+      <ScreenWrapper>
         <StatusBar style="dark" />
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color="#18cb96" />
           <Text className="mt-4 text-gray-500">Carregando detalhes do plantão...</Text>
         </View>
-      </SafeAreaView>
+      </ScreenWrapper>
     );
   }
 
   if (error || !shift) {
     return (
-      <SafeAreaView className="flex-1 bg-white">
+      <ScreenWrapper>
         <StatusBar style="dark" />
         <View className="flex-1 items-center justify-center px-4">
           <Ionicons name="alert-circle-outline" size={64} color="#EF4444" />
@@ -270,12 +270,12 @@ export default function ShiftDetailsScreen() {
             </TouchableOpacity>
           </View>
         </View>
-      </SafeAreaView>
+      </ScreenWrapper>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <ScreenWrapper>
       <StatusBar style="dark" />
 
       <Stack.Screen
@@ -400,6 +400,6 @@ export default function ShiftDetailsScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 }

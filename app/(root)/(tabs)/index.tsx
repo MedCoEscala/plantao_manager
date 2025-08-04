@@ -435,7 +435,7 @@ export default function ShiftsScreen() {
           </View>
           <View className="flex-row items-center">
             {/* Botão de Teste de Notificação */}
-            <TouchableOpacity
+            {/* <TouchableOpacity
               className="mr-2 h-9 w-9 items-center justify-center rounded-full bg-background-100"
               onPress={sendTestNotification}
               disabled={!isRegistered}>
@@ -444,7 +444,7 @@ export default function ShiftsScreen() {
                 size={18}
                 color={!isRegistered ? '#cbd5e1' : '#1e293b'}
               />
-            </TouchableOpacity>
+            </TouchableOpacity> */}
 
             {/* Botão de Refresh (Existente) */}
             <TouchableOpacity

@@ -1,11 +1,11 @@
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import React, { useState, useEffect, useRef } from 'react';
 import { View, StatusBar, ActivityIndicator, Text, TouchableOpacity } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 import ShiftForm from '../../../components/shifts/ShiftForm';
 import { useToast } from '../../../components/ui/Toast';
 import { useShiftsApi, Shift } from '../../../services/shifts-api';
+import ScreenWrapper from '@/components/ui/ScreenWrapper';
 
 export default function EditShiftScreen() {
   const router = useRouter();
@@ -108,7 +108,7 @@ export default function EditShiftScreen() {
 
   if (error) {
     return (
-      <SafeAreaView className="flex-1 bg-white">
+      <ScreenWrapper>
         <StatusBar barStyle="dark-content" />
         <Stack.Screen
           options={{
@@ -132,7 +132,7 @@ export default function EditShiftScreen() {
             </TouchableOpacity>
           </View>
         </View>
-      </SafeAreaView>
+      </ScreenWrapper>
     );
   }
 
@@ -150,7 +150,7 @@ export default function EditShiftScreen() {
   );
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <ScreenWrapper>
       <StatusBar barStyle="dark-content" />
 
       <Stack.Screen
@@ -193,6 +193,6 @@ export default function EditShiftScreen() {
           )}
         </View>
       )}
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 }
