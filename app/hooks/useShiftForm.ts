@@ -16,6 +16,7 @@ import formatters, {
 } from '../utils/formatters';
 import { RecurrenceCalculator } from '../utils/recurrence';
 import { useDialog } from '../contexts/DialogContext';
+import { useShiftNotifications } from './useShiftNotifications';
 
 const calculateShiftDuration = (
   startTime: Date,
@@ -116,6 +117,14 @@ export function useShiftForm({ shiftId, initialDate, initialData, onSuccess }: U
   const { showError, showSuccess } = useNotification();
   const { triggerShiftsRefresh } = useShiftsSync();
   const { showDialog } = useDialog();
+
+  const {
+    scheduleNotificationsForShift,
+    scheduleNotificationsForMultipleShifts,
+    updateNotificationsForShift,
+    cancelNotificationsForShift,
+    canScheduleNotifications,
+  } = useShiftNotifications();
 
   const [formData, setFormData] = useState<FormData>(() => {
     let baseDate: Date;
@@ -287,14 +296,56 @@ export function useShiftForm({ shiftId, initialDate, initialData, onSuccess }: U
     [formData]
   );
 
+  const handleNotificationScheduling = useCallback(
+    async (shift: Shift | Shift[], isEdit: boolean = false): Promise<void> => {
+      if (!canScheduleNotifications) {
+        console.log('📵 Notificações não disponíveis');
+        return;
+      }
+
+      try {
+        if (Array.isArray(shift)) {
+          console.log(`📱 Agendando notificações para ${shift.length} plantões`);
+          await scheduleNotificationsForMultipleShifts(shift);
+
+          if (shift.length > 1) {
+            showSuccess(`Plantões criados e ${shift.length} notificações agendadas!`);
+          }
+        } else {
+          if (isEdit) {
+            console.log(`📱 Atualizando notificações para plantão ${shift.id}`);
+            await updateNotificationsForShift(shift);
+          } else {
+            console.log(`📱 Agendando notificações para plantão ${shift.id}`);
+            await scheduleNotificationsForShift(shift);
+          }
+        }
+      } catch (error) {
+        console.error('❌ Erro ao gerenciar notificações:', error);
+        console.warn(
+          '⚠️ Plantão salvo, mas notificações podem não ter sido agendadas corretamente'
+        );
+      }
+    },
+    [
+      canScheduleNotifications,
+      scheduleNotificationsForMultipleShifts,
+      updateNotificationsForShift,
+      scheduleNotificationsForShift,
+      showSuccess,
+    ]
+  );
+
   const proceedWithSubmit = async () => {
     setIsSubmitting(true);
     try {
       if (shiftId) {
         const shiftData = createShiftData(formData.date);
-        await shiftsApi.updateShift(shiftId, shiftData);
+        const updatedShift = await shiftsApi.updateShift(shiftId, shiftData);
 
         showSuccess('Plantão atualizado com sucesso!');
+
+        await handleNotificationScheduling(updatedShift, true);
       } else if (recurrenceConfig) {
         const calculatedDates = RecurrenceCalculator.calculateDates(recurrenceConfig);
 
@@ -324,6 +375,7 @@ export function useShiftForm({ shiftId, initialDate, initialData, onSuccess }: U
         }
 
         if (summary.created > 0) {
+          await handleNotificationScheduling(created, false);
           showSuccess(message);
         } else if (summary.failed > 0) {
           showError('Não foi possível criar os plantões. Verifique os dados e tente novamente.');
@@ -332,9 +384,11 @@ export function useShiftForm({ shiftId, initialDate, initialData, onSuccess }: U
         }
       } else {
         const shiftData = createShiftData(formData.date);
-        await shiftsApi.createShift(shiftData);
+        const createdShift = await shiftsApi.createShift(shiftData);
 
         showSuccess('Plantão criado com sucesso!');
+
+        await handleNotificationScheduling(createdShift, false);
       }
 
       triggerShiftsRefresh();
@@ -382,6 +436,18 @@ export function useShiftForm({ shiftId, initialDate, initialData, onSuccess }: U
     showDialog,
   ]);
 
+  const cancelShiftNotifications = useCallback(
+    async (targetShiftId: string): Promise<void> => {
+      try {
+        await cancelNotificationsForShift(targetShiftId);
+        console.log(`🗑️ Notificações canceladas para plantão ${targetShiftId}`);
+      } catch (error) {
+        console.error('❌ Erro ao cancelar notificações:', error);
+      }
+    },
+    [cancelNotificationsForShift]
+  );
+
   return {
     formData,
     updateField,
@@ -391,5 +457,8 @@ export function useShiftForm({ shiftId, initialDate, initialData, onSuccess }: U
     recurrenceConfig,
     setRecurrenceConfig,
     handleSubmit,
+
+    canScheduleNotifications,
+    cancelShiftNotifications,
   };
 }

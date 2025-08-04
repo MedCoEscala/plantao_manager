@@ -12,12 +12,11 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ContractorsProvider } from './contexts/ContractorsContext';
 import { DialogProvider } from './contexts/DialogContext';
 import { LocationsProvider } from './contexts/LocationsContext';
-import { NotificationProvider } from './contexts/NotificationContext';
 import { ProfileProvider } from './contexts/ProfileContext';
 import { ShiftsSyncProvider } from './contexts/ShiftsSyncContext';
-import { useNotifications } from './hooks/useNotifications';
 import { StatusBar } from 'expo-status-bar';
 import { initialWindowMetrics, SafeAreaProvider } from 'react-native-safe-area-context';
+import NotificationsProvider from './contexts/NotificationContext';
 
 LogBox.ignoreLogs(['Constants.platform.ios.model has been deprecated in favor of expo-device']);
 
@@ -64,7 +63,6 @@ function RootLayoutNav() {
   const router = useRouter();
   const [appIsReady, setAppIsReady] = useState(false);
 
-  useNotifications();
   const [fontsLoaded, fontError] = useFonts({
     'Jakarta-Bold': require('../assets/fonts/PlusJakartaSans-Bold.ttf'),
     'Jakarta-ExtraBold': require('../assets/fonts/PlusJakartaSans-ExtraBold.ttf'),
@@ -108,7 +106,6 @@ function RootLayoutNav() {
       }
     } catch (error) {
       console.error('Erro na navegação:', error);
-      // Fallback navegação segura
     }
   }, [isLoaded, isSignedIn, appIsReady, fontsLoaded, fontError, router]);
 
@@ -123,7 +120,7 @@ function RootLayoutNav() {
         backgroundColor={Platform.OS === 'android' ? '#f8fafc' : 'transparent'}
         translucent={Platform.OS === 'android'}
       />
-      <NotificationProvider>
+      <NotificationsProvider>
         <DialogProvider>
           <ProfileProvider>
             <LocationsProvider>
@@ -146,7 +143,7 @@ function RootLayoutNav() {
             </LocationsProvider>
           </ProfileProvider>
         </DialogProvider>
-      </NotificationProvider>
+      </NotificationsProvider>
     </>
   );
 }

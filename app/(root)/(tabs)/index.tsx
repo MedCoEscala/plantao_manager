@@ -1,4 +1,4 @@
-import { useAuth } from '@clerk/clerk-react';
+import { useAuth } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
 import {
   endOfMonth,
@@ -31,6 +31,7 @@ import ShiftFormModal from '../../components/shifts/ShiftFormModal';
 import FloatingButton from '../../components/ui/FloatingButton';
 import ScreenWrapper from '../../components/ui/ScreenWrapper';
 import { useDialog } from '../../contexts/DialogContext';
+import { useNotificationsContext } from '../../contexts/NotificationContext';
 import { useShiftsSync } from '../../contexts/ShiftsSyncContext';
 import { useProfile } from '../../hooks/useProfile';
 import { useShiftsApi, Shift } from '../../services/shifts-api';
@@ -54,6 +55,7 @@ export default function ShiftsScreen() {
   const { subscribeToRefresh } = useShiftsSync();
   const router = useRouter();
   const shiftsApi = useShiftsApi();
+  const { sendTestNotification, isRegistered } = useNotificationsContext();
 
   const insets = useSafeAreaInsets();
 
@@ -431,16 +433,31 @@ export default function ShiftsScreen() {
             <Text className="text-xl font-bold text-text-dark">{userName}</Text>
             <Text className="text-sm text-text-light">Seus plantões</Text>
           </View>
-          <TouchableOpacity
-            className="h-9 w-9 items-center justify-center rounded-full bg-background-100"
-            onPress={handleRefresh}
-            disabled={isRefreshing}>
-            {isRefreshing ? (
-              <ActivityIndicator size="small" color="#18cb96" />
-            ) : (
-              <Ionicons name="refresh-outline" size={18} color="#1e293b" />
-            )}
-          </TouchableOpacity>
+          <View className="flex-row items-center">
+            {/* Botão de Teste de Notificação */}
+            <TouchableOpacity
+              className="mr-2 h-9 w-9 items-center justify-center rounded-full bg-background-100"
+              onPress={sendTestNotification}
+              disabled={!isRegistered}>
+              <Ionicons
+                name="notifications-outline"
+                size={18}
+                color={!isRegistered ? '#cbd5e1' : '#1e293b'}
+              />
+            </TouchableOpacity>
+
+            {/* Botão de Refresh (Existente) */}
+            <TouchableOpacity
+              className="h-9 w-9 items-center justify-center rounded-full bg-background-100"
+              onPress={handleRefresh}
+              disabled={isRefreshing}>
+              {isRefreshing ? (
+                <ActivityIndicator size="small" color="#18cb96" />
+              ) : (
+                <Ionicons name="refresh-outline" size={18} color="#1e293b" />
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 

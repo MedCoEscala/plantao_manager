@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect } from 'react';
 
 import { useNotifications, UseNotificationsReturn } from '../hooks/useNotifications';
+import { useToast } from '../components/ui/Toast';
 
 const NotificationsContext = createContext<UseNotificationsReturn | undefined>(undefined);
 
@@ -64,6 +65,18 @@ export const useNotificationConfig = () => {
     isLoading: isConfigLoading,
     updateConfig,
     refreshConfig,
+  };
+};
+
+// Hook para notificações de toast (showError, showSuccess, etc.)
+export const useNotification = () => {
+  const { showToast } = useToast();
+
+  return {
+    showError: (message: string) => showToast(message, 'error'),
+    showSuccess: (message: string) => showToast(message, 'success'),
+    showInfo: (message: string) => showToast(message, 'info'),
+    showWarning: (message: string) => showToast(message, 'warning'),
   };
 };
 
