@@ -33,6 +33,16 @@ export class ShiftTemplatesService {
     filterDto: GetShiftTemplatesFilterDto,
   ): Promise<ShiftTemplate[]> {
     try {
+      // Verificar se a tabela shift_templates existe
+      await this.prisma.$queryRaw`SELECT 1 FROM shift_templates LIMIT 1`;
+    } catch (error) {
+      // Se a tabela não existir, retornar array vazio temporariamente
+      this.logger.warn(
+        'Tabela shift_templates não encontrada, retornando array vazio',
+      );
+      return [];
+    }
+    try {
       const user = await this.prisma.user.findUnique({
         where: { clerkId },
         select: { id: true },
