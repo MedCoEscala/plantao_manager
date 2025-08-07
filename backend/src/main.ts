@@ -4,7 +4,6 @@ import { networkInterfaces } from 'os';
 
 import { AppModule } from './app.module';
 
-// Cache da aplicação para serverless
 let app: any;
 
 function getNetworkIP(): string {
@@ -28,8 +27,6 @@ async function createApp() {
   if (app) return app;
 
   app = await NestFactory.create(AppModule);
-
-  // Sem prefixo global - rotas diretas como /locations, /users, etc
 
   app.enableCors({
     origin: [
@@ -56,7 +53,6 @@ async function createApp() {
   return app;
 }
 
-// Para desenvolvimento local
 async function bootstrap() {
   const appInstance = await createApp();
   const port = process.env.PORT || 3000;
@@ -70,13 +66,11 @@ async function bootstrap() {
   console.log(`   - Rede: http://${networkIP}:${port}/api`);
 }
 
-// Para Vercel serverless
 export default async (req: any, res: any) => {
   const appInstance = await createApp();
   return appInstance.getHttpAdapter().getInstance()(req, res);
 };
 
-// Se rodando localmente (não no Vercel)
 if (require.main === module) {
   bootstrap();
 }

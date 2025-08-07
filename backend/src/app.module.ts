@@ -12,6 +12,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { PrivacyController } from './privacy/privacy.controller';
 import { ShiftsModule } from './shifts/shifts.module';
 import { UsersModule } from './users/users.module';
+import { ShiftTemplateModule } from './shift-templates/shift-template.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { UsersModule } from './users/users.module';
     PaymentsModule,
     CNPJModule,
     NotificationsModule,
+    ShiftTemplateModule,
   ],
   controllers: [AppController, PrivacyController],
   providers: [AppService],
