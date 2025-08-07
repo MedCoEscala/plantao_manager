@@ -8,14 +8,13 @@ import { Platform, AppState, AppStateStatus } from 'react-native';
 import { useToast } from '../components/ui/Toast';
 import { useNotificationsApi } from '../services/notifications-api';
 
-// Configurar como as notificações devem ser tratadas
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
+    shouldShowAlert: false,
     shouldShowBanner: true,
     shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
   }),
 });
 
@@ -43,7 +42,6 @@ export interface UseNotificationsReturn {
   config: NotificationConfig | null;
   isConfigLoading: boolean;
 
-  // Métodos
   requestPermissions: () => Promise<boolean>;
   sendTestNotification: () => Promise<void>;
   updateConfig: (config: Partial<NotificationConfig>) => Promise<void>;
@@ -68,7 +66,6 @@ export const useNotifications = (): UseNotificationsReturn => {
   const appStateListener = useRef<any>(null);
   const initializationRef = useRef(false);
 
-  // Solicitar permissões de notificação
   const requestPermissions = useCallback(async (): Promise<boolean> => {
     try {
       if (!Device.isDevice) {
@@ -76,49 +73,74 @@ export const useNotifications = (): UseNotificationsReturn => {
         return false;
       }
 
-      // Configurar canal Android
+      console.log('🔔 Solicitando permissões...');
+
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      console.log('📋 Status atual das permissões:', existingStatus);
+
       if (Platform.OS === 'android') {
+        console.log('🤖 Configurando canais Android...');
+
         await Notifications.setNotificationChannelAsync('default', {
-          name: 'Notificações Padrão',
-          importance: Notifications.AndroidImportance.MAX,
+          name: 'Notificações Gerais',
+          importance: Notifications.AndroidImportance.HIGH,
           vibrationPattern: [0, 250, 250, 250],
           lightColor: '#18CB96',
           description: 'Notificações gerais do MedEscala',
+          showBadge: true,
+          sound: 'default',
         });
 
         await Notifications.setNotificationChannelAsync('shifts', {
-          name: 'Plantões',
+          name: 'Plantões e Lembretes',
           importance: Notifications.AndroidImportance.MAX,
           vibrationPattern: [0, 500, 250, 500],
           lightColor: '#18CB96',
-          description: 'Notificações sobre plantões e lembretes',
+          description: 'Notificações sobre plantões e lembretes importantes',
+          showBadge: true,
+          sound: 'default',
         });
+
+        console.log('✅ Canais Android configurados');
       }
 
-      const { status: existingStatus } = await Notifications.getPermissionsAsync();
       let finalStatus = existingStatus;
-
       if (existingStatus !== 'granted') {
-        const { status } = await Notifications.requestPermissionsAsync();
+        console.log('📝 Solicitando novas permissões...');
+        const { status } = await Notifications.requestPermissionsAsync({
+          ios: {
+            allowAlert: true,
+            allowBadge: true,
+            allowSound: true,
+          },
+          android: {},
+        });
         finalStatus = status;
       }
+
+      console.log('🏁 Status final das permissões:', finalStatus);
 
       if (finalStatus !== 'granted') {
         console.log('🔕 Permissão de notificação negada');
         setHasPermissions(false);
+        showToast(
+          'Permissões de notificação negadas. Ative nas configurações do dispositivo.',
+          'warning'
+        );
         return false;
       }
 
       setHasPermissions(true);
+      console.log('✅ Permissões concedidas');
       return true;
     } catch (error) {
       console.error('❌ Erro ao solicitar permissões:', error);
       setHasPermissions(false);
+      showToast('Erro ao configurar notificações', 'error');
       return false;
     }
-  }, []);
+  }, [showToast]);
 
-  // Registrar token de push
   const registerPushToken = useCallback(async (): Promise<string | null> => {
     try {
       if (!Device.isDevice) {
@@ -129,25 +151,39 @@ export const useNotifications = (): UseNotificationsReturn => {
       const projectId =
         Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
 
+      console.log('🔑 Project ID:', projectId ? 'encontrado' : 'NÃO ENCONTRADO');
+
       if (!projectId) {
-        console.log('🔕 ProjectId não configurado - notificações desabilitadas');
+        console.error('❌ ProjectId não configurado - notificações não funcionarão!');
+        showToast('Erro de configuração: Project ID não encontrado', 'error');
         return null;
       }
 
-      const token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
+      console.log('📤 Obtendo token do Expo...');
+      const tokenData = await Notifications.getExpoPushTokenAsync({
+        projectId,
+        applicationId: Platform.OS === 'android' ? 'com.lucaserib.medescala' : undefined,
+      });
+
+      const token = tokenData.data;
       console.log('🔔 Token obtido:', token.substring(0, 20) + '...');
 
       return token;
     } catch (error) {
       console.error('❌ Erro ao obter push token:', error);
+      showToast(
+        `Erro ao configurar notificações: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
+        'error'
+      );
       return null;
     }
-  }, []);
+  }, [showToast]);
 
-  // Registrar token no backend
   const registerTokenWithBackend = useCallback(
     async (token: string): Promise<void> => {
       try {
+        console.log('🌐 Registrando token no backend...');
+
         const deviceName = (await Device.deviceName) || 'Dispositivo desconhecido';
         const deviceType = Platform.OS;
         const appVersion = Constants.expoConfig?.version || 'unknown';
@@ -164,20 +200,20 @@ export const useNotifications = (): UseNotificationsReturn => {
       } catch (error) {
         console.error('❌ Erro ao registrar token no backend:', error);
         setIsRegistered(false);
+        throw error;
       }
     },
     [notificationsApi]
   );
 
-  // Carregar configurações de notificação
   const loadNotificationConfig = useCallback(async (): Promise<void> => {
     try {
       setIsConfigLoading(true);
       const notificationConfig = await notificationsApi.getNotificationConfig();
       setConfig(notificationConfig);
+      console.log('⚙️ Configurações carregadas');
     } catch (error) {
       console.error('❌ Erro ao carregar configurações:', error);
-      // Configuração padrão
       setConfig({
         dailyReminder: true,
         dailyReminderTime: '08:00',
@@ -197,7 +233,6 @@ export const useNotifications = (): UseNotificationsReturn => {
     }
   }, [notificationsApi]);
 
-  // Atualizar configurações
   const updateConfig = useCallback(
     async (newConfig: Partial<NotificationConfig>): Promise<void> => {
       try {
@@ -217,7 +252,6 @@ export const useNotifications = (): UseNotificationsReturn => {
     await loadNotificationConfig();
   }, [loadNotificationConfig]);
 
-  // Enviar notificação de teste
   const sendTestNotification = useCallback(async (): Promise<void> => {
     try {
       await notificationsApi.sendNotification({
@@ -233,7 +267,6 @@ export const useNotifications = (): UseNotificationsReturn => {
     }
   }, [notificationsApi, showToast]);
 
-  // Inicialização principal
   const initializeNotifications = useCallback(async (): Promise<void> => {
     if (!isLoaded || !isSignedIn || initializationRef.current) {
       return;
@@ -244,31 +277,36 @@ export const useNotifications = (): UseNotificationsReturn => {
 
     try {
       console.log('🔔 Inicializando sistema de notificações...');
+      console.log('📱 Plataforma:', Platform.OS);
+      console.log('📱 Dispositivo físico:', Device.isDevice);
 
-      // 1. Solicitar permissões
       const hasPerms = await requestPermissions();
       if (!hasPerms) {
-        console.log('⚠️ Sem permissões de notificação');
-        setIsLoading(false);
+        console.log('⚠️ Sem permissões de notificação - parando inicialização');
         return;
       }
 
-      // 2. Obter token de push
       const token = await registerPushToken();
       if (token) {
         setExpoPushToken(token);
-        // 3. Registrar no backend
-        await registerTokenWithBackend(token);
+
+        try {
+          await registerTokenWithBackend(token);
+        } catch (backendError) {
+          console.error('❌ Falha ao registrar no backend:', backendError);
+          showToast('Token obtido, mas erro ao registrar no servidor', 'warning');
+        }
       } else {
         console.log('⚠️ Não foi possível obter token de push');
+        showToast('Erro ao obter token de notificação', 'error');
       }
 
-      // 4. Carregar configurações
       await loadNotificationConfig();
 
       console.log('✅ Sistema de notificações inicializado');
     } catch (error) {
       console.error('❌ Erro na inicialização das notificações:', error);
+      showToast('Erro ao inicializar notificações', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -279,30 +317,24 @@ export const useNotifications = (): UseNotificationsReturn => {
     registerPushToken,
     registerTokenWithBackend,
     loadNotificationConfig,
+    showToast,
   ]);
 
-  // Configurar listeners de notificação
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return;
 
-    // Listener para notificações recebidas
     notificationListener.current = Notifications.addNotificationReceivedListener((notification) => {
       console.log('📥 Notificação recebida:', notification.request.content.title);
       setNotification(notification);
     });
 
-    // Listener para interações com notificações
     responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
       const data = response.notification.request.content.data;
       console.log('👆 Notificação tocada:', data);
 
-      // Navegar baseado no tipo de notificação
       if (data?.type === 'daily_reminder') {
-        // Navegar para agenda do dia
       } else if (data?.type === 'before_shift') {
-        // Navegar para detalhes do plantão
       } else if (data?.shiftId) {
-        // Navegar para plantão específico
       }
     });
 
@@ -316,11 +348,9 @@ export const useNotifications = (): UseNotificationsReturn => {
     };
   }, [isLoaded, isSignedIn]);
 
-  // Listener para mudanças de estado do app
   useEffect(() => {
     const handleAppStateChange = (nextAppState: AppStateStatus) => {
       if (nextAppState === 'active' && expoPushToken && isRegistered) {
-        // Atualizar último uso quando app fica ativo
         registerTokenWithBackend(expoPushToken).catch(console.error);
       }
     };
@@ -334,12 +364,10 @@ export const useNotifications = (): UseNotificationsReturn => {
     };
   }, [expoPushToken, isRegistered, registerTokenWithBackend]);
 
-  // Inicializar quando usuário estiver autenticado
   useEffect(() => {
     if (isLoaded && isSignedIn) {
       initializeNotifications();
     } else {
-      // Reset quando usuário desloga
       setExpoPushToken(null);
       setNotification(null);
       setIsRegistered(false);
