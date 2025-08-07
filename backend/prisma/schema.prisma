@@ -27,6 +27,8 @@ model User {
   notificationConfig NotificationConfig?
   plantoes           Plantao[]
 
+  ShiftTemplates ShiftTemplate[]
+
   @@map("users")
 }
 
@@ -42,6 +44,8 @@ model Location {
   user      User      @relation(fields: [userId], references: [id])
   plantoes  Plantao[]
 
+  ShiftTemplates ShiftTemplate[]
+
   @@map("locations")
 }
 
@@ -55,6 +59,8 @@ model Contractor {
   userId    String    @map("user_id")
   user      User      @relation(fields: [userId], references: [id])
   plantoes  Plantao[]
+
+  ShiftTemplates ShiftTemplate[]
 
   @@map("contractors")
 }
@@ -145,6 +151,30 @@ model NotificationConfig {
   user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("notification_configs")
+}
+
+model ShiftTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  startTime   String
+  endTime     String
+  value       Float
+  paymentType String
+  notes       String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  userId       String  @map("user_id")
+  locationId   String? @map("location_id")
+  contractorId String? @map("contractor_id")
+
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  location   Location?   @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  contractor Contractor? @relation(fields: [contractorId], references: [id], onDelete: SetNull)
+
+  @@map("shift_templates")
 }
 
 model NotificationLog {
