@@ -91,6 +91,21 @@ export default function TabsLayout() {
           ),
         }}
       />
+
+      <Tabs.Screen
+        name="templates"
+        options={{
+          title: 'Templates',
+          headerTitle: 'Meus Templates',
+          headerShown: false,
+          tabBarIcon: ({ color, size }) => (
+            <View className="items-center justify-center">
+              <Ionicons name="bookmark-outline" size={size} color={color} />
+            </View>
+          ),
+        }}
+      />
+
       <Tabs.Screen
         name="locations"
         options={{
@@ -104,6 +119,7 @@ export default function TabsLayout() {
           ),
         }}
       />
+
       <Tabs.Screen
         name="payments"
         options={{
@@ -117,6 +133,7 @@ export default function TabsLayout() {
           ),
         }}
       />
+
       <Tabs.Screen
         name="cnpj"
         options={{
@@ -130,6 +147,7 @@ export default function TabsLayout() {
           ),
         }}
       />
+
       <Tabs.Screen
         name="profile"
         options={{

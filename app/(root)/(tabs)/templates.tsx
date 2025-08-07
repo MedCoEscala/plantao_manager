@@ -20,7 +20,7 @@ import { ShiftTemplate } from '../../services/shift-templates-api';
 import { formatTime, formatCurrency } from '../../utils/formatters';
 import FloatingButton from '../../components/ui/FloatingButton';
 import ScreenWrapper from '../../components/ui/ScreenWrapper';
-import TemplateFormModal from '../../components/shift-template/TemplateForm';
+import TemplateFormModal from '../../components/shift-template/TemplateFormModal';
 
 const TemplatesScreen = () => {
   const [filteredTemplates, setFilteredTemplates] = useState<ShiftTemplate[]>([]);
@@ -96,7 +96,6 @@ const TemplatesScreen = () => {
     [refreshing, isLoading, isFirstLoad, refreshTemplates, showToast]
   );
 
-  // Carregar templates apenas uma vez
   useEffect(() => {
     if (!hasLoadedRef.current) {
       hasLoadedRef.current = true;

@@ -30,9 +30,12 @@ import CalendarComponent from '../../components/CalendarComponent';
 import ShiftFormModal from '../../components/shifts/ShiftFormModal';
 import FloatingButton from '../../components/ui/FloatingButton';
 import ScreenWrapper from '../../components/ui/ScreenWrapper';
+import ShiftCreationOptionsModal from '../../components/shifts/ShiftCreationOptionsModal';
+import TemplateFormModal from '../../components/shift-template/TemplateFormModal';
 import { useDialog } from '../../contexts/DialogContext';
 import { useNotificationsContext } from '../../contexts/NotificationContext';
 import { useShiftsSync } from '../../contexts/ShiftsSyncContext';
+import { useShiftTemplatesContext } from '../../contexts/ShiftTemplatesContext';
 import { useProfile } from '../../hooks/useProfile';
 import { useShiftsApi, Shift } from '../../services/shifts-api';
 import formatters, { formatDate, formatTime, formatCurrency } from '../../utils/formatters';
@@ -44,8 +47,13 @@ export default function ShiftsScreen() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
-  const [isAddModalVisible, setIsAddModalVisible] = useState(false);
+
+  // Estados para modais
+  const [isOptionsModalVisible, setIsOptionsModalVisible] = useState(false);
+  const [isShiftFormModalVisible, setIsShiftFormModalVisible] = useState(false);
+  const [isTemplateFormModalVisible, setIsTemplateFormModalVisible] = useState(false);
   const [modalInitialDate, setModalInitialDate] = useState<Date | null>(null);
+
   const prevMonthRef = useRef<string>('');
   const currentMonthRef = useRef<string>('');
 
@@ -53,6 +61,7 @@ export default function ShiftsScreen() {
   const { showDialog } = useDialog();
   const { showError, showSuccess } = useNotification();
   const { subscribeToRefresh } = useShiftsSync();
+  const { createShiftFromTemplate } = useShiftTemplatesContext();
   const router = useRouter();
   const shiftsApi = useShiftsApi();
   const { sendTestNotification, isRegistered } = useNotificationsContext();
@@ -193,19 +202,77 @@ export default function ShiftsScreen() {
     }
   }, [loadShifts, showSuccess]);
 
-  const navigateToAddShift = useCallback(
+  // ========== NOVOS HANDLERS PARA TEMPLATES ==========
+
+  const handleOpenCreationOptions = useCallback(
     (useSpecificDate?: Date) => {
       const dateToUse = useSpecificDate || selectedDate;
-
       setModalInitialDate(dateToUse);
-      setIsAddModalVisible(true);
+      setIsOptionsModalVisible(true);
     },
     [selectedDate]
   );
 
-  const navigateToAddShiftOnDate = useCallback(() => {
-    navigateToAddShift(selectedDate);
-  }, [selectedDate, navigateToAddShift]);
+  const handleCreateFromTemplate = useCallback(
+    async (templateId: string) => {
+      if (!modalInitialDate) return;
+
+      try {
+        const dateStr = format(modalInitialDate, 'yyyy-MM-dd');
+
+        await createShiftFromTemplate(templateId, { date: dateStr });
+
+        setIsOptionsModalVisible(false);
+        showSuccess('Plantão criado a partir do template!');
+
+        // Recarregar dados
+        loadShifts(true);
+      } catch (error: any) {
+        showError(error.message || 'Erro ao criar plantão do template');
+      }
+    },
+    [modalInitialDate, createShiftFromTemplate, showSuccess, showError, loadShifts]
+  );
+
+  const handleCreateNewShift = useCallback(() => {
+    setIsOptionsModalVisible(false);
+    setIsShiftFormModalVisible(true);
+  }, []);
+
+  const handleCreateNewTemplate = useCallback(() => {
+    setIsOptionsModalVisible(false);
+    setIsTemplateFormModalVisible(true);
+  }, []);
+
+  const handleCloseOptionsModal = useCallback(() => {
+    setIsOptionsModalVisible(false);
+    setModalInitialDate(null);
+  }, []);
+
+  const handleShiftFormSuccess = useCallback(() => {
+    showSuccess('Plantão criado com sucesso!');
+    setIsShiftFormModalVisible(false);
+    setModalInitialDate(null);
+    loadShifts(true);
+  }, [showSuccess, loadShifts]);
+
+  const handleTemplateFormSuccess = useCallback(() => {
+    showSuccess('Template criado com sucesso!');
+    setIsTemplateFormModalVisible(false);
+    setModalInitialDate(null);
+  }, [showSuccess]);
+
+  const handleCloseShiftFormModal = useCallback(() => {
+    setIsShiftFormModalVisible(false);
+    setModalInitialDate(null);
+  }, []);
+
+  const handleCloseTemplateFormModal = useCallback(() => {
+    setIsTemplateFormModalVisible(false);
+    setModalInitialDate(null);
+  }, []);
+
+  // ========== HANDLERS EXISTENTES ==========
 
   const navigateToShiftDetails = useCallback(
     (shift: Shift) => {
@@ -240,17 +307,6 @@ export default function ShiftsScreen() {
     },
     [currentMonth]
   );
-
-  const handleAddSuccess = useCallback(() => {
-    showSuccess('Plantão adicionado com sucesso!');
-    setIsAddModalVisible(false);
-
-    loadShifts(true);
-  }, [showSuccess, loadShifts]);
-
-  const handleCloseModal = useCallback(() => {
-    setIsAddModalVisible(false);
-  }, []);
 
   const getLocationInfo = (shift: Shift) => {
     if (shift.location) {
@@ -366,13 +422,13 @@ export default function ShiftsScreen() {
         <TouchableOpacity
           className="flex-row items-center rounded-lg bg-primary px-3 py-1.5"
           activeOpacity={0.8}
-          onPress={navigateToAddShiftOnDate}>
+          onPress={() => handleOpenCreationOptions(selectedDate)}>
           <Ionicons name="add-circle-outline" size={16} color="#ffffff" />
           <Text className="ml-1 text-xs font-semibold text-white">Adicionar Plantão</Text>
         </TouchableOpacity>
       </View>
     ),
-    [selectedDate, navigateToAddShiftOnDate]
+    [selectedDate, handleOpenCreationOptions]
   );
 
   const renderEmptyContent = useCallback(
@@ -389,13 +445,13 @@ export default function ShiftsScreen() {
         <TouchableOpacity
           className="flex-row items-center rounded-xl bg-primary px-5 py-2.5 shadow-sm"
           activeOpacity={0.8}
-          onPress={() => navigateToAddShift()}>
+          onPress={() => handleOpenCreationOptions()}>
           <Ionicons name="add-circle-outline" size={18} color="#ffffff" />
           <Text className="ml-2 font-semibold text-white">Adicionar Plantão</Text>
         </TouchableOpacity>
       </View>
     ),
-    [navigateToAddShift]
+    [handleOpenCreationOptions]
   );
 
   const getFloatingButtonPosition = () => {
@@ -434,19 +490,6 @@ export default function ShiftsScreen() {
             <Text className="text-sm text-text-light">Seus plantões</Text>
           </View>
           <View className="flex-row items-center">
-            {/* Botão de Teste de Notificação */}
-            {/* <TouchableOpacity
-              className="mr-2 h-9 w-9 items-center justify-center rounded-full bg-background-100"
-              onPress={sendTestNotification}
-              disabled={!isRegistered}>
-              <Ionicons
-                name="notifications-outline"
-                size={18}
-                color={!isRegistered ? '#cbd5e1' : '#1e293b'}
-              />
-            </TouchableOpacity> */}
-
-            {/* Botão de Refresh (Existente) */}
             <TouchableOpacity
               className="h-9 w-9 items-center justify-center rounded-full bg-background-100"
               onPress={handleRefresh}
@@ -509,17 +552,36 @@ export default function ShiftsScreen() {
         />
       )}
 
+      {/* Floating Action Button */}
       <FloatingButton
-        onPress={() => navigateToAddShift()}
+        onPress={() => handleOpenCreationOptions()}
         selectedDate={selectedDate}
         style={getFloatingButtonPosition()}
       />
 
+      {/* Modal de Opções de Criação */}
+      <ShiftCreationOptionsModal
+        visible={isOptionsModalVisible}
+        onClose={handleCloseOptionsModal}
+        selectedDate={modalInitialDate ?? undefined}
+        onCreateFromTemplate={handleCreateFromTemplate}
+        onCreateNewShift={handleCreateNewShift}
+        onCreateNewTemplate={handleCreateNewTemplate}
+      />
+
+      {/* Modal de Formulário de Plantão */}
       <ShiftFormModal
-        visible={isAddModalVisible}
-        onClose={handleCloseModal}
+        visible={isShiftFormModalVisible}
+        onClose={handleCloseShiftFormModal}
         initialDate={modalInitialDate}
-        onSuccess={handleAddSuccess}
+        onSuccess={handleShiftFormSuccess}
+      />
+
+      {/* Modal de Formulário de Template */}
+      <TemplateFormModal
+        visible={isTemplateFormModalVisible}
+        onClose={handleCloseTemplateFormModal}
+        onSuccess={handleTemplateFormSuccess}
       />
     </ScreenWrapper>
   );
