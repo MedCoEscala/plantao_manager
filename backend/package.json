@@ -7,7 +7,7 @@
   "license": "UNLICENSED",
   "scripts": {
     "build": "npx nest build",
-    "vercel-build": "npm install --include=dev && prisma generate && npm run build",
+    "vercel-build": "npm install --include=dev && prisma migrate deploy && prisma generate && npm run build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "npx nest start",
     "start:dev": "npx nest start --watch",
