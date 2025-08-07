@@ -2,6 +2,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 
 import { PrismaService } from '../prisma/prisma.service';
@@ -24,7 +25,7 @@ export class ShiftTemplatesSafeService {
     try {
       // Verificar se a tabela existe fazendo uma query simples
       await this.prisma.$queryRaw`SELECT 1 FROM shift_templates LIMIT 1`;
-      
+
       // Se chegou aqui, a tabela existe, pode continuar normalmente
       const user = await this.prisma.user.findUnique({
         where: { clerkId },
@@ -41,7 +42,9 @@ export class ShiftTemplatesSafeService {
       return [];
     } catch (error) {
       // Se a tabela não existir, retornar array vazio
-      this.logger.warn(`Tabela shift_templates não encontrada: ${error.message}`);
+      this.logger.warn(
+        `Tabela shift_templates não encontrada: ${error.message}`,
+      );
       return [];
     }
   }
@@ -51,27 +54,52 @@ export class ShiftTemplatesSafeService {
       await this.prisma.$queryRaw`SELECT 1 FROM shift_templates LIMIT 1`;
       throw new NotFoundException('Template não encontrado');
     } catch (error) {
-      this.logger.warn('Funcionalidade de templates temporariamente indisponível');
-      throw new NotFoundException('Funcionalidade temporariamente indisponível');
+      this.logger.warn(
+        'Funcionalidade de templates temporariamente indisponível',
+      );
+      throw new NotFoundException(
+        'Funcionalidade temporariamente indisponível',
+      );
     }
   }
 
-  async create(clerkId: string, createDto: CreateShiftTemplateDto): Promise<any> {
+  async create(
+    clerkId: string,
+    createDto: CreateShiftTemplateDto,
+  ): Promise<any> {
     try {
       await this.prisma.$queryRaw`SELECT 1 FROM shift_templates LIMIT 1`;
-      throw new Error('Funcionalidade temporariamente indisponível');
+      // Se chegou aqui, a tabela existe, mas ainda vamos retornar erro temporário
+      this.logger.warn(
+        'Criação de templates ainda não implementada no service seguro',
+      );
+      throw new BadRequestException(
+        'Funcionalidade de templates será disponibilizada em breve. Aguarde a atualização do sistema.',
+      );
     } catch (error) {
-      this.logger.warn('Criação de templates temporariamente indisponível');
-      throw new Error('Funcionalidade de templates será disponibilizada em breve. Aguarde a atualização do sistema.');
+      this.logger.warn(
+        'Tabela shift_templates não encontrada - criação indisponível',
+      );
+      throw new BadRequestException(
+        'Funcionalidade de templates será disponibilizada em breve. O banco de dados está sendo atualizado.',
+      );
     }
   }
 
-  async update(clerkId: string, id: string, updateDto: UpdateShiftTemplateDto): Promise<any> {
-    throw new Error('Funcionalidade de templates será disponibilizada em breve.');
+  async update(
+    clerkId: string,
+    id: string,
+    updateDto: UpdateShiftTemplateDto,
+  ): Promise<any> {
+    throw new BadRequestException(
+      'Funcionalidade de templates será disponibilizada em breve.',
+    );
   }
 
   async remove(clerkId: string, id: string): Promise<any> {
-    throw new Error('Funcionalidade de templates será disponibilizada em breve.');
+    throw new BadRequestException(
+      'Funcionalidade de templates será disponibilizada em breve.',
+    );
   }
 
   async createShiftFromTemplate(
@@ -79,6 +107,8 @@ export class ShiftTemplatesSafeService {
     templateId: string,
     createShiftDto: CreateShiftFromTemplateDto,
   ): Promise<any> {
-    throw new Error('Funcionalidade de templates será disponibilizada em breve.');
+    throw new BadRequestException(
+      'Funcionalidade de templates será disponibilizada em breve.',
+    );
   }
 }
