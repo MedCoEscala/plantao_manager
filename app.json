@@ -2,7 +2,7 @@
   "expo": {
     "name": "MedEscala",
     "slug": "medescala",
-    "version": "1.1.43 ",
+    "version": "1.1.43",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -35,7 +35,8 @@
         "INTERNET",
         "ACCESS_NETWORK_STATE"
       ],
-      "jsEngine": "hermes"
+      "jsEngine": "hermes",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "favicon": "./assets/favicon.png",

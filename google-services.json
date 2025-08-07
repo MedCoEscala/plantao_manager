@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "203521099383",
+    "project_id": "medescala-b0c84",
+    "storage_bucket": "medescala-b0c84.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:203521099383:android:5b7e2f9ceec260454c2872",
+        "android_client_info": {
+          "package_name": "com.lucaserib.medescala"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAKXWyVN2STYbeiaBasczlivFJ5niVslFg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
