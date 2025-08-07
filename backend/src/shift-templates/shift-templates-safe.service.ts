@@ -17,6 +17,11 @@ export class ShiftTemplatesSafeService {
 
   constructor(private prisma: PrismaService) {}
 
+  private validateTimeFormat(time: string): boolean {
+    const timeRegex = /^([01]?[0-9]|2[0-3]):([0-5][0-9])$/;
+    return timeRegex.test(time);
+  }
+
   // Retorna array vazio quando tabela não existe
   async findAllByUserId(
     clerkId: string,
