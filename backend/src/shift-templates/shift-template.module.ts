@@ -7,15 +7,7 @@ import { PrismaModule } from '../prisma/prisma.module';
 @Module({
   imports: [PrismaModule],
   controllers: [ShiftTemplatesController],
-  providers: [
-    ShiftTemplatesService,
-    ShiftTemplatesSafeService,
-    // Usar o service seguro temporariamente
-    {
-      provide: ShiftTemplatesService,
-      useClass: ShiftTemplatesSafeService,
-    },
-  ],
+  providers: [ShiftTemplatesService],
   exports: [ShiftTemplatesService],
 })
 export class ShiftTemplateModule {}
