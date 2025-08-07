@@ -14,6 +14,7 @@ import { DialogProvider } from './contexts/DialogContext';
 import { LocationsProvider } from './contexts/LocationsContext';
 import { ProfileProvider } from './contexts/ProfileContext';
 import { ShiftsSyncProvider } from './contexts/ShiftsSyncContext';
+import { ShiftTemplatesProvider } from './contexts/ShiftTemplatesContext';
 import { StatusBar } from 'expo-status-bar';
 import { initialWindowMetrics, SafeAreaProvider } from 'react-native-safe-area-context';
 import NotificationsProvider from './contexts/NotificationContext';
@@ -125,7 +126,8 @@ function RootLayoutNav() {
           <ProfileProvider>
             <LocationsProvider>
               <ContractorsProvider>
-                <ShiftsSyncProvider>
+                <ShiftTemplatesProvider>
+                  <ShiftsSyncProvider>
                   <Stack
                     screenOptions={{
                       headerShown: false,
@@ -138,7 +140,8 @@ function RootLayoutNav() {
                       options={{ presentation: 'modal', headerShown: false }}
                     />
                   </Stack>
-                </ShiftsSyncProvider>
+                  </ShiftsSyncProvider>
+                </ShiftTemplatesProvider>
               </ContractorsProvider>
             </LocationsProvider>
           </ProfileProvider>

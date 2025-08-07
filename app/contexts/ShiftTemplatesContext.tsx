@@ -1,218 +1,186 @@
-import { useAuth } from '@clerk/clerk-expo';
-import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 
-import { useToast } from '../components/ui/Toast';
-import { useProfile } from '../hooks/useProfile';
 import {
-  useShiftTemplatesApi,
   ShiftTemplate,
   CreateShiftTemplateData,
   UpdateShiftTemplateData,
   ShiftTemplateFilters,
   CreateShiftFromTemplateData,
+  useShiftTemplatesApi,
 } from '../services/shift-templates-api';
 
 interface ShiftTemplatesContextType {
   templates: ShiftTemplate[];
-  templateOptions: { label: string; value: string; description?: string }[];
   isLoading: boolean;
   error: string | null;
-  refreshTemplates: () => Promise<void>;
+
+  // Operações CRUD
   createTemplate: (data: CreateShiftTemplateData) => Promise<ShiftTemplate>;
   updateTemplate: (id: string, data: UpdateShiftTemplateData) => Promise<ShiftTemplate>;
-  deleteTemplate: (id: string) => Promise<ShiftTemplate>;
-  createShiftFromTemplate: (templateId: string, data: CreateShiftFromTemplateData) => Promise<any>;
+  deleteTemplate: (id: string) => Promise<void>;
   getTemplateById: (id: string) => Promise<ShiftTemplate>;
+
+  // Operação especial para criar plantão a partir de template
+  createShiftFromTemplate: (templateId: string, data: CreateShiftFromTemplateData) => Promise<any>;
+
+  // Controles de estado
+  refreshTemplates: () => Promise<void>;
+  setFilters: (filters: ShiftTemplateFilters) => void;
+  clearError: () => void;
 }
 
 const ShiftTemplatesContext = createContext<ShiftTemplatesContextType | undefined>(undefined);
 
 export function ShiftTemplatesProvider({ children }: { children: React.ReactNode }) {
   const [templates, setTemplates] = useState<ShiftTemplate[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [filters, setFilters] = useState<ShiftTemplateFilters>({ isActive: true });
 
-  const { getToken, isLoaded: isAuthLoaded, userId } = useAuth();
-  const { showToast } = useToast();
-  const { isInitialized: isProfileInitialized } = useProfile();
-  const shiftTemplatesApi = useShiftTemplatesApi();
-
+  const api = useShiftTemplatesApi();
   const hasInitialized = useRef(false);
 
-  const fetchTemplates = useCallback(
-    async (showLoadingState = true): Promise<void> => {
-      if (!isAuthLoaded || !userId || !isProfileInitialized) {
-        setIsLoading(false);
-        return;
-      }
+  // Função para carregar templates
+  const loadTemplates = useCallback(async () => {
+    if (isLoading) return;
 
-      try {
-        if (showLoadingState) {
-          setIsLoading(true);
-        }
-        setError(null);
+    try {
+      setIsLoading(true);
+      setError(null);
+      const data = await api.getShiftTemplates(filters);
+      setTemplates(data);
+    } catch (err: any) {
+      console.error('❌ Erro ao carregar templates:', err);
+      setError(err.message || 'Erro desconhecido ao carregar templates');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [api, filters, isLoading]);
 
-        const data = await shiftTemplatesApi.getShiftTemplates();
+  // Inicializar dados
+  useEffect(() => {
+    if (!hasInitialized.current) {
+      hasInitialized.current = true;
+      loadTemplates();
+    }
+  }, [loadTemplates]);
 
-        const sortedTemplates = data.sort((a, b) => a.name.localeCompare(b.name));
-        setTemplates(sortedTemplates);
-      } catch (error: any) {
-        console.error('Erro ao buscar templates de plantão:', error);
-        setError('Erro ao carregar templates');
-        showToast('Erro ao carregar templates', 'error');
-      } finally {
-        if (showLoadingState) {
-          setIsLoading(false);
-        }
-      }
-    },
-    [isAuthLoaded, userId, isProfileInitialized, shiftTemplatesApi, showToast]
-  );
+  // Recarregar quando filtros mudarem
+  useEffect(() => {
+    if (hasInitialized.current) {
+      loadTemplates();
+    }
+  }, [filters]);
 
   const createTemplate = useCallback(
     async (data: CreateShiftTemplateData): Promise<ShiftTemplate> => {
       try {
-        const newTemplate = await shiftTemplatesApi.createShiftTemplate(data);
+        setError(null);
+        const newTemplate = await api.createShiftTemplate(data);
 
-        setTemplates((prev) => {
-          const updated = [...prev, newTemplate];
-          return updated.sort((a, b) => a.name.localeCompare(b.name));
-        });
-
-        showToast('Template criado com sucesso', 'success');
-
-        setTimeout(() => {
-          fetchTemplates(false);
-        }, 500);
+        // Atualizar lista local
+        setTemplates((prev) => [newTemplate, ...prev]);
 
         return newTemplate;
-      } catch (error: any) {
-        console.error('Erro ao criar template:', error);
-        const errorMessage =
-          error?.response?.data?.message || error?.message || 'Erro ao criar template';
-        showToast(errorMessage, 'error');
-        throw error;
+      } catch (err: any) {
+        const errorMsg = err.message || 'Erro ao criar template';
+        setError(errorMsg);
+        throw new Error(errorMsg);
       }
     },
-    [shiftTemplatesApi, showToast, fetchTemplates]
+    [api]
   );
 
   const updateTemplate = useCallback(
     async (id: string, data: UpdateShiftTemplateData): Promise<ShiftTemplate> => {
       try {
-        const updatedTemplate = await shiftTemplatesApi.updateShiftTemplate(id, data);
+        setError(null);
+        const updatedTemplate = await api.updateShiftTemplate(id, data);
 
-        setTemplates((prev) => {
-          const updated = prev.map((t) => (t.id === id ? updatedTemplate : t));
-          return updated.sort((a, b) => a.name.localeCompare(b.name));
-        });
-
-        showToast('Template atualizado com sucesso', 'success');
-
-        setTimeout(() => {
-          fetchTemplates(false);
-        }, 500);
+        // Atualizar lista local
+        setTemplates((prev) =>
+          prev.map((template) => (template.id === id ? updatedTemplate : template))
+        );
 
         return updatedTemplate;
-      } catch (error: any) {
-        console.error('Erro ao atualizar template:', error);
-        const errorMessage =
-          error?.response?.data?.message || error?.message || 'Erro ao atualizar template';
-        showToast(errorMessage, 'error');
-        throw error;
+      } catch (err: any) {
+        const errorMsg = err.message || 'Erro ao atualizar template';
+        setError(errorMsg);
+        throw new Error(errorMsg);
       }
     },
-    [shiftTemplatesApi, showToast, fetchTemplates]
+    [api]
   );
 
   const deleteTemplate = useCallback(
-    async (id: string): Promise<ShiftTemplate> => {
+    async (id: string): Promise<void> => {
       try {
-        const deletedTemplate = await shiftTemplatesApi.deleteShiftTemplate(id);
+        setError(null);
+        await api.deleteShiftTemplate(id);
 
-        setTemplates((prev) => prev.filter((t) => t.id !== id));
-
-        showToast('Template desativado com sucesso', 'success');
-
-        setTimeout(() => {
-          fetchTemplates(false);
-        }, 500);
-
-        return deletedTemplate;
-      } catch (error: any) {
-        console.error('Erro ao desativar template:', error);
-        const errorMessage =
-          error?.response?.data?.message || error?.message || 'Erro ao desativar template';
-        showToast(errorMessage, 'error');
-        throw error;
+        // Remover da lista local
+        setTemplates((prev) => prev.filter((template) => template.id !== id));
+      } catch (err: any) {
+        const errorMsg = err.message || 'Erro ao deletar template';
+        setError(errorMsg);
+        throw new Error(errorMsg);
       }
     },
-    [shiftTemplatesApi, showToast, fetchTemplates]
+    [api]
+  );
+
+  const getTemplateById = useCallback(
+    async (id: string): Promise<ShiftTemplate> => {
+      try {
+        setError(null);
+        return await api.getShiftTemplateById(id);
+      } catch (err: any) {
+        const errorMsg = err.message || 'Erro ao buscar template';
+        setError(errorMsg);
+        throw new Error(errorMsg);
+      }
+    },
+    [api]
   );
 
   const createShiftFromTemplate = useCallback(
     async (templateId: string, data: CreateShiftFromTemplateData): Promise<any> => {
       try {
-        const createdShift = await shiftTemplatesApi.createShiftFromTemplate(templateId, data);
-        showToast('Plantão criado a partir do template!', 'success');
-        return createdShift;
-      } catch (error: any) {
-        console.error('Erro ao criar plantão do template:', error);
-        const errorMessage =
-          error?.response?.data?.message || error?.message || 'Erro ao criar plantão do template';
-        showToast(errorMessage, 'error');
-        throw error;
+        setError(null);
+        return await api.createShiftFromTemplate(templateId, data);
+      } catch (err: any) {
+        const errorMsg = err.message || 'Erro ao criar plantão a partir do template';
+        setError(errorMsg);
+        throw new Error(errorMsg);
       }
     },
-    [shiftTemplatesApi, showToast]
+    [api]
   );
 
-  const getTemplateById = useCallback(
-    async (id: string): Promise<ShiftTemplate> => {
-      return shiftTemplatesApi.getShiftTemplateById(id);
-    },
-    [shiftTemplatesApi]
-  );
+  const refreshTemplates = useCallback(async () => {
+    await loadTemplates();
+  }, [loadTemplates]);
 
-  useEffect(() => {
-    if (isProfileInitialized && !hasInitialized.current) {
-      hasInitialized.current = true;
-      fetchTemplates();
-    }
-  }, [isProfileInitialized, fetchTemplates]);
+  const setFiltersCallback = useCallback((newFilters: ShiftTemplateFilters) => {
+    setFilters(newFilters);
+  }, []);
 
-  useEffect(() => {
-    if (isAuthLoaded && !userId) {
-      setTemplates([]);
-      setError(null);
-      setIsLoading(false);
-      hasInitialized.current = false;
-    }
-  }, [isAuthLoaded, userId]);
-
-  const templateOptions = React.useMemo(
-    () =>
-      templates
-        .filter((template) => template.isActive)
-        .map((template) => ({
-          label: template.name,
-          value: template.id,
-          description: template.description,
-        })),
-    [templates]
-  );
+  const clearError = useCallback(() => {
+    setError(null);
+  }, []);
 
   const value: ShiftTemplatesContextType = {
     templates,
-    templateOptions,
     isLoading,
     error,
-    refreshTemplates: fetchTemplates,
     createTemplate,
     updateTemplate,
     deleteTemplate,
-    createShiftFromTemplate,
     getTemplateById,
+    createShiftFromTemplate,
+    refreshTemplates,
+    setFilters: setFiltersCallback,
+    clearError,
   };
 
   return <ShiftTemplatesContext.Provider value={value}>{children}</ShiftTemplatesContext.Provider>;
@@ -220,25 +188,8 @@ export function ShiftTemplatesProvider({ children }: { children: React.ReactNode
 
 export function useShiftTemplatesContext(): ShiftTemplatesContextType {
   const context = useContext(ShiftTemplatesContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useShiftTemplatesContext deve ser usado dentro de ShiftTemplatesProvider');
   }
   return context;
 }
-
-export function useShiftTemplates(): ShiftTemplatesContextType & {
-  loadTemplates: () => Promise<void>;
-} {
-  const context = useShiftTemplatesContext();
-  return {
-    ...context,
-    loadTemplates: context.refreshTemplates,
-  };
-}
-
-const shiftTemplatesContext = {
-  ShiftTemplatesProvider,
-  useShiftTemplatesContext,
-};
-
-export default shiftTemplatesContext;
