@@ -9,6 +9,8 @@ export const NOTIFICATION_TYPES = {
   DAILY_REMINDER: 'daily_reminder',
   BEFORE_SHIFT: 'before_shift',
   SHIFT_CONFIRMATION: 'shift_confirmation',
+  WEEKLY_REPORT: 'weekly_report', // 🆕 NOVO: Adicionado tipo para relatório semanal
+  MONTHLY_REPORT: 'monthly_report', // 🆕 NOVO: Preparado para futuro uso
 } as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[keyof typeof NOTIFICATION_TYPES];
@@ -20,6 +22,17 @@ interface ShiftNotificationData extends Record<string, unknown> {
   locationName?: string;
   startTime?: string;
   endTime?: string;
+}
+
+// 🆕 NOVO: Interface específica para dados de relatório semanal
+interface WeeklyReportNotificationData extends Record<string, unknown> {
+  type: 'weekly_report';
+  weekStart: string;
+  weekEnd: string;
+  shiftsCount: number;
+  totalValue: number;
+  totalHours: number;
+  uniqueLocations?: number;
 }
 
 interface SimpleNotificationConfig {
@@ -232,6 +245,51 @@ export class ShiftNotificationsManager {
       console.log(`✅ Lembrete diário agendado para ${config.dailyReminderTime}`);
     } catch (error) {
       console.error('❌ Erro ao agendar lembrete diário:', error);
+    }
+  }
+
+  // 🆕 NOVO: Método para lidar com notificações de relatório semanal recebidas
+  static handleWeeklyReportNotification(data: WeeklyReportNotificationData): void {
+    console.log('📊 Notificação de relatório semanal recebida:', {
+      weekStart: data.weekStart,
+      weekEnd: data.weekEnd,
+      shiftsCount: data.shiftsCount,
+      totalHours: data.totalHours,
+      totalValue: data.totalValue,
+    });
+
+    // Aqui você pode adicionar lógica adicional para lidar com a notificação
+    // Por exemplo, navegar para uma tela específica, mostrar um modal, etc.
+  }
+
+  // 🆕 NOVO: Método para verificar se uma notificação é de relatório semanal
+  static isWeeklyReportNotification(data: any): data is WeeklyReportNotificationData {
+    return data && data.type === NOTIFICATION_TYPES.WEEKLY_REPORT;
+  }
+
+  // 🆕 NOVO: Método para obter estatísticas de notificações agendadas
+  static async getNotificationStats(): Promise<{
+    total: number;
+    byType: Record<string, number>;
+  }> {
+    try {
+      const scheduledNotifications = await Notifications.getAllScheduledNotificationsAsync();
+
+      const stats = {
+        total: scheduledNotifications.length,
+        byType: {} as Record<string, number>,
+      };
+
+      for (const notification of scheduledNotifications) {
+        const data = notification.content.data as any;
+        const type = data?.type || 'unknown';
+        stats.byType[type] = (stats.byType[type] || 0) + 1;
+      }
+
+      return stats;
+    } catch (error) {
+      console.error('❌ Erro ao obter estatísticas de notificações:', error);
+      return { total: 0, byType: {} };
     }
   }
 

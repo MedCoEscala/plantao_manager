@@ -6,7 +6,19 @@ import {
 } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { DeviceToken, NotificationConfig } from '@prisma/client';
-import { addDays, format, startOfDay, endOfDay } from 'date-fns';
+import {
+  addDays,
+  format,
+  startOfDay,
+  endOfDay,
+  startOfWeek,
+  endOfWeek,
+  subWeeks,
+  getDay,
+  addMinutes,
+  isSameDay,
+} from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import { Expo, ExpoPushMessage, ExpoPushTicket } from 'expo-server-sdk';
 
 import { PrismaService } from '../prisma/prisma.service';
@@ -410,6 +422,213 @@ export class NotificationsService {
         error.stack,
       );
     }
+  }
+
+  // 🆕 NOVO: Cron job para resumo semanal - executa todos os dias às 9:00
+  @Cron('0 9 * * *')
+  async sendWeeklyReports(): Promise<void> {
+    this.logger.log('🗓️ Verificando envio de relatórios semanais');
+
+    try {
+      const now = new Date();
+      const currentHour = now.getHours();
+      const currentMinute = now.getMinutes();
+      const currentDayOfWeek = getDay(now); // 0 = domingo, 1 = segunda, etc.
+
+      // Buscar usuários com relatório semanal ativo
+      const usersWithConfig = await this.prisma.user.findMany({
+        include: {
+          notificationConfig: true,
+          deviceTokens: {
+            where: { isActive: true },
+          },
+        },
+        where: {
+          notificationConfig: {
+            weeklyReport: true,
+          },
+          deviceTokens: {
+            some: {
+              isActive: true,
+            },
+          },
+        },
+      });
+
+      this.logger.log(
+        `📊 Encontrados ${usersWithConfig.length} usuários com relatório semanal ativo`,
+      );
+
+      for (const user of usersWithConfig) {
+        try {
+          const config = user.notificationConfig!;
+
+          // Converter weeklyReportDay (1-7) para getDay format (0-6)
+          // weeklyReportDay: 1=segunda, 2=terça, ..., 7=domingo
+          // getDay: 0=domingo, 1=segunda, ..., 6=sábado
+          const targetDayOfWeek =
+            config.weeklyReportDay === 7 ? 0 : config.weeklyReportDay;
+
+          // Parse do horário configurado
+          const [targetHour, targetMinute] = config.weeklyReportTime
+            .split(':')
+            .map(Number);
+
+          // Verificar se é o dia e horário correto (com tolerância de 1 hora)
+          const isCorrectDay = currentDayOfWeek === targetDayOfWeek;
+          const isCorrectTime =
+            currentHour === targetHour &&
+            currentMinute >= targetMinute &&
+            currentMinute < targetMinute + 60;
+
+          if (!isCorrectDay || !isCorrectTime) {
+            continue; // Pular este usuário se não for o dia/horário correto
+          }
+
+          this.logger.log(
+            `📊 Enviando relatório semanal para usuário ${user.clerkId}`,
+          );
+
+          // Calcular período da semana anterior
+          const weekStart = startOfWeek(subWeeks(now, 1), { weekStartsOn: 1 }); // Segunda-feira da semana passada
+          const weekEnd = endOfWeek(subWeeks(now, 1), { weekStartsOn: 1 }); // Domingo da semana passada
+
+          // Buscar plantões da semana anterior
+          const weeklyShifts = await this.prisma.plantao.findMany({
+            where: {
+              userId: user.id,
+              date: {
+                gte: weekStart,
+                lte: weekEnd,
+              },
+            },
+            include: {
+              location: true,
+              contractor: true,
+            },
+            orderBy: {
+              date: 'asc',
+            },
+          });
+
+          if (weeklyShifts.length === 0) {
+            // Enviar notificação mesmo sem plantões
+            const title = `📊 Relatório Semanal - ${format(weekStart, 'dd/MM', { locale: ptBR })} a ${format(weekEnd, 'dd/MM', { locale: ptBR })}`;
+            const body = 'Você não teve plantões na semana passada. 🏖️';
+
+            await this.sendNotificationToUser(user.clerkId, {
+              title,
+              body,
+              type: 'weekly_report',
+              data: {
+                weekStart: format(weekStart, 'yyyy-MM-dd'),
+                weekEnd: format(weekEnd, 'yyyy-MM-dd'),
+                shiftsCount: 0,
+                totalValue: 0,
+                totalHours: 0,
+              },
+            });
+            continue;
+          }
+
+          // Calcular estatísticas
+          const totalValue = weeklyShifts.reduce(
+            (sum, shift) => sum + shift.value,
+            0,
+          );
+          const totalHours = this.calculateTotalHours(weeklyShifts);
+          const uniqueLocations = new Set(
+            weeklyShifts.map((shift) => shift.location?.name).filter(Boolean),
+          ).size;
+
+          // Agrupar plantões por dia
+          const shiftsByDay = this.groupShiftsByDay(weeklyShifts);
+
+          // Construir resumo detalhado
+          let detailedSummary = '';
+          Object.entries(shiftsByDay).forEach(([day, shifts]) => {
+            const dayName = format(new Date(day), 'EEEE', { locale: ptBR });
+            const dayShifts = shifts
+              .map((shift) => {
+                const startTime = format(shift.startTime, 'HH:mm');
+                const endTime = format(shift.endTime, 'HH:mm');
+                const location = shift.location?.name || 'Local não informado';
+                return `  📍 ${location}: ${startTime}-${endTime}`;
+              })
+              .join('\n');
+
+            detailedSummary += `\n📅 ${dayName}:\n${dayShifts}\n`;
+          });
+
+          // Criar mensagem do relatório
+          const title = `📊 Relatório Semanal - ${format(weekStart, 'dd/MM', { locale: ptBR })} a ${format(weekEnd, 'dd/MM', { locale: ptBR })}`;
+
+          let body = `Resumo da sua semana:\n\n`;
+          body += `🔢 Total de plantões: ${weeklyShifts.length}\n`;
+          body += `⏱️ Horas trabalhadas: ${totalHours.toFixed(1)}h\n`;
+          body += `💰 Valor total: R$ ${totalValue.toFixed(2).replace('.', ',')}\n`;
+          body += `🏥 Locais diferentes: ${uniqueLocations}\n`;
+          body += detailedSummary;
+
+          await this.sendNotificationToUser(user.clerkId, {
+            title,
+            body,
+            type: 'weekly_report',
+            data: {
+              weekStart: format(weekStart, 'yyyy-MM-dd'),
+              weekEnd: format(weekEnd, 'yyyy-MM-dd'),
+              shiftsCount: weeklyShifts.length,
+              totalValue,
+              totalHours,
+              uniqueLocations,
+            },
+          });
+
+          this.logger.log(
+            `✅ Relatório semanal enviado para usuário ${user.clerkId}`,
+          );
+        } catch (error) {
+          this.logger.error(
+            `❌ Erro ao enviar relatório semanal para usuário ${user.clerkId}: ${error.message}`,
+          );
+        }
+      }
+    } catch (error) {
+      this.logger.error(
+        `❌ Erro no job de relatórios semanais: ${error.message}`,
+        error.stack,
+      );
+    }
+  }
+
+  // 🆕 NOVO: Método auxiliar para calcular horas totais
+  private calculateTotalHours(shifts: any[]): number {
+    return shifts.reduce((total, shift) => {
+      const startTime = new Date(shift.startTime);
+      const endTime = new Date(shift.endTime);
+
+      // Se horário de fim é menor que início, assumir que vai até o dia seguinte
+      if (endTime <= startTime) {
+        endTime.setDate(endTime.getDate() + 1);
+      }
+
+      const diffMs = endTime.getTime() - startTime.getTime();
+      const hours = diffMs / (1000 * 60 * 60);
+
+      return total + hours;
+    }, 0);
+  }
+
+  // 🆕 NOVO: Método auxiliar para agrupar plantões por dia
+  private groupShiftsByDay(shifts: any[]): Record<string, any[]> {
+    return shifts.reduce((groups, shift) => {
+      const dateKey = format(shift.date, 'yyyy-MM-dd');
+      if (!groups[dateKey]) {
+        groups[dateKey] = [];
+      }
+      groups[dateKey].push(shift);
+      return groups;
+    }, {});
   }
 
   async removeDeviceToken(clerkId: string, token: string): Promise<void> {

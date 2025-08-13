@@ -7,6 +7,7 @@ import { Platform, AppState, AppStateStatus } from 'react-native';
 
 import { useToast } from '../components/ui/Toast';
 import { useNotificationsApi } from '../services/notifications-api';
+import { ShiftNotificationsManager, NOTIFICATION_TYPES } from '../utils/shiftNotifications';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -97,6 +98,17 @@ export const useNotifications = (): UseNotificationsReturn => {
           vibrationPattern: [0, 500, 250, 500],
           lightColor: '#18CB96',
           description: 'Notificações sobre plantões e lembretes importantes',
+          showBadge: true,
+          sound: 'default',
+        });
+
+        // 🆕 NOVO: Canal específico para relatórios
+        await Notifications.setNotificationChannelAsync('reports', {
+          name: 'Relatórios e Resumos',
+          importance: Notifications.AndroidImportance.DEFAULT,
+          vibrationPattern: [0, 200, 100, 200],
+          lightColor: '#18CB96',
+          description: 'Relatórios semanais e mensais de plantões',
           showBadge: true,
           sound: 'default',
         });
@@ -267,6 +279,81 @@ export const useNotifications = (): UseNotificationsReturn => {
     }
   }, [notificationsApi, showToast]);
 
+  // 🆕 NOVO: Função para lidar com diferentes tipos de notificação
+  const handleNotificationReceived = useCallback(
+    (notification: Notifications.Notification) => {
+      const data = notification.request.content.data as any;
+
+      console.log('📥 Notificação recebida:', {
+        title: notification.request.content.title,
+        type: data?.type,
+        data: data,
+      });
+
+      setNotification(notification);
+
+      // Tratamento específico por tipo de notificação
+      switch (data?.type) {
+        case NOTIFICATION_TYPES.WEEKLY_REPORT:
+          console.log('📊 Relatório semanal recebido');
+          ShiftNotificationsManager.handleWeeklyReportNotification(data);
+          showToast('Relatório semanal disponível', 'info');
+          break;
+
+        case NOTIFICATION_TYPES.DAILY_REMINDER:
+          console.log('📅 Lembrete diário recebido');
+          break;
+
+        case NOTIFICATION_TYPES.BEFORE_SHIFT:
+          console.log('⏰ Lembrete antes do plantão recebido');
+          break;
+
+        case NOTIFICATION_TYPES.SHIFT_CONFIRMATION:
+          console.log('📋 Confirmação de plantão recebida');
+          break;
+
+        default:
+          console.log('📨 Notificação genérica recebida');
+      }
+    },
+    [showToast]
+  );
+
+  // 🆕 NOVO: Função para lidar com toque na notificação
+  const handleNotificationResponse = useCallback((response: Notifications.NotificationResponse) => {
+    const data = response.notification.request.content.data as any;
+    console.log('👆 Notificação tocada:', {
+      type: data?.type,
+      data: data,
+    });
+
+    // Navegação baseada no tipo de notificação
+    switch (data?.type) {
+      case NOTIFICATION_TYPES.WEEKLY_REPORT:
+        console.log('📊 Navegando para relatórios');
+        // Aqui você pode navegar para a tela de relatórios
+        // router.push('/reports');
+        break;
+
+      case NOTIFICATION_TYPES.DAILY_REMINDER:
+        console.log('📅 Navegando para agenda do dia');
+        // router.push('/');
+        break;
+
+      case NOTIFICATION_TYPES.BEFORE_SHIFT:
+      case NOTIFICATION_TYPES.SHIFT_CONFIRMATION:
+        if (data?.shiftId) {
+          console.log(`🏥 Navegando para plantão ${data.shiftId}`);
+          // router.push(`/shifts/${data.shiftId}`);
+        }
+        break;
+
+      default:
+        console.log('📱 Navegação padrão');
+      // router.push('/');
+    }
+  }, []);
+
   const initializeNotifications = useCallback(async (): Promise<void> => {
     if (!isLoaded || !isSignedIn || initializationRef.current) {
       return;
@@ -323,20 +410,13 @@ export const useNotifications = (): UseNotificationsReturn => {
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return;
 
-    notificationListener.current = Notifications.addNotificationReceivedListener((notification) => {
-      console.log('📥 Notificação recebida:', notification.request.content.title);
-      setNotification(notification);
-    });
+    notificationListener.current = Notifications.addNotificationReceivedListener(
+      handleNotificationReceived
+    );
 
-    responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
-      const data = response.notification.request.content.data;
-      console.log('👆 Notificação tocada:', data);
-
-      if (data?.type === 'daily_reminder') {
-      } else if (data?.type === 'before_shift') {
-      } else if (data?.shiftId) {
-      }
-    });
+    responseListener.current = Notifications.addNotificationResponseReceivedListener(
+      handleNotificationResponse
+    );
 
     return () => {
       if (notificationListener.current) {
@@ -346,7 +426,7 @@ export const useNotifications = (): UseNotificationsReturn => {
         Notifications.removeNotificationSubscription(responseListener.current);
       }
     };
-  }, [isLoaded, isSignedIn]);
+  }, [isLoaded, isSignedIn, handleNotificationReceived, handleNotificationResponse]);
 
   useEffect(() => {
     const handleAppStateChange = (nextAppState: AppStateStatus) => {
