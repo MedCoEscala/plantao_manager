@@ -206,6 +206,10 @@ export class NotificationsService {
           title: notificationDto.title,
           body: notificationDto.body,
           data: notificationDto.data || {},
+          priority: 'high',
+          channelId: notificationDto.type === 'weekly_report' || notificationDto.type === 'monthly_report' ? 'reports' : 
+                    notificationDto.type === 'daily_reminder' || notificationDto.type === 'before_shift' ? 'shifts' : 
+                    'default',
         }),
       );
 
@@ -424,8 +428,7 @@ export class NotificationsService {
     }
   }
 
-  // 🆕 NOVO: Cron job para resumo semanal - executa todos os dias às 9:00
-  @Cron('0 9 * * *')
+  @Cron('0 * * * *')
   async sendWeeklyReports(): Promise<void> {
     this.logger.log('🗓️ Verificando envio de relatórios semanais');
 
@@ -433,9 +436,8 @@ export class NotificationsService {
       const now = new Date();
       const currentHour = now.getHours();
       const currentMinute = now.getMinutes();
-      const currentDayOfWeek = getDay(now); // 0 = domingo, 1 = segunda, etc.
+      const currentDayOfWeek = getDay(now);
 
-      // Buscar usuários com relatório semanal ativo
       const usersWithConfig = await this.prisma.user.findMany({
         include: {
           notificationConfig: true,
@@ -463,30 +465,22 @@ export class NotificationsService {
         try {
           const config = user.notificationConfig!;
 
-          // Converter weeklyReportDay (1-7) para getDay format (0-6)
-          // weeklyReportDay: 1=segunda, 2=terça, ..., 7=domingo
-          // getDay: 0=domingo, 1=segunda, ..., 6=sábado
           const targetDayOfWeek =
             config.weeklyReportDay === 7 ? 0 : config.weeklyReportDay;
 
-          // Parse do horário configurado
-          const [targetHour, targetMinute] = config.weeklyReportTime
+          const [targetHour] = config.weeklyReportTime
             .split(':')
             .map(Number);
 
-          // Verificar se é o dia e horário correto (com tolerância de 1 hora)
           const isCorrectDay = currentDayOfWeek === targetDayOfWeek;
-          const isCorrectTime =
-            currentHour === targetHour &&
-            currentMinute >= targetMinute &&
-            currentMinute < targetMinute + 60;
+          const isCorrectTime = currentHour === targetHour && currentMinute === 0;
 
           if (!isCorrectDay || !isCorrectTime) {
-            continue; // Pular este usuário se não for o dia/horário correto
+            continue;
           }
 
           this.logger.log(
-            `📊 Enviando relatório semanal para usuário ${user.clerkId}`,
+            `📊 Enviando relatório semanal para usuário ${user.clerkId} - Dia: ${currentDayOfWeek}/${targetDayOfWeek}, Hora: ${currentHour}/${targetHour}`,
           );
 
           // Calcular período da semana anterior
