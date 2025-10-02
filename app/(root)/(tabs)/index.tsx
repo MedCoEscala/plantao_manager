@@ -465,8 +465,11 @@ export default function ShiftsScreen() {
         right: 24,
       };
     }
+    // iOS: usar altura consistente com o layout das tabs (50 em vez de 60)
+    const tabBarHeight = 50;
+    const spacing = 24;
     return {
-      bottom: 60 + insets.bottom + 24,
+      bottom: tabBarHeight + insets.bottom + spacing,
       right: 24,
     };
   };
@@ -478,7 +481,10 @@ export default function ShiftsScreen() {
       const fabSpace = 80;
       return tabBarHeight + navigationBarHeight + fabSpace;
     }
-    return 80 + insets.bottom;
+    // iOS: usar altura consistente com o layout das tabs (50 em vez de valor fixo)
+    const tabBarHeight = 50;
+    const fabSpace = 80;
+    return tabBarHeight + insets.bottom + fabSpace;
   };
 
   return (

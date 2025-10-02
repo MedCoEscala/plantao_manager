@@ -1,7 +1,7 @@
 // app/components/form/FormModal.tsx (versão corrigida e definitiva)
 
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState, useEffect, ReactNode } from 'react';
+import React, { useState, useEffect, ReactNode, useRef } from 'react';
 import {
   Modal,
   View,
@@ -37,7 +37,7 @@ const FormModal: React.FC<FormModalProps> = ({
   fullHeight = false,
 }) => {
   const insets = useSafeAreaInsets();
-  const animatedValue = new Animated.Value(0);
+  const animatedValue = useRef(new Animated.Value(0)).current;
 
   const MODAL_HEIGHT = fullHeight ? SCREEN_HEIGHT - insets.top - 20 : SCREEN_HEIGHT * height;
 

@@ -2,48 +2,32 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import React, { useState, useCallback, memo } from 'react';
 import { View, Text, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useDialog } from '../../contexts/DialogContext';
-import { useContractorsApi, Contractor } from '../../services/contractors-api';
+import { useContractorsContext, Contractor } from '../../contexts/ContractorsContext';
 import { ContractorFormModal } from '../contractors/ContractorFormModal';
-import { useToast } from '../ui/Toast';
 
 interface ContractorsListProps {
   title?: string;
 }
 
 const ContractorsList: React.FC<ContractorsListProps> = memo(({ title = 'Contratantes' }) => {
-  // Estado local para contratantes e carregamento
-  const [contractors, setContractors] = useState<Contractor[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  // Usa o Context ao invés de estado local
+  const { contractors, isLoading, refreshContractors, deleteContractor } = useContractorsContext();
+  const insets = useSafeAreaInsets();
 
   // Modal e hooks de UI
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [selectedContractor, setSelectedContractor] = useState<Contractor | null>(null);
 
   const { showDialog } = useDialog();
-  const { showToast } = useToast();
-  const contractorsApi = useContractorsApi();
-
-  // Função para carregar os contratantes
-  const loadContractors = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const data = await contractorsApi.getContractors();
-      setContractors(data);
-    } catch (error: any) {
-      console.error('Erro ao carregar contratantes:', error);
-      showToast('Não foi possível carregar os contratantes.', 'error');
-    } finally {
-      setIsLoading(false);
-    }
-  }, []); // Remove contractorsApi e showToast das dependências
 
   // useFocusEffect para recarregar os dados quando a tela ganha foco
   useFocusEffect(
     useCallback(() => {
-      loadContractors();
-    }, [loadContractors])
+      refreshContractors();
+    }, [refreshContractors])
   );
 
   const handleAddContractor = useCallback(() => {
@@ -65,21 +49,15 @@ const ContractorsList: React.FC<ContractorsListProps> = memo(({ title = 'Contrat
         confirmText: 'Excluir',
         onConfirm: async () => {
           try {
-            await contractorsApi.deleteContractor(contractor.id);
-            // Atualiza a lista localmente para resposta imediata
-            setContractors((prev) => prev.filter((c) => c.id !== contractor.id));
-            showToast('Contratante excluído com sucesso', 'success');
+            // O Context já lida com o toast e a atualização do estado
+            await deleteContractor(contractor.id);
           } catch (error: any) {
             console.error('Erro ao excluir contratante:', error);
-            showToast(
-              `Erro ao excluir contratante: ${error.message || 'Erro desconhecido'}`,
-              'error'
-            );
           }
         },
       });
     },
-    [contractorsApi, showDialog, showToast]
+    [deleteContractor, showDialog]
   );
 
   const handleModalClose = useCallback(() => {
@@ -91,8 +69,8 @@ const ContractorsList: React.FC<ContractorsListProps> = memo(({ title = 'Contrat
   const handleModalSuccess = useCallback(() => {
     setIsModalVisible(false);
     setSelectedContractor(null);
-    loadContractors();
-  }, [loadContractors]);
+    refreshContractors();
+  }, [refreshContractors]);
 
   const renderContractorItem = useCallback(
     ({ item }: { item: Contractor }) => (
@@ -162,7 +140,7 @@ const ContractorsList: React.FC<ContractorsListProps> = memo(({ title = 'Contrat
         <View className="flex-row">
           <TouchableOpacity
             className="mr-2 h-8 w-8 items-center justify-center rounded-full bg-background-100"
-            onPress={loadContractors}
+            onPress={refreshContractors}
             disabled={isLoading}>
             {isLoading ? (
               <ActivityIndicator size="small" color="#18cb96" />
@@ -192,7 +170,10 @@ const ContractorsList: React.FC<ContractorsListProps> = memo(({ title = 'Contrat
           ListEmptyComponent={renderEmptyComponent}
           showsVerticalScrollIndicator={false}
           style={{ flex: 1 }}
-          contentContainerStyle={{ flexGrow: 1, paddingBottom: 8 }}
+          contentContainerStyle={{
+            flexGrow: 1,
+            paddingBottom: Math.max(insets.bottom + 80, 100) // 80px para tab bar + inset do dispositivo
+          }}
         />
       )}
 

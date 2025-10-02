@@ -1,5 +1,13 @@
 import { useAuth } from '@clerk/clerk-expo';
-import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useEffect,
+  useRef,
+  useMemo,
+} from 'react';
 
 import { useToast } from '../components/ui/Toast';
 import { useProfile } from '../hooks/useProfile';
@@ -8,13 +16,11 @@ import { fetchWithAuth } from '../utils/api-client';
 export interface Contractor {
   id: string;
   name: string;
-  email: string;
-  cnpj?: string;
-  address?: string;
+  email?: string;
   phone?: string;
-  active: boolean;
   createdAt: string;
   updatedAt: string;
+  userId: string;
 }
 
 interface ContractorsContextType {
@@ -42,6 +48,17 @@ export function ContractorsProvider({ children }: { children: React.ReactNode })
   const { isInitialized: isProfileInitialized } = useProfile();
 
   const hasInitialized = useRef(false);
+  const showToastRef = useRef(showToast);
+  const getTokenRef = useRef(getToken);
+
+  // Mantém refs atualizados sem causar re-renders
+  useEffect(() => {
+    showToastRef.current = showToast;
+  }, [showToast]);
+
+  useEffect(() => {
+    getTokenRef.current = getToken;
+  }, [getToken]);
 
   const fetchContractors = useCallback(async (): Promise<void> => {
     // Só busca se o profile estiver inicializado
@@ -51,7 +68,7 @@ export function ContractorsProvider({ children }: { children: React.ReactNode })
     }
 
     try {
-      const token = await getToken();
+      const token = await getTokenRef.current();
       if (!token) {
         // PROTEÇÃO: Log do erro mas não crashar
         console.warn('Token não disponível para ContractorsContext');
@@ -76,19 +93,17 @@ export function ContractorsProvider({ children }: { children: React.ReactNode })
 
       // Não mostrar toast se for erro de autenticação (ainda inicializando)
       if (!error?.message?.includes('não autenticado')) {
-        showToast('Erro ao carregar contratantes', 'error');
+        showToastRef.current('Erro ao carregar contratantes', 'error');
       }
     } finally {
       setIsLoading(false);
     }
-  }, [isAuthLoaded, userId, isProfileInitialized, getToken, showToast]);
+  }, [isAuthLoaded, userId, isProfileInitialized]);
 
   const addContractor = useCallback(
     async (contractorData: Omit<Contractor, 'id' | 'createdAt' | 'updatedAt'>): Promise<void> => {
-      if (!getToken) return;
-
       try {
-        const token = await getToken();
+        const token = await getTokenRef.current();
         if (!token) {
           console.warn('Token não disponível para adicionar contratante');
           throw new Error('AUTH_TOKEN_UNAVAILABLE');
@@ -104,23 +119,21 @@ export function ContractorsProvider({ children }: { children: React.ReactNode })
         );
 
         setContractors((prev) => [...prev, newContractor]);
-        showToast('Contratante adicionado com sucesso', 'success');
+        showToastRef.current('Contratante adicionado com sucesso', 'success');
       } catch (error: any) {
         console.error('Erro ao adicionar contratante:', error);
         const errorMessage = error?.response?.data?.message || 'Erro ao adicionar contratante';
-        showToast(errorMessage, 'error');
+        showToastRef.current(errorMessage, 'error');
         throw error;
       }
     },
-    [getToken, showToast]
+    []
   );
 
   const updateContractor = useCallback(
     async (id: string, contractorData: Partial<Contractor>): Promise<void> => {
-      if (!getToken) return;
-
       try {
-        const token = await getToken();
+        const token = await getTokenRef.current();
         if (!token) {
           console.warn('Token não disponível para atualizar contratante');
           throw new Error('AUTH_TOKEN_UNAVAILABLE');
@@ -136,23 +149,21 @@ export function ContractorsProvider({ children }: { children: React.ReactNode })
         );
 
         setContractors((prev) => prev.map((c) => (c.id === id ? updatedContractor : c)));
-        showToast('Contratante atualizado com sucesso', 'success');
+        showToastRef.current('Contratante atualizado com sucesso', 'success');
       } catch (error: any) {
         console.error('Erro ao atualizar contratante:', error);
         const errorMessage = error?.response?.data?.message || 'Erro ao atualizar contratante';
-        showToast(errorMessage, 'error');
+        showToastRef.current(errorMessage, 'error');
         throw error;
       }
     },
-    [getToken, showToast]
+    []
   );
 
   const deleteContractor = useCallback(
     async (id: string): Promise<void> => {
-      if (!getToken) return;
-
       try {
-        const token = await getToken();
+        const token = await getTokenRef.current();
         if (!token) {
           console.warn('Token não disponível para remover contratante');
           throw new Error('AUTH_TOKEN_UNAVAILABLE');
@@ -161,15 +172,15 @@ export function ContractorsProvider({ children }: { children: React.ReactNode })
         await fetchWithAuth(`/contractors/${id}`, { method: 'DELETE' }, async () => token);
 
         setContractors((prev) => prev.filter((c) => c.id !== id));
-        showToast('Contratante removido com sucesso', 'success');
+        showToastRef.current('Contratante removido com sucesso', 'success');
       } catch (error: any) {
         console.error('Erro ao remover contratante:', error);
         const errorMessage = error?.response?.data?.message || 'Erro ao remover contratante';
-        showToast(errorMessage, 'error');
+        showToastRef.current(errorMessage, 'error');
         throw error;
       }
     },
-    [getToken, showToast]
+    []
   );
 
   // Carrega contratantes quando o profile estiver inicializado
@@ -190,21 +201,41 @@ export function ContractorsProvider({ children }: { children: React.ReactNode })
     }
   }, [isAuthLoaded, userId]);
 
-  const value: ContractorsContextType = {
-    contractors,
-    contractorOptions: contractors.map((contractor) => ({
-      label: contractor.name,
-      value: contractor.id,
-      icon: 'briefcase-outline',
-      color: undefined,
-    })),
-    isLoading,
-    error,
-    refreshContractors: fetchContractors,
-    addContractor,
-    updateContractor,
-    deleteContractor,
-  };
+  // Memoiza contractorOptions para evitar recalcular em todo render
+  const contractorOptions = useMemo(
+    () =>
+      contractors.map((contractor) => ({
+        label: contractor.name,
+        value: contractor.id,
+        icon: 'briefcase-outline' as const,
+        color: undefined,
+      })),
+    [contractors]
+  );
+
+  // Memoiza o value do Context para evitar re-renders desnecessários
+  const value = useMemo<ContractorsContextType>(
+    () => ({
+      contractors,
+      contractorOptions,
+      isLoading,
+      error,
+      refreshContractors: fetchContractors,
+      addContractor,
+      updateContractor,
+      deleteContractor,
+    }),
+    [
+      contractors,
+      contractorOptions,
+      isLoading,
+      error,
+      fetchContractors,
+      addContractor,
+      updateContractor,
+      deleteContractor,
+    ]
+  );
 
   return <ContractorsContext.Provider value={value}>{children}</ContractorsContext.Provider>;
 }

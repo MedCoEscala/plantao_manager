@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ActivityIndicator } from 'react-native';
 
-import { useContractorsApi } from '../../services/contractors-api';
+import { useContractorsContext } from '../../contexts/ContractorsContext';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
-import { useToast } from '../ui/Toast';
 
 interface ContractorFormProps {
   contractorId?: string;
@@ -20,36 +19,29 @@ export default function ContractorForm({ contractorId, onSuccess, onCancel }: Co
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { showToast } = useToast();
-  const contractorsApi = useContractorsApi();
+  const { contractors, addContractor, updateContractor } = useContractorsContext();
 
   useEffect(() => {
     if (contractorId) {
-      const loadContractor = async () => {
-        setIsLoading(true);
-        try {
-          const contractors = await contractorsApi.getContractors();
-          const contractor = contractors.find((c) => c.id === contractorId);
+      setIsLoading(true);
+      try {
+        const contractor = contractors.find((c) => c.id === contractorId);
 
-          if (contractor) {
-            setName(contractor.name || '');
-            setEmail(contractor.email || '');
-            setPhone(contractor.phone || '');
-          } else {
-            throw new Error('Contratante não encontrado');
-          }
-        } catch (error: any) {
-          console.error('Erro ao carregar contratante:', error);
-          showToast(`Erro: ${error.message || 'Não foi possível carregar os dados'}`, 'error');
-          onCancel?.();
-        } finally {
-          setIsLoading(false);
+        if (contractor) {
+          setName(contractor.name || '');
+          setEmail(contractor.email || '');
+          setPhone(contractor.phone || '');
+        } else {
+          console.warn('Contratante não encontrado no cache');
         }
-      };
-
-      loadContractor();
+      } catch (error: any) {
+        console.error('Erro ao carregar contratante:', error);
+        onCancel?.();
+      } finally {
+        setIsLoading(false);
+      }
     }
-  }, [contractorId]);
+  }, [contractorId, contractors, onCancel]);
 
   const formatPhone = (text: string) => {
     const cleaned = text.replace(/\D/g, '');
@@ -88,31 +80,32 @@ export default function ContractorForm({ contractorId, onSuccess, onCancel }: Co
 
   const handleSubmit = async () => {
     if (!validateForm()) {
-      showToast('Por favor, corrija os erros no formulário', 'error');
       return;
     }
 
     setIsSubmitting(true);
 
     try {
-      const formData = {
+      const baseData = {
         name: name.trim(),
         email: email.trim() || undefined,
         phone: phone.trim() || undefined,
       };
 
       if (contractorId) {
-        await contractorsApi.updateContractor(contractorId, formData);
-        showToast('Contratante atualizado com sucesso!', 'success');
+        // Update: envia apenas name, email, phone (sem active)
+        await updateContractor(contractorId, baseData);
       } else {
-        await contractorsApi.createContractor({ ...formData, email: formData.email || '' });
-        showToast('Contratante criado com sucesso!', 'success');
+        await addContractor({
+          ...baseData,
+          email: baseData.email || '',
+        } as any);
       }
 
       onSuccess?.();
     } catch (error: any) {
       console.error('Erro ao salvar contratante:', error);
-      showToast(`Erro: ${error.message || 'Falha ao salvar'}`, 'error');
+      // O Context já mostra o toast de erro
     } finally {
       setIsSubmitting(false);
     }
