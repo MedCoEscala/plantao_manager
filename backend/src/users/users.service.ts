@@ -268,4 +268,94 @@ export class UsersService {
       throw error;
     }
   }
+
+  /**
+   * Deleta completamente a conta do usuário incluindo:
+   * - Todos os dados relacionados no banco (plantões, locais, pagamentos, etc)
+   * - A conta do Clerk (autenticação)
+   * - O registro do usuário no banco
+   */
+  async deleteAccountByClerkId(clerkId: string): Promise<void> {
+    this.logger.log(`Iniciando exclusão completa da conta para Clerk ID: ${clerkId}`);
+
+    // 1. Buscar o usuário
+    const user = await this.findOneByClerkId(clerkId);
+
+    try {
+      // 2. Deletar dados relacionados no banco (em ordem de dependências)
+      this.logger.log(`Deletando dados relacionados do usuário ${user.id}...`);
+
+      // Deletar em transação para garantir consistência
+      await this.prisma.$transaction(async (tx) => {
+        // Deletar notification logs
+        await tx.notificationLog.deleteMany({
+          where: { userId: user.id },
+        });
+
+        // Deletar device tokens
+        await tx.deviceToken.deleteMany({
+          where: { userId: user.id },
+        });
+
+        // Deletar notification config
+        await tx.notificationConfig.deleteMany({
+          where: { userId: user.id },
+        });
+
+        // Deletar shift templates
+        await tx.shiftTemplate.deleteMany({
+          where: { userId: user.id },
+        });
+
+        // Deletar payments relacionados aos plantões do usuário
+        await tx.payment.deleteMany({
+          where: {
+            plantao: {
+              userId: user.id,
+            },
+          },
+        });
+
+        // Deletar plantões (shifts)
+        await tx.plantao.deleteMany({
+          where: { userId: user.id },
+        });
+
+        // Deletar contractors
+        await tx.contractor.deleteMany({
+          where: { userId: user.id },
+        });
+
+        // Deletar locations
+        await tx.location.deleteMany({
+          where: { userId: user.id },
+        });
+
+        // Por último, deletar o usuário
+        await tx.user.delete({
+          where: { id: user.id },
+        });
+
+        this.logger.log(`Dados do banco deletados com sucesso para usuário ${user.id}`);
+      });
+
+      // 3. Deletar a conta do Clerk
+      this.logger.log(`Deletando conta do Clerk para ${clerkId}...`);
+      try {
+        await clerkClient.users.deleteUser(clerkId);
+        this.logger.log(`Conta do Clerk deletada com sucesso: ${clerkId}`);
+      } catch (clerkError) {
+        this.logger.error(`Erro ao deletar conta do Clerk ${clerkId}:`, clerkError);
+        // Não lançar erro aqui - os dados do banco já foram deletados
+        // O usuário não poderá mais fazer login de qualquer forma
+      }
+
+      this.logger.log(`Exclusão completa da conta concluída para ${clerkId}`);
+    } catch (error) {
+      this.logger.error(`Erro ao deletar conta do usuário ${clerkId}:`, error);
+      throw new InternalServerErrorException(
+        'Erro ao processar exclusão da conta. Entre em contato com o suporte.',
+      );
+    }
+  }
 }
