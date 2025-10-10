@@ -45,6 +45,11 @@
       "android": {
         "serviceAccountKeyPath": "./google-service-account.json",
         "track": "internal"
+      },
+      "ios": {
+        "appleId": "timemedco@medescalaapp.com.br",
+        "ascAppId": "6753698921",
+        "appleTeamId": "ZP86V3HYGN"
       }
     }
   }

@@ -49,8 +49,9 @@ const LocationsScreen = () => {
         right: 24,
       };
     }
+    // iOS: posição fixa bem próxima da tab bar
     return {
-      bottom: 60 + insets.bottom + 24,
+      bottom: 24,
       right: 24,
     };
   };

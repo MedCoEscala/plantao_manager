@@ -74,11 +74,11 @@ const FloatingButton: React.FC<FloatingButtonProps> = ({
     <Animated.View
       style={[
         styles.container,
-        style,
         {
           transform: [{ scale: scaleAnim }],
           opacity: disabled ? 0.6 : 1,
         },
+        style,
       ]}>
       <TouchableOpacity
         style={[

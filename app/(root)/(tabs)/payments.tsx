@@ -902,7 +902,7 @@ export default function PaymentsScreen() {
           data={filteredShifts}
           renderItem={renderShiftItem}
           keyExtractor={(item) => item.id}
-          contentContainerClassName="px-4 pb-24"
+          contentContainerClassName="px-4 pb-4"
           showsVerticalScrollIndicator={false}
           onRefresh={handleRefresh}
           refreshing={refreshing}
@@ -928,8 +928,8 @@ export default function PaymentsScreen() {
 
       {/* Botões de ação flutuantes */}
       {isSelectionMode && selectionCount > 0 && (
-        <View className="absolute bottom-24 left-4 right-4 z-50">
-          <View className="flex-row space-x-3">
+        <View className="absolute bottom-5 left-4 right-4 z-50">
+          <View className="flex-row gap-3">
             <TouchableOpacity
               className="flex-1 flex-row items-center justify-center rounded-2xl bg-success py-5"
               onPress={handleMarkAsPaid}>
