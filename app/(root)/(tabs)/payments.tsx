@@ -727,10 +727,11 @@ export default function PaymentsScreen() {
 
         {/* Filtros - Animação completamente refatorada */}
         <Animated.View
+          pointerEvents={showFilters ? 'auto' : 'none'}
           style={{
             height: filtersAnim.interpolate({
               inputRange: [0, 1],
-              outputRange: [0, 240], // Altura aumentada para acomodar melhor o conteúdo
+              outputRange: [0, 180], // Altura ajustada para o conteúdo real
             }),
             opacity: filtersAnim.interpolate({
               inputRange: [0, 0.3, 1],
@@ -740,7 +741,6 @@ export default function PaymentsScreen() {
               inputRange: [0, 1],
               outputRange: [0, 8], // Margem animada suavemente
             }),
-            overflow: 'hidden',
           }}>
           <Animated.View
             style={{
@@ -755,8 +755,10 @@ export default function PaymentsScreen() {
             }}>
             <TouchableOpacity
               className="mb-3 rounded-lg bg-primary/10 p-3"
-              onPress={() => setShowMonthPicker(true)}>
-              <View className="flex-row items-center justify-between">
+              onPress={() => setShowMonthPicker(true)}
+              activeOpacity={0.7}
+              disabled={!showFilters}>
+              <View className="flex-row items-center justify-between" pointerEvents="none">
                 <Text className="text-sm font-medium text-primary">
                   {format(selectedMonth, 'MMMM yyyy', { locale: ptBR })}
                 </Text>
@@ -764,39 +766,37 @@ export default function PaymentsScreen() {
               </View>
             </TouchableOpacity>
 
-            <View className="mb-3">
-              <SelectField
-                label=""
-                value={selectedLocationId}
-                onValueChange={setSelectedLocationId}
-                options={[
-                  {
-                    value: '',
-                    label: PAYMENT_MESSAGES.FILTER_ALL_LOCATIONS,
-                    icon: 'business-outline',
-                  },
-                  ...locationOptions,
-                ]}
-                placeholder={PAYMENT_MESSAGES.FILTER_BY_LOCATION}
-              />
-            </View>
+            <SelectField
+              label=""
+              value={selectedLocationId}
+              onValueChange={setSelectedLocationId}
+              options={[
+                {
+                  value: '',
+                  label: PAYMENT_MESSAGES.FILTER_ALL_LOCATIONS,
+                  icon: 'business-outline',
+                },
+                ...locationOptions,
+              ]}
+              placeholder={PAYMENT_MESSAGES.FILTER_BY_LOCATION}
+              className="mb-3"
+            />
 
-            <View className="mb-2">
-              <SelectField
-                label=""
-                value={selectedContractorId}
-                onValueChange={setSelectedContractorId}
-                options={[
-                  {
-                    value: '',
-                    label: PAYMENT_MESSAGES.FILTER_ALL_CONTRACTORS,
-                    icon: 'briefcase-outline',
-                  },
-                  ...contractorOptions,
-                ]}
-                placeholder={PAYMENT_MESSAGES.FILTER_BY_CONTRACTOR}
-              />
-            </View>
+            <SelectField
+              label=""
+              value={selectedContractorId}
+              onValueChange={setSelectedContractorId}
+              options={[
+                {
+                  value: '',
+                  label: PAYMENT_MESSAGES.FILTER_ALL_CONTRACTORS,
+                  icon: 'briefcase-outline',
+                },
+                ...contractorOptions,
+              ]}
+              placeholder={PAYMENT_MESSAGES.FILTER_BY_CONTRACTOR}
+              className="mb-0"
+            />
           </Animated.View>
         </Animated.View>
       </View>

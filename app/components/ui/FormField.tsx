@@ -4,6 +4,7 @@ import { ptBR } from 'date-fns/locale';
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Platform } from 'react-native';
 import DateTimePicker from 'react-native-modal-datetime-picker';
+import { TimePickerModal } from './TimePickerModal';
 
 interface BaseFieldProps {
   label: string;
@@ -132,6 +133,57 @@ export function DateField({
     }
   };
 
+  const handleConfirm = (selectedDate: Date) => {
+    let processedDate = selectedDate;
+
+    // Para modo date, criar data local para evitar problemas de timezone
+    if (mode === 'date') {
+      const year = selectedDate.getFullYear();
+      const month = selectedDate.getMonth();
+      const day = selectedDate.getDate();
+      processedDate = new Date(year, month, day, 0, 0, 0, 0);
+    } else if (mode === 'time') {
+      // Para modo time, manter a data base e só atualizar hora e minuto
+      const baseDate = value || new Date();
+      const year = baseDate.getFullYear();
+      const month = baseDate.getMonth();
+      const day = baseDate.getDate();
+      const hours = selectedDate.getHours();
+      const minutes = selectedDate.getMinutes();
+      processedDate = new Date(year, month, day, hours, minutes, 0, 0);
+    }
+
+    onChange(processedDate);
+    setPickerVisible(false);
+  };
+
+  // Preparar props do picker de forma otimizada
+  const pickerProps = {
+    isVisible: isPickerVisible,
+    mode,
+    date: value || new Date(),
+    onConfirm: handleConfirm,
+    onCancel: () => setPickerVisible(false),
+    locale: 'pt_BR',
+    confirmTextIOS: 'Confirmar',
+    cancelTextIOS: 'Cancelar',
+    display: Platform.OS === 'ios' ? 'spinner' : 'default',
+    is24Hour: true,
+    // Configurações para melhor apresentação visual no iOS
+    modalStyleIOS: {
+      backgroundColor: 'transparent',
+    },
+    pickerContainerStyleIOS: {
+      backgroundColor: 'transparent',
+      paddingTop: 20,
+      paddingBottom: 20,
+    },
+    // Configurações para modal mais compacto
+    presentationStyle: Platform.OS === 'ios' ? 'pageSheet' : 'fullScreen',
+    animationType: Platform.OS === 'ios' ? 'slide' : 'fade',
+    ...(mode === 'date' && { minimumDate: minDate, maximumDate: maxDate }),
+  };
+
   return (
     <View className={`mb-4 ${className}`}>
       <View className="mb-1.5 flex-row items-center">
@@ -152,18 +204,17 @@ export function DateField({
         />
       </TouchableOpacity>
 
-      <DateTimePicker
-        isVisible={isPickerVisible}
-        mode={mode}
-        date={value || new Date()}
-        onConfirm={(date) => {
-          onChange(date);
-          setPickerVisible(false);
-        }}
-        onCancel={() => setPickerVisible(false)}
-        minimumDate={minDate}
-        maximumDate={maxDate}
-      />
+      {mode === 'time' ? (
+        <TimePickerModal
+          visible={isPickerVisible}
+          title={label}
+          initialTime={value || new Date()}
+          onConfirm={handleConfirm}
+          onCancel={() => setPickerVisible(false)}
+        />
+      ) : (
+        <DateTimePicker {...pickerProps} />
+      )}
 
       {(error || helperText) && (
         <Text className={`mt-1 text-xs ${error ? 'text-error' : 'text-text-light'}`}>

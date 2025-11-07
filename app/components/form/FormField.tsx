@@ -21,8 +21,11 @@ export function FieldWrapper({
   className = '',
   children,
 }: FieldProps & { children: React.ReactNode }) {
+  // Se className foi fornecido, usar ele. Senão, usar mb-4 apenas se tiver label
+  const marginClass = className || (label ? 'mb-4' : 'mb-0');
+
   return (
-    <View className={`mb-4 ${className}`}>
+    <View className={marginClass}>
       {label && (
         <View className="mb-1.5 flex-row items-center">
           <Text className={`text-sm font-medium ${disabled ? 'text-gray-400' : 'text-text-dark'}`}>

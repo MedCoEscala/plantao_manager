@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
+import { useAuth } from '@clerk/clerk-expo';
 
 import {
   ShiftTemplate,
@@ -8,6 +9,7 @@ import {
   CreateShiftFromTemplateData,
   useShiftTemplatesApi,
 } from '../services/shift-templates-api';
+import { useProfile } from '../hooks/useProfile';
 
 interface ShiftTemplatesContextType {
   templates: ShiftTemplate[];
@@ -37,6 +39,8 @@ export function ShiftTemplatesProvider({ children }: { children: React.ReactNode
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<ShiftTemplateFilters>({ isActive: true });
 
+  const { isLoaded: isAuthLoaded, userId } = useAuth();
+  const { isInitialized: isProfileInitialized } = useProfile();
   const api = useShiftTemplatesApi();
   const hasInitialized = useRef(false);
 
@@ -57,20 +61,27 @@ export function ShiftTemplatesProvider({ children }: { children: React.ReactNode
     }
   }, [api, filters, isLoading]);
 
-  // Inicializar dados
   useEffect(() => {
-    if (!hasInitialized.current) {
+    if (isProfileInitialized && !hasInitialized.current) {
       hasInitialized.current = true;
       loadTemplates();
     }
-  }, [loadTemplates]);
+  }, [isProfileInitialized, loadTemplates]);
 
-  // Recarregar quando filtros mudarem
   useEffect(() => {
     if (hasInitialized.current) {
       loadTemplates();
     }
   }, [filters]);
+
+  useEffect(() => {
+    if (isAuthLoaded && !userId) {
+      setTemplates([]);
+      setError(null);
+      setIsLoading(false);
+      hasInitialized.current = false;
+    }
+  }, [isAuthLoaded, userId]);
 
   const createTemplate = useCallback(
     async (data: CreateShiftTemplateData): Promise<ShiftTemplate> => {

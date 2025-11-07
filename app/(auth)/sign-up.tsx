@@ -351,13 +351,12 @@ export default function SignUpScreen() {
   }
 
   return (
-    <AuthScreenWrapper>
+    <AuthScreenWrapper showGradient>
       <View className="flex-1 px-5 pt-4">
         <View className="flex-row items-center justify-between">
           <TouchableOpacity
             onPress={handleBack}
-            className="h-12 w-12 items-center justify-center rounded-full border border-gray-200 bg-white/80"
-            style={{}}>
+            className="h-12 w-12 items-center justify-center rounded-full border border-gray-200 bg-white/80">
             <Ionicons name="arrow-back" size={22} color="#1a1a1a" />
           </TouchableOpacity>
 
@@ -367,23 +366,20 @@ export default function SignUpScreen() {
 
           <View className="h-11 w-11" />
         </View>
-        <View className="flex-1 items-center justify-center px-6 pt-5">
-          <Animated.View className="items-center" style={{ opacity: fadeAnim }}>
-            <Text className="text-center text-3xl font-bold tracking-tight text-gray-900">
-              Criar Conta
-            </Text>
-            <Text className="mt-2 text-center text-base font-normal text-gray-600">
-              {currentStep === 1
-                ? 'Vamos começar com suas informações básicas'
-                : 'Complete seu cadastro com segurança'}
-            </Text>
-          </Animated.View>
-        </View>
-      </View>
 
-      <View className="px-5 pb-5">
+        <Animated.View className="mt-6 items-center px-6" style={{ opacity: fadeAnim }}>
+          <Text className="text-center text-3xl font-bold tracking-tight text-gray-900">
+            Criar Conta
+          </Text>
+          <Text className="mt-2 text-center text-base font-normal text-gray-600">
+            {currentStep === 1
+              ? 'Vamos começar com suas informações básicas'
+              : 'Complete seu cadastro com segurança'}
+          </Text>
+        </Animated.View>
+
         <Animated.View
-          className="rounded-3xl border border-white/20 bg-white/95 p-6 shadow-xl"
+          className="mt-6 flex-1 rounded-3xl border border-white/20 bg-white/95 p-6 shadow-xl"
           style={{
             opacity: fadeAnim,
             transform: [{ translateY: slideAnim }],

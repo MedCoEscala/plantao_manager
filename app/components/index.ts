@@ -1,6 +1,6 @@
 // UI Components
 export { default as NotificationModal } from './ui/NotificationModal';
-export { NotificationProvider, useNotification } from '../contexts/NotificationContext';
+export { NotificationsProvider, useNotification } from '../contexts/NotificationContext';
 export { default as Button } from './ui/Button';
 export { default as Input } from './ui/Input';
 export { default as Card } from './ui/Card';
@@ -8,6 +8,7 @@ export { default as Dialog } from './ui/Dialog';
 export { DialogProvider, useDialog } from '../contexts/DialogContext';
 export { default as Form } from './ui/Form';
 export { default as SectionHeader } from './ui/SectionHeader';
+export { TimePickerModal } from './ui/TimePickerModal';
 
 // Form Components
 export { default as DateField } from './form/DateField';

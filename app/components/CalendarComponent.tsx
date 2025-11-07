@@ -31,6 +31,8 @@ import {
   TextStyle,
 } from 'react-native';
 
+import { ShiftColorDots } from './calendar/ShiftColorDots';
+
 interface Shift {
   id: string;
   date: string;
@@ -39,6 +41,21 @@ interface Shift {
   endTime: string;
   value: number;
   status: string;
+  location?: {
+    id: string;
+    name: string;
+    color: string;
+  };
+}
+
+interface ShiftColorData {
+  locationId: string;
+  color: string;
+}
+
+interface DateShiftsInfo {
+  count: number;
+  colors: ShiftColorData[];
 }
 
 interface CalendarProps {
@@ -230,11 +247,11 @@ const CalendarComponent: React.FC<CalendarProps> = ({
     }
   }, []);
 
-  // Memoize a contagem de shifts para reduzir cálculos
-  const shiftCountByDate = useMemo(() => {
-    const countMap = new Map<string, number>();
+  // Memoize os dados de shifts por data (contagem + cores)
+  const shiftsByDate = useMemo(() => {
+    const dataMap = new Map<string, DateShiftsInfo>();
 
-    if (!shifts || !Array.isArray(shifts)) return countMap;
+    if (!shifts || !Array.isArray(shifts)) return dataMap;
 
     shifts.forEach((shift) => {
       try {
@@ -254,31 +271,48 @@ const CalendarComponent: React.FC<CalendarProps> = ({
         if (!isValid(shiftDate)) return;
 
         const dateKey = format(shiftDate, 'yyyy-MM-dd');
-        countMap.set(dateKey, (countMap.get(dateKey) || 0) + 1);
+        const existing = dataMap.get(dateKey) || { count: 0, colors: [] };
+
+        // Adicionar cor do local se existir
+        if (shift.location?.color) {
+          existing.colors.push({
+            locationId: shift.locationId || shift.location.id,
+            color: shift.location.color,
+          });
+        } else {
+          // Usar cor padrão cinza para plantões sem local
+          existing.colors.push({
+            locationId: shift.locationId || 'no-location',
+            color: '#94a3b8', // gray-400
+          });
+        }
+
+        existing.count++;
+        dataMap.set(dateKey, existing);
       } catch (error) {
         console.error('Erro ao processar data do plantão:', error);
       }
     });
-    return countMap;
+    return dataMap;
   }, [shifts]);
 
-  const countShifts = useCallback(
-    (date: Date) => {
+  const getShiftInfo = useCallback(
+    (date: Date): DateShiftsInfo => {
       try {
         const dateKey = format(date, 'yyyy-MM-dd');
-        return shiftCountByDate.get(dateKey) || 0;
+        return shiftsByDate.get(dateKey) || { count: 0, colors: [] };
       } catch {
-        return 0;
+        return { count: 0, colors: [] };
       }
     },
-    [shiftCountByDate]
+    [shiftsByDate]
   );
 
   function WeekDay({ item }: { item: Date }) {
     const isSelected = isSameDay(item, selectedDate);
     const isTodayDate = isToday(item);
-    const shiftCount = countShifts(item);
-    const hasShift = shiftCount > 0;
+    const shiftInfo = getShiftInfo(item);
+    const hasShift = shiftInfo.count > 0;
     const weekdayLetter = format(item, 'EEEEE', { locale: ptBR }).toUpperCase();
 
     // Classes Tailwind dinâmicas
@@ -310,16 +344,6 @@ const CalendarComponent: React.FC<CalendarProps> = ({
       return `${baseClasses} text-text-dark`;
     }, [isSelected, isTodayDate]);
 
-    const badgeContainerClasses = useMemo(() => {
-      const baseClasses = 'mt-1 min-w-[18px] px-1.5 py-0.5 rounded-full items-center';
-      return isSelected ? `${baseClasses} bg-white` : `${baseClasses} bg-primary`;
-    }, [isSelected]);
-
-    const badgeTextClasses = useMemo(() => {
-      const baseClasses = 'text-[10px] font-bold';
-      return isSelected ? `${baseClasses} text-primary` : `${baseClasses} text-white`;
-    }, [isSelected]);
-
     return (
       <Pressable
         onPress={() => onSelectDate(item)}
@@ -329,9 +353,7 @@ const CalendarComponent: React.FC<CalendarProps> = ({
         <Text className={dateTextClasses}>{getDate(item)}</Text>
 
         {hasShift && (
-          <View className={badgeContainerClasses}>
-            <Text className={badgeTextClasses}>{shiftCount}</Text>
-          </View>
+          <ShiftColorDots colors={shiftInfo.colors} size="medium" maxVisible={4} isSelected={isSelected} />
         )}
       </Pressable>
     );
@@ -344,8 +366,8 @@ const CalendarComponent: React.FC<CalendarProps> = ({
       const isSelected = isSameDay(date, selectedDate);
       const isTodayDate = isToday(date);
       const isCurrentMonth = isSameMonth(date, currentMonth);
-      const shiftCount = countShifts(date);
-      const hasShift = shiftCount > 0;
+      const shiftInfo = getShiftInfo(date);
+      const hasShift = shiftInfo.count > 0;
 
       // Usando os mesmos valores de margin para manter alinhamento
       const dayContainerStyle: ViewStyle = {
@@ -379,25 +401,8 @@ const CalendarComponent: React.FC<CalendarProps> = ({
 
       const badgeContainerStyle: ViewStyle = {
         position: 'absolute',
-        bottom: 4,
+        bottom: 2,
         alignItems: 'center',
-      };
-
-      const badgeStyle: ViewStyle = {
-        paddingHorizontal: 5,
-        borderRadius: 10,
-        minWidth: 16,
-        height: 16,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: isSelected ? 'white' : '#18cb96',
-      };
-
-      const badgeTextStyle: TextStyle = {
-        fontSize: 10,
-        fontWeight: '700',
-        textAlign: 'center',
-        color: isSelected ? '#18cb96' : 'white',
       };
 
       return (
@@ -410,15 +415,18 @@ const CalendarComponent: React.FC<CalendarProps> = ({
 
           {hasShift && (
             <View style={badgeContainerStyle}>
-              <View style={badgeStyle}>
-                <Text style={badgeTextStyle}>{shiftCount}</Text>
-              </View>
+              <ShiftColorDots
+                colors={shiftInfo.colors}
+                size="small"
+                maxVisible={3}
+                isSelected={isSelected}
+              />
             </View>
           )}
         </Pressable>
       );
     },
-    [currentMonth, selectedDate, countShifts, onSelectDate]
+    [currentMonth, selectedDate, getShiftInfo, onSelectDate]
   );
 
   const toggleCalendarView = useCallback(() => {

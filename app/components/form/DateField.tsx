@@ -7,6 +7,7 @@ import { TouchableOpacity, Text, Platform } from 'react-native';
 import DateTimePicker from 'react-native-modal-datetime-picker';
 
 import { FieldWrapper } from './FormField';
+import { TimePickerModal } from '../ui/TimePickerModal';
 
 interface DateFieldProps {
   label: string;
@@ -86,10 +87,20 @@ export function DateField({
         const month = selectedDate.getMonth();
         const day = selectedDate.getDate();
         processedDate = new Date(year, month, day, 0, 0, 0, 0);
-      } else if (mode === 'time' && normalizedValue) {
-        // Para modo time, manter a data base e só atualizar hora
-        processedDate = new Date(normalizedValue);
-        processedDate.setHours(selectedDate.getHours(), selectedDate.getMinutes(), 0, 0);
+      } else if (mode === 'time') {
+        // Para modo time, criar uma nova data local mantendo apenas hora e minuto
+        // Usar a data atual ou a data base do valor existente
+        const baseDate = normalizedValue || new Date();
+        const year = baseDate.getFullYear();
+        const month = baseDate.getMonth();
+        const day = baseDate.getDate();
+
+        // Extrair hora e minuto do selectedDate considerando timezone local
+        const hours = selectedDate.getHours();
+        const minutes = selectedDate.getMinutes();
+
+        // Criar nova data local com a data base e horário selecionado
+        processedDate = new Date(year, month, day, hours, minutes, 0, 0);
       }
 
       onChange(processedDate);
@@ -121,22 +132,43 @@ export function DateField({
 
   // Configurações específicas do picker por plataforma
   const pickerProps = useMemo(() => {
-    return {
+    const baseProps = {
       isVisible: isPickerVisible,
       mode,
       date: pickerDate,
       onConfirm: handlePickerConfirm,
       onCancel: handlePickerCancel,
-      minimumDate: minDate,
-      maximumDate: maxDate,
       locale: 'pt_BR',
       confirmTextIOS: 'Confirmar',
       cancelTextIOS: 'Cancelar',
-      // Configurações para evitar problemas de estilo
+      // Configurações específicas para iOS
+      display: Platform.OS === 'ios' ? 'spinner' : 'default',
+      is24Hour: true,
+      // Configurações para melhor apresentação visual no iOS
       modalStyleIOS: {
-        backgroundColor: 'white',
+        backgroundColor: 'transparent',
       },
+      pickerContainerStyleIOS: {
+        backgroundColor: 'transparent',
+        paddingTop: 20,
+        paddingBottom: 20,
+      },
+      // Configurações para modal mais compacto
+      presentationStyle: Platform.OS === 'ios' ? 'pageSheet' : 'fullScreen',
+      animationType: Platform.OS === 'ios' ? 'slide' : 'fade',
     };
+
+    // Configurações específicas por modo
+    if (mode === 'date') {
+      return {
+        ...baseProps,
+        minimumDate: minDate,
+        maximumDate: maxDate,
+      };
+    }
+
+    // Para modo time, não definir minuteInterval para permitir seleção livre
+    return baseProps;
   }, [
     isPickerVisible,
     mode,
@@ -179,13 +211,17 @@ export function DateField({
         <Ionicons name={getIconName()} size={20} color={normalizedValue ? '#18cb96' : '#64748b'} />
       </TouchableOpacity>
 
-      <DateTimePicker
-        {...pickerProps}
-        // Configurações adicionais para evitar problemas de estilo
-        pickerContainerStyleIOS={{
-          backgroundColor: 'white',
-        }}
-      />
+      {mode === 'time' ? (
+        <TimePickerModal
+          visible={isPickerVisible}
+          title={label}
+          initialTime={pickerDate}
+          onConfirm={handlePickerConfirm}
+          onCancel={handlePickerCancel}
+        />
+      ) : (
+        <DateTimePicker {...pickerProps} />
+      )}
     </FieldWrapper>
   );
 }
