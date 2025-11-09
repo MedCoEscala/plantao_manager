@@ -1,9 +1,9 @@
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import React from 'react';
 
 import ShiftForm from './ShiftForm';
 import KeyboardAwareFormModal from '../form/KeyboardAwareFormModal';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 
 interface ShiftFormModalProps {
   visible: boolean;

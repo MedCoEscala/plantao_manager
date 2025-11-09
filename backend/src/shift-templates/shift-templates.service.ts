@@ -8,10 +8,10 @@ import {
 import { ShiftTemplate, Prisma } from '@prisma/client';
 
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateShiftTemplateDto } from './dto/create-shift-template.dto';
-import { UpdateShiftTemplateDto } from './dto/update-shift-template.dto';
-import { GetShiftTemplatesFilterDto } from './dto/get-shift-templates-filter.dto';
 import { CreateShiftFromTemplateDto } from './dto/create-shift-from-template.dto';
+import { CreateShiftTemplateDto } from './dto/create-shift-template.dto';
+import { GetShiftTemplatesFilterDto } from './dto/get-shift-templates-filter.dto';
+import { UpdateShiftTemplateDto } from './dto/update-shift-template.dto';
 import { ShiftsService } from '../shifts/shifts.service';
 
 @Injectable()

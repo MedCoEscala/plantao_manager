@@ -227,7 +227,9 @@ export class UsersController {
     const clerkId = req.userContext.sub;
     const userEmail = req.userContext.email || req.userContext.email_address;
 
-    this.logger.log(`Solicitação de exclusão de conta recebida para: ${userEmail}`);
+    this.logger.log(
+      `Solicitação de exclusão de conta recebida para: ${userEmail}`,
+    );
 
     try {
       // Validar senha através do Clerk
@@ -263,7 +265,10 @@ export class UsersController {
     } catch (error) {
       this.logger.error(`Erro ao deletar conta para ${userEmail}:`, error);
 
-      if (error instanceof ForbiddenException || error instanceof NotFoundException) {
+      if (
+        error instanceof ForbiddenException ||
+        error instanceof NotFoundException
+      ) {
         throw error;
       }
 

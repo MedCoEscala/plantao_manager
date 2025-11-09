@@ -207,9 +207,14 @@ export class NotificationsService {
           body: notificationDto.body,
           data: notificationDto.data || {},
           priority: 'high',
-          channelId: notificationDto.type === 'weekly_report' || notificationDto.type === 'monthly_report' ? 'reports' : 
-                    notificationDto.type === 'daily_reminder' || notificationDto.type === 'before_shift' ? 'shifts' : 
-                    'default',
+          channelId:
+            notificationDto.type === 'weekly_report' ||
+            notificationDto.type === 'monthly_report'
+              ? 'reports'
+              : notificationDto.type === 'daily_reminder' ||
+                  notificationDto.type === 'before_shift'
+                ? 'shifts'
+                : 'default',
         }),
       );
 
@@ -468,12 +473,11 @@ export class NotificationsService {
           const targetDayOfWeek =
             config.weeklyReportDay === 7 ? 0 : config.weeklyReportDay;
 
-          const [targetHour] = config.weeklyReportTime
-            .split(':')
-            .map(Number);
+          const [targetHour] = config.weeklyReportTime.split(':').map(Number);
 
           const isCorrectDay = currentDayOfWeek === targetDayOfWeek;
-          const isCorrectTime = currentHour === targetHour && currentMinute === 0;
+          const isCorrectTime =
+            currentHour === targetHour && currentMinute === 0;
 
           if (!isCorrectDay || !isCorrectTime) {
             continue;

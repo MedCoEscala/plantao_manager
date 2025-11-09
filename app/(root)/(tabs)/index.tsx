@@ -27,15 +27,15 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { Button, useNotification } from '../../components';
 import CalendarComponent from '../../components/CalendarComponent';
+import TemplateFormModal from '../../components/shift-template/TemplateFormModal';
+import ShiftCreationOptionsModal from '../../components/shifts/ShiftCreationOptionsModal';
 import ShiftFormModal from '../../components/shifts/ShiftFormModal';
 import FloatingButton from '../../components/ui/FloatingButton';
 import ScreenWrapper from '../../components/ui/ScreenWrapper';
-import ShiftCreationOptionsModal from '../../components/shifts/ShiftCreationOptionsModal';
-import TemplateFormModal from '../../components/shift-template/TemplateFormModal';
 import { useDialog } from '../../contexts/DialogContext';
 import { useNotificationsContext } from '../../contexts/NotificationContext';
-import { useShiftsSync } from '../../contexts/ShiftsSyncContext';
 import { useShiftTemplatesContext } from '../../contexts/ShiftTemplatesContext';
+import { useShiftsSync } from '../../contexts/ShiftsSyncContext';
 import { useProfile } from '../../hooks/useProfile';
 import { useShiftsApi, Shift } from '../../services/shifts-api';
 import formatters, { formatDate, formatTime, formatCurrency } from '../../utils/formatters';

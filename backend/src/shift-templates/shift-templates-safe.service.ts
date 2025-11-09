@@ -6,10 +6,10 @@ import {
 } from '@nestjs/common';
 
 import { PrismaService } from '../prisma/prisma.service';
-import { GetShiftTemplatesFilterDto } from './dto/get-shift-templates-filter.dto';
-import { CreateShiftTemplateDto } from './dto/create-shift-template.dto';
-import { UpdateShiftTemplateDto } from './dto/update-shift-template.dto';
 import { CreateShiftFromTemplateDto } from './dto/create-shift-from-template.dto';
+import { CreateShiftTemplateDto } from './dto/create-shift-template.dto';
+import { GetShiftTemplatesFilterDto } from './dto/get-shift-templates-filter.dto';
+import { UpdateShiftTemplateDto } from './dto/update-shift-template.dto';
 
 @Injectable()
 export class ShiftTemplatesSafeService {

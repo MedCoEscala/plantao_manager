@@ -13,14 +13,14 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useShiftTemplatesContext } from '../../contexts/ShiftTemplatesContext';
-import { useDialog } from '../../contexts/DialogContext';
-import { useToast } from '../../components/ui/Toast';
-import { ShiftTemplate } from '../../services/shift-templates-api';
-import { formatTime, formatCurrency } from '../../utils/formatters';
+import TemplateFormModal from '../../components/shift-template/TemplateFormModal';
 import FloatingButton from '../../components/ui/FloatingButton';
 import ScreenWrapper from '../../components/ui/ScreenWrapper';
-import TemplateFormModal from '../../components/shift-template/TemplateFormModal';
+import { useToast } from '../../components/ui/Toast';
+import { useDialog } from '../../contexts/DialogContext';
+import { useShiftTemplatesContext } from '../../contexts/ShiftTemplatesContext';
+import { ShiftTemplate } from '../../services/shift-templates-api';
+import { formatTime, formatCurrency } from '../../utils/formatters';
 
 const TemplatesScreen = () => {
   const [filteredTemplates, setFilteredTemplates] = useState<ShiftTemplate[]>([]);

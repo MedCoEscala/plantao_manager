@@ -7,8 +7,8 @@ import { View, Text, Animated, TouchableOpacity } from 'react-native';
 import AuthButton from '../components/auth/AuthButton';
 import AuthInput from '../components/auth/AuthInput';
 import Logo from '../components/auth/Logo';
-import { useToast } from '../components/ui/Toast';
 import AuthScreenWrapper from '../components/ui/AuthScreenWrapper';
+import { useToast } from '../components/ui/Toast';
 
 export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState('');

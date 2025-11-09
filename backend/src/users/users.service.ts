@@ -276,7 +276,9 @@ export class UsersService {
    * - O registro do usuário no banco
    */
   async deleteAccountByClerkId(clerkId: string): Promise<void> {
-    this.logger.log(`Iniciando exclusão completa da conta para Clerk ID: ${clerkId}`);
+    this.logger.log(
+      `Iniciando exclusão completa da conta para Clerk ID: ${clerkId}`,
+    );
 
     // 1. Buscar o usuário
     const user = await this.findOneByClerkId(clerkId);
@@ -336,7 +338,9 @@ export class UsersService {
           where: { id: user.id },
         });
 
-        this.logger.log(`Dados do banco deletados com sucesso para usuário ${user.id}`);
+        this.logger.log(
+          `Dados do banco deletados com sucesso para usuário ${user.id}`,
+        );
       });
 
       // 3. Deletar a conta do Clerk
@@ -345,7 +349,10 @@ export class UsersService {
         await clerkClient.users.deleteUser(clerkId);
         this.logger.log(`Conta do Clerk deletada com sucesso: ${clerkId}`);
       } catch (clerkError) {
-        this.logger.error(`Erro ao deletar conta do Clerk ${clerkId}:`, clerkError);
+        this.logger.error(
+          `Erro ao deletar conta do Clerk ${clerkId}:`,
+          clerkError,
+        );
         // Não lançar erro aqui - os dados do banco já foram deletados
         // O usuário não poderá mais fazer login de qualquer forma
       }

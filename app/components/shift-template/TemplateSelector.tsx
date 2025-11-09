@@ -5,10 +5,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useShiftTemplatesContext } from '../../contexts/ShiftTemplatesContext';
 import { ShiftTemplate } from '../../services/shift-templates-api';
+import { cn } from '../../utils/cn';
 import { formatTime, formatCurrency } from '../../utils/formatters';
 import Card from '../ui/Card';
 import SectionHeader from '../ui/SectionHeader';
-import { cn } from '../../utils/cn';
 
 interface TemplateSelectorProps {
   selectedTemplateId?: string | null;

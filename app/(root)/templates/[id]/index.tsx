@@ -4,12 +4,12 @@ import { StatusBar } from 'expo-status-bar';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, ScrollView, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
 
+import ScreenWrapper from '../../../components/ui/ScreenWrapper';
 import { useToast } from '../../../components/ui/Toast';
 import { useDialog } from '../../../contexts/DialogContext';
 import { useShiftTemplatesContext } from '../../../contexts/ShiftTemplatesContext';
 import { ShiftTemplate } from '../../../services/shift-templates-api';
 import { formatTime, formatCurrency } from '../../../utils/formatters';
-import ScreenWrapper from '../../../components/ui/ScreenWrapper';
 
 export default function TemplateDetailsScreen() {
   const router = useRouter();

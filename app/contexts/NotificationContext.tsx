@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect } from 'react';
 
-import { useNotifications, UseNotificationsReturn } from '../hooks/useNotifications';
 import { useToast } from '../components/ui/Toast';
+import { useNotifications, UseNotificationsReturn } from '../hooks/useNotifications';
 
 const NotificationsContext = createContext<UseNotificationsReturn | undefined>(undefined);
 

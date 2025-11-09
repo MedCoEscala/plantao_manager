@@ -65,7 +65,7 @@ export default function NotificationsSettingsScreen() {
 
       <View className="flex-1">
         {/* Status Card */}
-        <NotificationStatusCard showFullStatus={true} onSettingsPress={handlePermissionRequest} />
+        <NotificationStatusCard showFullStatus onSettingsPress={handlePermissionRequest} />
 
         {/* Informações sobre notificações */}
         <View className="mx-4 mb-4 rounded-xl bg-blue-50 p-4">

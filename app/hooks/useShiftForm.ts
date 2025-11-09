@@ -2,6 +2,8 @@ import { startOfDay, isBefore, isAfter, addDays } from 'date-fns';
 import { useState, useCallback, useMemo } from 'react';
 import { Alert } from 'react-native';
 
+import { useShiftNotifications } from './useShiftNotifications';
+import { useDialog } from '../contexts/DialogContext';
 import { useNotification } from '../contexts/NotificationContext';
 import { useShiftsSync } from '../contexts/ShiftsSyncContext';
 import { useShiftsApi, CreateShiftData, UpdateShiftData, Shift } from '../services/shifts-api';
@@ -15,8 +17,6 @@ import formatters, {
   normalizeToLocalDate,
 } from '../utils/formatters';
 import { RecurrenceCalculator } from '../utils/recurrence';
-import { useDialog } from '../contexts/DialogContext';
-import { useShiftNotifications } from './useShiftNotifications';
 
 const calculateShiftDuration = (
   startTime: Date,
@@ -27,7 +27,7 @@ const calculateShiftDuration = (
     const startDateTime = new Date(date);
     startDateTime.setHours(startTime.getHours(), startTime.getMinutes(), 0, 0);
 
-    let endDateTime = new Date(date);
+    const endDateTime = new Date(date);
     endDateTime.setHours(endTime.getHours(), endTime.getMinutes(), 0, 0);
 
     const crossesMidnight =

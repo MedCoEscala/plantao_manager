@@ -10,9 +10,9 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { PaymentsModule } from './payments/payments.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { PrivacyController } from './privacy/privacy.controller';
+import { ShiftTemplateModule } from './shift-templates/shift-template.module';
 import { ShiftsModule } from './shifts/shifts.module';
 import { UsersModule } from './users/users.module';
-import { ShiftTemplateModule } from './shift-templates/shift-template.module';
 
 @Module({
   imports: [

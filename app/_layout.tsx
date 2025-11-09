@@ -5,19 +5,19 @@ import { ClerkProvider, useAuth } from '@clerk/clerk-expo';
 import { useFonts } from 'expo-font';
 import { Redirect, SplashScreen, Stack, useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
+import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { Platform, LogBox, View, Text } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { initialWindowMetrics, SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { ContractorsProvider } from './contexts/ContractorsContext';
 import { DialogProvider } from './contexts/DialogContext';
 import { LocationsProvider } from './contexts/LocationsContext';
-import { ProfileProvider } from './contexts/ProfileContext';
-import { ShiftsSyncProvider } from './contexts/ShiftsSyncContext';
-import { ShiftTemplatesProvider } from './contexts/ShiftTemplatesContext';
-import { StatusBar } from 'expo-status-bar';
-import { initialWindowMetrics, SafeAreaProvider } from 'react-native-safe-area-context';
 import NotificationsProvider from './contexts/NotificationContext';
+import { ProfileProvider } from './contexts/ProfileContext';
+import { ShiftTemplatesProvider } from './contexts/ShiftTemplatesContext';
+import { ShiftsSyncProvider } from './contexts/ShiftsSyncContext';
 
 LogBox.ignoreLogs(['Constants.platform.ios.model has been deprecated in favor of expo-device']);
 
@@ -128,18 +128,18 @@ function RootLayoutNav() {
               <ContractorsProvider>
                 <ShiftTemplatesProvider>
                   <ShiftsSyncProvider>
-                  <Stack
-                    screenOptions={{
-                      headerShown: false,
-                      contentStyle: { backgroundColor: '#f8fafc' },
-                      animation: 'fade_from_bottom',
-                    }}>
-                    <Stack.Screen name="(root)" options={{ headerShown: false }} />
-                    <Stack.Screen
-                      name="(auth)"
-                      options={{ presentation: 'modal', headerShown: false }}
-                    />
-                  </Stack>
+                    <Stack
+                      screenOptions={{
+                        headerShown: false,
+                        contentStyle: { backgroundColor: '#f8fafc' },
+                        animation: 'fade_from_bottom',
+                      }}>
+                      <Stack.Screen name="(root)" options={{ headerShown: false }} />
+                      <Stack.Screen
+                        name="(auth)"
+                        options={{ presentation: 'modal', headerShown: false }}
+                      />
+                    </Stack>
                   </ShiftsSyncProvider>
                 </ShiftTemplatesProvider>
               </ContractorsProvider>

@@ -1,8 +1,8 @@
-import * as Notifications from 'expo-notifications';
 import { isAfter, startOfDay } from 'date-fns';
+import * as Notifications from 'expo-notifications';
 
-import { ShiftNotificationsManager } from '../utils/shiftNotifications';
 import { Shift } from './shifts-api';
+import { ShiftNotificationsManager } from '../utils/shiftNotifications';
 
 export class NotificationCleanupService {
   static async cleanupExpiredNotifications(): Promise<void> {

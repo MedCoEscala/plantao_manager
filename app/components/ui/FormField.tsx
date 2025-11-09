@@ -4,6 +4,7 @@ import { ptBR } from 'date-fns/locale';
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Platform } from 'react-native';
 import DateTimePicker from 'react-native-modal-datetime-picker';
+
 import { TimePickerModal } from './TimePickerModal';
 
 interface BaseFieldProps {

@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 import { useAuth } from '@clerk/clerk-expo';
+import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 
+import { useProfile } from '../hooks/useProfile';
 import {
   ShiftTemplate,
   CreateShiftTemplateData,
@@ -9,7 +10,6 @@ import {
   CreateShiftFromTemplateData,
   useShiftTemplatesApi,
 } from '../services/shift-templates-api';
-import { useProfile } from '../hooks/useProfile';
 
 interface ShiftTemplatesContextType {
   templates: ShiftTemplate[];

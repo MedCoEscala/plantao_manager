@@ -4,8 +4,8 @@ import React, { useState, useCallback, memo } from 'react';
 import { View, Text, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useDialog } from '../../contexts/DialogContext';
 import { useContractorsContext, Contractor } from '../../contexts/ContractorsContext';
+import { useDialog } from '../../contexts/DialogContext';
 import { ContractorFormModal } from '../contractors/ContractorFormModal';
 
 interface ContractorsListProps {
@@ -172,7 +172,7 @@ const ContractorsList: React.FC<ContractorsListProps> = memo(({ title = 'Contrat
           style={{ flex: 1 }}
           contentContainerStyle={{
             flexGrow: 1,
-            paddingBottom: Math.max(insets.bottom + 80, 100) // 80px para tab bar + inset do dispositivo
+            paddingBottom: Math.max(insets.bottom + 80, 100), // 80px para tab bar + inset do dispositivo
           }}
         />
       )}

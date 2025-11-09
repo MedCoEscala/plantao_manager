@@ -353,7 +353,12 @@ const CalendarComponent: React.FC<CalendarProps> = ({
         <Text className={dateTextClasses}>{getDate(item)}</Text>
 
         {hasShift && (
-          <ShiftColorDots colors={shiftInfo.colors} size="medium" maxVisible={4} isSelected={isSelected} />
+          <ShiftColorDots
+            colors={shiftInfo.colors}
+            size="medium"
+            maxVisible={4}
+            isSelected={isSelected}
+          />
         )}
       </Pressable>
     );

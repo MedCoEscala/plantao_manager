@@ -1,8 +1,8 @@
+import { LinearGradient } from 'expo-linear-gradient';
+import { StatusBar } from 'expo-status-bar';
 import React from 'react';
 import { Platform, View, KeyboardAvoidingView, ScrollView } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView, Edge } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 
 interface AuthScreenWrapperProps {
   children: React.ReactNode;

@@ -29,7 +29,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "versionCode": 53,
+      "versionCode": 54,
       "package": "com.lucaserib.medescala",
       "permissions": [
         "NOTIFICATIONS",

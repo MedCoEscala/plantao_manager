@@ -1,3 +1,4 @@
+import DateTimePicker from '@react-native-community/datetimepicker';
 import React, { useState, useCallback, useEffect } from 'react';
 import {
   Modal,
@@ -8,7 +9,6 @@ import {
   Platform,
   StyleSheet,
 } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
 
 interface TimePickerModalProps {
   visible: boolean;
@@ -63,7 +63,7 @@ export const TimePickerModal: React.FC<TimePickerModalProps> = ({
             mode="time"
             display="default"
             onChange={handleTimeChange}
-            is24Hour={true}
+            is24Hour
             accentColor="#18cb96"
           />
         )}
@@ -107,7 +107,7 @@ export const TimePickerModal: React.FC<TimePickerModalProps> = ({
               mode="time"
               display="spinner"
               onChange={handleTimeChange}
-              is24Hour={true}
+              is24Hour
               textColor="#1e293b"
               locale="pt-BR"
               style={styles.picker}

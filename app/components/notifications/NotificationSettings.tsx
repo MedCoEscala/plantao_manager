@@ -3,10 +3,10 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useState, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Switch } from 'react-native';
 
-import { useNotificationConfig, useNotificationsContext } from '../../contexts/NotificationContext';
-import { useToast } from '../ui/Toast';
-import Card from '../ui/Card';
 import { TimePickerModal } from './TimePickerModal';
+import { useNotificationConfig, useNotificationsContext } from '../../contexts/NotificationContext';
+import Card from '../ui/Card';
+import { useToast } from '../ui/Toast';
 
 const WEEKDAYS = [
   { value: 1, label: 'Segunda-feira' },

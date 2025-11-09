@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 
-import { useNotification } from '../contexts/NotificationContext';
 import { useLocations } from '../contexts/LocationsContext';
+import { useNotification } from '../contexts/NotificationContext';
 import { useLocationsApi } from '../services/locations-api';
 
 const COLOR_PALETTE = [

@@ -56,7 +56,7 @@ const DateTimeSection = memo<DateTimeSectionProps>(
         const startDateTime = new Date(date);
         startDateTime.setHours(startTime.getHours(), startTime.getMinutes(), 0, 0);
 
-        let endDateTime = new Date(date);
+        const endDateTime = new Date(date);
         endDateTime.setHours(endTime.getHours(), endTime.getMinutes(), 0, 0);
 
         const crossesMidnight =

@@ -1,6 +1,6 @@
+import { StatusBar } from 'expo-status-bar';
 import React from 'react';
 import { Platform, StatusBar as RNStatusBar } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView, Edge } from 'react-native-safe-area-context';
 
 interface ScreenWrapperProps {

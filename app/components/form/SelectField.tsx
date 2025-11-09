@@ -70,7 +70,7 @@ export function SelectField({
           setDropdownLayout({
             top: y + height + 4,
             left: x,
-            width: width,
+            width,
           });
           setIsOpen(true);
         }
@@ -124,7 +124,7 @@ export function SelectField({
 
       {/* Dropdown posicionado logo abaixo do campo */}
       {isOpen && !isLoading && (
-        <Modal visible={true} transparent animationType="none" onRequestClose={() => setIsOpen(false)}>
+        <Modal visible transparent animationType="none" onRequestClose={() => setIsOpen(false)}>
           <TouchableWithoutFeedback onPress={() => setIsOpen(false)}>
             <View style={{ flex: 1 }}>
               <TouchableWithoutFeedback>
@@ -147,8 +147,8 @@ export function SelectField({
                   }}>
                   <ScrollView
                     style={{ maxHeight: 240 }}
-                    showsVerticalScrollIndicator={true}
-                    nestedScrollEnabled={true}>
+                    showsVerticalScrollIndicator
+                    nestedScrollEnabled>
                     {safeOptions.map((item, index) => (
                       <TouchableOpacity
                         key={item.value}

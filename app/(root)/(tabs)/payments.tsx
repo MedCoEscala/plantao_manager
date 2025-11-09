@@ -86,12 +86,10 @@ export default function PaymentsScreen() {
   const [selectedContractorId, setSelectedContractorId] = useState<string>('');
   const [showFilters, setShowFilters] = useState(false);
 
-  // Animações - Refatoração completa para melhor fluidez
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const filtersAnim = useRef(new Animated.Value(0)).current;
   const selectionBarAnim = useRef(new Animated.Value(0)).current;
 
-  // Refs para controle rigoroso de carregamento
   const lastLoadTimeRef = useRef(0);
   const isLoadingRef = useRef(false);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -118,7 +116,6 @@ export default function PaymentsScreen() {
     return `${startDate}|${endDate}|${selectedLocationId}|${selectedContractorId}`;
   }, [selectedMonth, selectedLocationId, selectedContractorId]);
 
-  // Plantões filtrados por pesquisa
   const filteredShifts = useMemo(() => {
     if (!debouncedSearchQuery.trim()) {
       return shifts;
@@ -735,7 +732,7 @@ export default function PaymentsScreen() {
             }),
             opacity: filtersAnim.interpolate({
               inputRange: [0, 0.3, 1],
-              outputRange: [0, 0, 1], // Opacity começa a aparecer após 30% da animação
+              outputRange: [0, 0, 1],
             }),
             marginTop: filtersAnim.interpolate({
               inputRange: [0, 1],
@@ -748,7 +745,7 @@ export default function PaymentsScreen() {
                 {
                   translateY: filtersAnim.interpolate({
                     inputRange: [0, 1],
-                    outputRange: [-20, 0], // Efeito de slide sutil
+                    outputRange: [-20, 0],
                   }),
                 },
               ],

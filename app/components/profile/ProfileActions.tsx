@@ -5,9 +5,9 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Linking, Alert } from 'react-native';
 
 import DeleteAccountModal from './DeleteAccountModal';
+import { useProfile } from '../../hooks/useProfile';
 import { useUserApi } from '../../services/user-api';
 import { useToast } from '../ui/Toast';
-import { useProfile } from '../../hooks/useProfile';
 
 const ProfileActions: React.FC = () => {
   const router = useRouter();

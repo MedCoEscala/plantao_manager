@@ -5,8 +5,8 @@ import React from 'react';
 import { View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useToast } from '../../components/ui/Toast';
 import TemplateForm from '../../components/shift-template/TemplateForm';
+import { useToast } from '../../components/ui/Toast';
 
 const AddTemplateScreen = () => {
   const router = useRouter();

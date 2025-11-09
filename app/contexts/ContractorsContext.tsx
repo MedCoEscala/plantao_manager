@@ -160,28 +160,25 @@ export function ContractorsProvider({ children }: { children: React.ReactNode })
     []
   );
 
-  const deleteContractor = useCallback(
-    async (id: string): Promise<void> => {
-      try {
-        const token = await getTokenRef.current();
-        if (!token) {
-          console.warn('Token não disponível para remover contratante');
-          throw new Error('AUTH_TOKEN_UNAVAILABLE');
-        }
-
-        await fetchWithAuth(`/contractors/${id}`, { method: 'DELETE' }, async () => token);
-
-        setContractors((prev) => prev.filter((c) => c.id !== id));
-        showToastRef.current('Contratante removido com sucesso', 'success');
-      } catch (error: any) {
-        console.error('Erro ao remover contratante:', error);
-        const errorMessage = error?.response?.data?.message || 'Erro ao remover contratante';
-        showToastRef.current(errorMessage, 'error');
-        throw error;
+  const deleteContractor = useCallback(async (id: string): Promise<void> => {
+    try {
+      const token = await getTokenRef.current();
+      if (!token) {
+        console.warn('Token não disponível para remover contratante');
+        throw new Error('AUTH_TOKEN_UNAVAILABLE');
       }
-    },
-    []
-  );
+
+      await fetchWithAuth(`/contractors/${id}`, { method: 'DELETE' }, async () => token);
+
+      setContractors((prev) => prev.filter((c) => c.id !== id));
+      showToastRef.current('Contratante removido com sucesso', 'success');
+    } catch (error: any) {
+      console.error('Erro ao remover contratante:', error);
+      const errorMessage = error?.response?.data?.message || 'Erro ao remover contratante';
+      showToastRef.current(errorMessage, 'error');
+      throw error;
+    }
+  }, []);
 
   // Carrega contratantes quando o profile estiver inicializado
   useEffect(() => {

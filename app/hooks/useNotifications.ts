@@ -287,7 +287,7 @@ export const useNotifications = (): UseNotificationsReturn => {
       console.log('📥 Notificação recebida:', {
         title: notification.request.content.title,
         type: data?.type,
-        data: data,
+        data,
       });
 
       setNotification(notification);
@@ -324,7 +324,7 @@ export const useNotifications = (): UseNotificationsReturn => {
     const data = response.notification.request.content.data as any;
     console.log('👆 Notificação tocada:', {
       type: data?.type,
-      data: data,
+      data,
     });
 
     // Navegação baseada no tipo de notificação

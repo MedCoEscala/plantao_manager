@@ -1,15 +1,15 @@
 import React, { memo, useCallback } from 'react';
 import { View, Text, ScrollView, ActivityIndicator, Switch } from 'react-native';
 
-import { useTemplateForm } from '../../hooks/useTemplateForm';
-import { ShiftTemplate } from '../../services/shift-templates-api';
 import { useContractors } from '../../contexts/ContractorsContext';
 import { useLocations } from '../../contexts/LocationsContext';
+import { useTemplateForm } from '../../hooks/useTemplateForm';
+import { ShiftTemplate } from '../../services/shift-templates-api';
 import DateField from '../form/DateField';
 import SelectField from '../form/SelectField';
-import Input from '../ui/Input';
 import Button from '../ui/Button';
 import Card from '../ui/Card';
+import Input from '../ui/Input';
 import SectionHeader from '../ui/SectionHeader';
 
 interface TemplateFormProps {

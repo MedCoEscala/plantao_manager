@@ -114,7 +114,7 @@ export function useTemplateForm({ templateId, initialData, onSuccess }: UseTempl
         return '0h';
       }
 
-      let endDateTime = new Date(formData.endTime);
+      const endDateTime = new Date(formData.endTime);
       const startDateTime = new Date(formData.startTime);
 
       if (endDateTime <= startDateTime) {

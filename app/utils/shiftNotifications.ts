@@ -1,9 +1,9 @@
-import * as Notifications from 'expo-notifications';
 import { format, addMinutes, subMinutes, startOfDay, isAfter, isBefore } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import * as Notifications from 'expo-notifications';
 
-import { Shift } from '../services/shifts-api';
 import { formatShiftDate, formatTime } from './formatters';
+import { Shift } from '../services/shifts-api';
 
 export const NOTIFICATION_TYPES = {
   DAILY_REMINDER: 'daily_reminder',
@@ -68,11 +68,11 @@ export class ShiftNotificationsManager {
         return;
       }
 
-      const notifications: Array<{
+      const notifications: {
         identifier: string;
         trigger: Date;
         content: Notifications.NotificationContentInput;
-      }> = [];
+      }[] = [];
 
       if (config.beforeShiftReminder && shift.startTime) {
         const shiftDateTime = this.createShiftDateTime(shift.date, shift.startTime);

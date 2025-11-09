@@ -1,8 +1,8 @@
 import React from 'react';
 
 import TemplateForm from './TemplateForm';
-import KeyboardAwareFormModal from '../form/KeyboardAwareFormModal';
 import { ShiftTemplate } from '../../services/shift-templates-api';
+import KeyboardAwareFormModal from '../form/KeyboardAwareFormModal';
 
 interface TemplateFormModalProps {
   visible: boolean;

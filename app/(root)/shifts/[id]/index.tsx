@@ -11,6 +11,7 @@ import { useDialog } from '../../../contexts/DialogContext';
 import { useShiftsSync } from '../../../contexts/ShiftsSyncContext';
 import { useShiftsApi, Shift } from '../../../services/shifts-api';
 import { formatDate, formatTime, formatCurrency } from '../../../utils/formatters';
+
 import ScreenWrapper from '@/components/ui/ScreenWrapper';
 
 const getStatusColor = (status: string) => {

@@ -80,7 +80,7 @@ export default function SignInScreen() {
     try {
       const result = await signIn.create({
         identifier: email.trim(),
-        password: password,
+        password,
       });
 
       if (result.status === 'complete') {

@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
+
+import { ShiftTemplatesSafeService } from './shift-templates-safe.service';
 import { ShiftTemplatesController } from './shift-templates.controller';
 import { ShiftTemplatesService } from './shift-templates.service';
-import { ShiftTemplatesSafeService } from './shift-templates-safe.service';
-
 import { PrismaModule } from '../prisma/prisma.module';
 import { ShiftsModule } from '../shifts/shifts.module';
 
